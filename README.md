@@ -36,17 +36,21 @@ git clone https://gitlab.freedesktop.org/gstreamer/cerbero gst-sdk
 
 cd gst-sdk
 git checkout 1.28.0
+```
 
 **Linux**
 
+```
 ./cerbero-uninstalled bootstrap
 ./cerbero-uninstalled build gstreamer-1.0
 ./cerbero-uninstalled build gst-plugins-base
 ./cerbero-uninstalled build gst-plugins-good
 ./cerbero-uninstalled build gst-plugins-bad
+```
 
 **Windows**
 
+```
 ./cerbero-uninstalled -c config/cross-win64.cbc bootstrap
 ./cerbero-uninstalled -c config/cross-win64.cbc build gstreamer-1.0
 ./cerbero-uninstalled -c config/cross-win64.cbc build gst-plugins-base
@@ -58,9 +62,11 @@ git checkout 1.28.0
 
 ```
 cd ..
+```
 
 **Linux**
 
+```
 export SDK=/root/EchoStreamer/gst-sdk/build/dist/linux_x86_64
 export PKG_CONFIG_PATH=$SDK/lib/x86_64-linux-gnu/pkgconfig
 export PKG_CONFIG_SYSROOT_DIR=$SDK
@@ -75,9 +81,11 @@ gcc -o gst_test gst_test_linux.c \
     $(pkg-config --cflags --libs gstreamer-1.0) \
     -Wl,-rpath-link,$LIBRARY_PATH \
     -Wl,-rpath,'$ORIGIN/gst-lib/x86_64-linux-gnu/lib'
+```
 
 **Windows**
 
+```
 export SDK=/root/EchoStreamer/gst-sdk/build/dist/mingw_x86_64
 export PKG_CONFIG_PATH=$SDK/lib/pkgconfig
 export PKG_CONFIG_SYSROOT_DIR=$SDK
@@ -109,4 +117,3 @@ set "PATH=%CD%\gst-lib\x86_64-windows\bin;%PATH%"
 set "GST_PLUGIN_PATH=%CD%\gst-lib\x86_64-windows\lib\gstreamer-1.0"
 gst_test.exe"
 ```
-
