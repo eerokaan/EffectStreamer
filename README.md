@@ -1,15 +1,13 @@
 # EchoStreamer – Core
 
-This is the EchoStreamer Core – a simple cross-compilable application written in C. It archives the same functionality as the previous script-based EchoStreamer but also allows for cross-platform usage and, more importantly, enables being embedded into a GUI application (e.g. Electron) which would be the next development step.
+This is the EchoStreamer core – a standalone application which allows for the same VoIP echo tests to be held, as the previous script-based EchoStreamer. However the EchoStreamer core is not dependent on a GStreamer instance installed on the host system, as EchoStreamer core comes with its own dynamically linked GStreamer. Moreover, the EchoStreamer core is able to be cross-compiled to Linux and Windows at the same time, while also taking care of audio server differences (ALSA vs. WASAPI2); this allows the EchoStreamer core to be embedded into other applications (hence the naming "Core").
 
-## How to cross-compile EchoStreamer with dynamically linked and local GStreamer
+In the following README, is is explained how to compile GStreamer and other prerequisites, aswell as then compiling and running EchoStreamer. There are two important factors to consider, before starting:
 
-There are two prerequisites:
+- Please make sure to use Ubuntu 24.04 (or other Debian-based Linux distros) as your compiler host
+- Please also make sure to work on a local filesystem, as compiling on network shares will most likely cause permission errors
 
-- You are running Ubuntu 24.04
-- Make sure to work from a local filesystem; compiling on network shares will lead to errors
-
-### Prepare Ubuntu
+## Step 1) Prepare Ubuntu
 
 ```
 sudo -i
@@ -25,7 +23,7 @@ apt-get -y install python3 python3-venv git
 apt-get -y install build-essential gcc-mingw-w64-x86-64-posix
 ```
 
-### Build GStreamer with necessary plugins
+## Step 2) Build GStreamer with necessary plugins
 
 ```
 git clone https://git.tu-berlin.de/qu/speech-quality/echostreamer.git EchoStreamer
@@ -38,7 +36,7 @@ cd gst-sdk
 git checkout 1.28.0
 ```
 
-**Linux**
+### Linux
 
 ```
 ./cerbero-uninstalled bootstrap
@@ -48,7 +46,7 @@ git checkout 1.28.0
 ./cerbero-uninstalled build gst-plugins-bad
 ```
 
-**Windows**
+### Windows
 
 ```
 ./cerbero-uninstalled -c config/cross-win64.cbc bootstrap
@@ -58,16 +56,16 @@ git checkout 1.28.0
 ./cerbero-uninstalled -c config/cross-win64.cbc build gst-plugins-bad
 ```
 
-### Build EchoStreamer with GStreamer linking
+## Step 3) Build EchoStreamer with GStreamer linking
 
 ```
 cd ..
 ```
 
-**Linux**
+### Linux
 
 ```
-export SDK=/root/EchoStreamer/gst-sdk/build/dist/linux_x86_64
+export SDK=$(pwd)/gst-sdk/build/dist/linux_x86_64
 export PKG_CONFIG_PATH=$SDK/lib/x86_64-linux-gnu/pkgconfig
 export PKG_CONFIG_SYSROOT_DIR=$SDK
 export LIBRARY_PATH=$SDK/lib/x86_64-linux-gnu
@@ -77,16 +75,20 @@ mkdir -p gst-lib/x86_64-linux-gnu/lib
 cp -a $SDK/bin/* gst-lib/x86_64-linux-gnu/bin/
 cp -a $SDK/lib/x86_64-linux-gnu/* gst-lib/x86_64-linux-gnu/lib/
 
-gcc -o gst_test gst_test_linux.c \
+gcc -o echostreamer \
+    est-src/main.c \
+    est-src/sender.c \
+    est-src/receiver.c \
+    est-src/deviceutils.c \
     $(pkg-config --cflags --libs gstreamer-1.0) \
     -Wl,-rpath-link,$LIBRARY_PATH \
     -Wl,-rpath,'$ORIGIN/gst-lib/x86_64-linux-gnu/lib'
 ```
 
-**Windows**
+### Windows
 
 ```
-export SDK=/root/EchoStreamer/gst-sdk/build/dist/mingw_x86_64
+export SDK=$(pwd)/gst-sdk/build/dist/mingw_x86_64
 export PKG_CONFIG_PATH=$SDK/lib/pkgconfig
 export PKG_CONFIG_SYSROOT_DIR=$SDK
 export LIBRARY_PATH=$SDK/lib
@@ -96,24 +98,28 @@ mkdir -p gst-lib/x86_64-windows/lib
 cp -a $SDK/bin/* gst-lib/x86_64-windows/bin/
 cp -a $SDK/lib/* gst-lib/x86_64-windows/lib/
 
-x86_64-w64-mingw32-gcc -o gst_test.exe gst_test_windows.c \
+x86_64-w64-mingw32-gcc -o echostreamer.exe \
+    est-src/main.c \
+    est-src/sender.c \
+    est-src/receiver.c \
+    est-src/deviceutils.c \
     $(pkg-config --cflags --libs gstreamer-1.0)
 ```
 
-### Run EchoStreamer
+## Step 4) Run EchoStreamer
 
-**Linux**
+### Linux
 
 ```
-export LD_LIBRARY_PATH=$(pwd)/gst-lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+export LD_LIBRARY_PATH=$(pwd)/gst-lib/x86_64-linux-gnu/lib/${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 export GST_PLUGIN_PATH=$(pwd)/gst-lib/x86_64-linux-gnu/lib/gstreamer-1.0
-./gst_test
+./echostreamer
 ```
 
-**Windows**
+### Windows
 
 ```
 set "PATH=%CD%\gst-lib\x86_64-windows\bin;%PATH%"
 set "GST_PLUGIN_PATH=%CD%\gst-lib\x86_64-windows\lib\gstreamer-1.0"
-gst_test.exe"
+echostreamer.exe
 ```
