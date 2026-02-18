@@ -75,7 +75,7 @@ mkdir -p gst-lib/x86_64-linux-gnu/lib
 cp -a $SDK/bin/* gst-lib/x86_64-linux-gnu/bin/
 cp -a $SDK/lib/x86_64-linux-gnu/* gst-lib/x86_64-linux-gnu/lib/
 
-gcc -o echostreamer \
+gcc -o est-core \
     est-src/main.c \
     est-src/sender.c \
     est-src/receiver.c \
@@ -98,7 +98,7 @@ mkdir -p gst-lib/x86_64-windows/lib
 cp -a $SDK/bin/* gst-lib/x86_64-windows/bin/
 cp -a $SDK/lib/* gst-lib/x86_64-windows/lib/
 
-x86_64-w64-mingw32-gcc -o echostreamer.exe \
+x86_64-w64-mingw32-gcc -o est-core.exe \
     est-src/main.c \
     est-src/sender.c \
     est-src/receiver.c \
@@ -113,7 +113,7 @@ x86_64-w64-mingw32-gcc -o echostreamer.exe \
 ```
 export LD_LIBRARY_PATH=$(pwd)/gst-lib/x86_64-linux-gnu/lib/${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 export GST_PLUGIN_PATH=$(pwd)/gst-lib/x86_64-linux-gnu/lib/gstreamer-1.0
-./echostreamer
+./est-core
 ```
 
 ### Windows
@@ -121,5 +121,5 @@ export GST_PLUGIN_PATH=$(pwd)/gst-lib/x86_64-linux-gnu/lib/gstreamer-1.0
 ```
 set "PATH=%CD%\gst-lib\x86_64-windows\bin;%PATH%"
 set "GST_PLUGIN_PATH=%CD%\gst-lib\x86_64-windows\lib\gstreamer-1.0"
-echostreamer.exe
+.\est-core.exe
 ```
