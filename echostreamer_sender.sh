@@ -48,8 +48,8 @@ fi
 # Run GStreamer sender
 chrt -f 99 gst-launch-1.0 -e -v \
     alsasrc device=${DEVICE} buffer-time=5000 latency-time=1000 ! \
-    audioconvert ! audioresample ! audio/x-raw,format=S16BE,channels=1,rate=48000 ! \
-    rtpL16pay pt=96 ! tee name=t ! \
-        queue min-threshold-time=0 ! udpsink host=${PEERIP} port=9004 sync=false t. ! \
-        queue min-threshold-time=$((THRESHOLD_ADJUSTED * 1000000)) ! udpsink host=127.0.0.1 port=9005 sync=false t. ! \
-        queue min-threshold-time=0 ! udpsink host=127.0.0.1 port=9006 sync=false
+    audioconvert ! audioresample ! audio/x-raw,format=S16LE,channels=1,rate=48000 ! \
+    rtpL16pay pt=96 ! tee name=t \
+        t. ! queue min-threshold-time=0 ! udpsink host=${PEERIP} port=9004 sync=false \
+        t. ! queue min-threshold-time=$((THRESHOLD_ADJUSTED * 1000000)) ! udpsink host=127.0.0.1 port=9005 sync=false \
+        t. ! queue min-threshold-time=0 ! udpsink host=127.0.0.1 port=9006 sync=false

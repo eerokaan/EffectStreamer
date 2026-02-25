@@ -37,18 +37,21 @@ fi
 SESSION_DIR="session-$(date +%s)"
 mkdir -p "${SESSION_DIR}"
 
-# Prepend session directory to record file path
-RECORD_FILE="${SESSION_DIR}/${SESSION_DIR}.ogg"
+# Define recording paths
+RECORD_FILE_MICROPHONE="${SESSION_DIR}/${SESSION_DIR}-microphone.ogg"
+RECORD_FILE_HEADPHONES="${SESSION_DIR}/${SESSION_DIR}-headphones.ogg"
 
 # Run GStreamer receivers
 chrt -f 99 gst-launch-1.0 -e -v \
-    adder name=add ! audioconvert ! audioresample ! alsasink device=${DEVICE} buffer-time=5000 latency-time=1000 sync=false \
-    udpsrc port=9004 caps="application/x-rtp,media=audio,encoding-name=L16,clock-rate=48000,channels=1,payload=96" ! \
-        rtpjitterbuffer latency=5 drop-on-latency=true ! rtpL16depay ! audioconvert ! \
-        audio/x-raw,channels=1,rate=48000 ! volume volume=1.0 ! add. \
-    udpsrc port=9005 caps="application/x-rtp,media=audio,encoding-name=L16,clock-rate=48000,channels=1,payload=96" ! \
-        rtpjitterbuffer latency=5 drop-on-latency=true ! rtpL16depay ! audioconvert ! \
-        audio/x-raw,channels=1,rate=48000 ! volume volume=${GAIN} ! add. \
+    adder name=add ! tee name=t \
+        t. ! queue ! audioconvert ! audioresample ! alsasink device=${DEVICE} buffer-time=5000 latency-time=1000 sync=false async=false \
+        t. ! queue ! audioconvert ! audioresample ! opusenc bitrate=128000 ! oggmux ! filesink location=${RECORD_FILE_HEADPHONES} sync=false async=false \
+        udpsrc port=9004 caps="application/x-rtp,media=audio,encoding-name=L16,clock-rate=48000,channels=1,payload=96" ! \
+            rtpjitterbuffer latency=5 drop-on-latency=true ! rtpL16depay ! audioconvert ! \
+            audio/x-raw,format=S16LE,channels=1,rate=48000 ! volume volume=1.0 ! add. \
+        udpsrc port=9005 caps="application/x-rtp,media=audio,encoding-name=L16,clock-rate=48000,channels=1,payload=96" ! \
+            rtpjitterbuffer latency=5 drop-on-latency=true ! rtpL16depay ! audioconvert ! \
+            audio/x-raw,format=S16LE,channels=1,rate=48000 ! volume volume=${GAIN} ! add. \
     udpsrc port=9006 caps="application/x-rtp,media=audio,encoding-name=L16,clock-rate=48000,channels=1,payload=96" ! \
         rtpjitterbuffer latency=5 drop-on-latency=true ! rtpL16depay ! audioconvert ! \
-        audio/x-raw,channels=1,rate=48000 ! volume volume=1.0 ! opusenc bitrate=128000 ! oggmux ! filesink location=${RECORD_FILE}
+        opusenc bitrate=128000 ! oggmux ! filesink location=${RECORD_FILE_MICROPHONE} sync=false async=false
