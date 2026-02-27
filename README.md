@@ -1,6 +1,6 @@
 # EchoStreamer
 
-The EchoStreamer tool enables testing out different audio echo scenarios within a standard voice call between two participants. In addition to hearing the remote participant, each participant also hears their own voice with a configurable echo latency and gain. The latency is precisely controllable from 20ms upwards. During each EchoStreamer session, audio from both participants is recorded, allowing for subsequent analysis of the call.
+The EchoStreamer tool enables testing out different audio echo scenarios within a standard voice call between two participants. In addition to hearing the remote participant, each participant also hears their own voice with a configurable echo latency and gain. The latency is precisely controllable from 20ms upwards. During each EchoStreamer session, audio from both participants microphone-input and headphones-output is recorded, allowing for subsequent analysis of the call.
 
 ## 1) Setting up the test machines
 
