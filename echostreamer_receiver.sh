@@ -48,10 +48,10 @@ chrt -f 99 gst-launch-1.0 -e -v \
         t. ! queue ! audioconvert ! audioresample ! opusenc bitrate=128000 ! oggmux ! filesink location=${RECORD_FILE_HEADPHONES} sync=false async=false \
         udpsrc port=9004 caps="application/x-rtp,media=audio,encoding-name=L16,clock-rate=48000,channels=1,payload=96" ! \
             rtpjitterbuffer latency=5 drop-on-latency=true ! rtpL16depay ! audioconvert ! \
-            audio/x-raw,format=S16LE,channels=1,rate=48000 ! volume volume=1.0 ! add. \
+            audio/x-raw,channels=1,rate=48000 ! volume volume=1.0 ! add. \
         udpsrc port=9005 caps="application/x-rtp,media=audio,encoding-name=L16,clock-rate=48000,channels=1,payload=96" ! \
             rtpjitterbuffer latency=5 drop-on-latency=true ! rtpL16depay ! audioconvert ! \
-            audio/x-raw,format=S16LE,channels=1,rate=48000 ! volume volume=${GAIN} ! add. \
+            audio/x-raw,channels=1,rate=48000 ! volume volume=${GAIN} ! add. \
     udpsrc port=9006 caps="application/x-rtp,media=audio,encoding-name=L16,clock-rate=48000,channels=1,payload=96" ! \
         rtpjitterbuffer latency=5 drop-on-latency=true ! rtpL16depay ! audioconvert ! \
         opusenc bitrate=128000 ! oggmux ! filesink location=${RECORD_FILE_MICROPHONE} sync=false async=false
