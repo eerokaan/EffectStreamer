@@ -29,7 +29,7 @@ apt-get -y install build-essential gcc-mingw-w64-x86-64-posix
 git clone https://git.tu-berlin.de/qu/speech-quality/echostreamer.git EchoStreamer
 cd EchoStreamer
 
-git checkout es-core
+git checkout est-core
 git clone https://gitlab.freedesktop.org/gstreamer/cerbero gst-sdk
 
 cd gst-sdk
@@ -107,6 +107,8 @@ x86_64-w64-mingw32-gcc -o est-core.exe \
 ```
 
 ## Step 4) Run EchoStreamer
+
+Notice: Always `tar` the `gst-lib` directory when transferring it between machines. The symbolic link structure inside it can easily become corrupted when moving across different machines or platforms.
 
 ### Linux
 

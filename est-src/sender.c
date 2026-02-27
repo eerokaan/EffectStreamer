@@ -73,7 +73,6 @@ int run_sender(SenderParams *params) {
     g_print("  Device: %s\n", params->device);
     g_print("  Peer IP: %s\n", params->peerip);
     g_print("  Latency: %d ms\n", params->latency);
-    g_print("  Adjusted threshold: %ld ns\n", threshold_adjusted);
 
     /* Create GStreamer elements */
     context.pipeline = gst_pipeline_new("sender-pipeline");
@@ -139,7 +138,6 @@ int run_sender(SenderParams *params) {
 
     /* Set caps for audio format */
     caps = gst_caps_new_simple("audio/x-raw",
-                               "format", G_TYPE_STRING, "S16BE",
                                "channels", G_TYPE_INT, 1,
                                "rate", G_TYPE_INT, 48000,
                                NULL);
