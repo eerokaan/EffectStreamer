@@ -1,0 +1,16 @@
+{
+    "name": "de.tu-berlin.qu.echostreamer.server",
+    "displayName": "EchoStreamer",
+    "version": "1.0.0",
+    "description": "A tool to research the effects of echo in a voice call",
+    "main": "index.js",
+    "author": "Eero Kaan",
+    "company": "Quality and Usability Lab / TU Berlin",
+    "scripts": {
+        "dev:run": "node index.js"
+    },
+    "dependencies": {
+        "express": "^5.2.1",
+        "socket.io": "^4.8.3"
+    }
+}
