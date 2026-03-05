@@ -1,48 +1,38 @@
 // ===========================================
 // ===== COMMON ==============================
 // ===========================================
+import estConfig from "../../est-config.js";
 import path from "path";
 
-import { appInfo } from "./appInfo";
 import { app, shell, BrowserWindow } from "electron";
 import { electronApp, optimizer } from "@electron-toolkit/utils";
+import { io } from "socket.io-client";
 
-import { default as appContent } from "./lib/appContent";
-import { default as initZustandStorage } from "./lib/zustandStorage";
-
+import appContent from "./lib/appContent";
 import appContext from "./lib/appContext";
-import zustandStores from "./lib/zustandStores";
+import appInfo from "./lib/appInfo";
 
 // ===========================================
 // ===== WINDOW HANDLING =====================
 // ===========================================
-app.whenReady()
-    .then(() => {
-        electronApp.setAppUserModelId(appInfo.name);
+(async () => {
+    await app.whenReady();
 
-        app.on("browser-window-created", (_, window) => {
-            optimizer.watchWindowShortcuts(window);
-        });
-
-        // For macOS
-        app.on("activate", function () {
-            if (BrowserWindow.getAllWindows().length === 0) {
-                initCreateWindow();
-            }
-        });
-    })
-    .then(() => {
-        initCreateWindow();
-        initZustandStorage();
+    electronApp.setAppUserModelId(appInfo.name);
+    
+    app.on("browser-window-created", (_, window) => {
+        optimizer.watchWindowShortcuts(window);
     });
+    
+    await initWindow();
+    await initSocket();
+})();
 
-app.on("window-all-closed", () => {
-    if (process.platform !== "darwin") {
-        app.quit();
-    }
-});
+// ===========================================
+// ===== WINDOW HANDLING =====================
+// ===========================================
+async function initWindow() {
 
-async function initCreateWindow() {
     // ===== Common ==============================
     // Window creation
     appContext.windowMain = new BrowserWindow({
@@ -60,17 +50,11 @@ async function initCreateWindow() {
         }
     });
 
-    // Closing events for windows
-    appContext.windowMain.on("closed", () => {
-        app.emit("window-all-closed");
-    });
+    // Window closing
     appContext.windowMain.on("close", async (event) => {
         event.preventDefault();
-        const { setStoreValue } = zustandStores(appContext.windowMain);
 
-        //await setStoreValue("DummyStore01", "resetStates", {});
-        //await setStoreValue("DummyStore02", "resetStates", {});
-
+        appContext.socket.disconnect();
         appContext.windowMain.destroy();
     });
 
@@ -87,5 +71,41 @@ async function initCreateWindow() {
     });
 
     // Load in content
-    appContent(appContext.windowMain, "windowMain.html");
+    await appContent(appContext.windowMain, "windowMain.html");
+}
+
+// ===========================================
+// ===== SOCKET HANDLING =====================
+// ===========================================
+async function initSocket() {
+
+    // Setup socket client
+    const serverUrl = `http://${estConfig.server.host}:${estConfig.server.port}`;
+    appContext.socket = io(serverUrl, {
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        reconnectionAttempts: Infinity
+    });
+    
+    // Connection established
+    appContext.socket.on("connect", () => {
+
+        // Handle registration
+        appContext.socket.emit("est-event:register", {
+            appName: appInfo.displayName,
+            appVersion: appInfo.version,
+            platform: process.platform
+        });
+
+        // Handle est-event:allClientsConnected command from server
+        appContext.socket.on("est-event:allClientsConnected", (data) => {
+            appContext.windowMain.webContents.send("ipc:allClientsConnected", data);
+        });
+
+        // Handle disconnection
+        appContext.socket.on("disconnect", (reason) => {
+            console.log("Disconnected from server:", reason);
+        });
+    });
 }

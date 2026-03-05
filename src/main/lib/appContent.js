@@ -1,7 +1,7 @@
 import { is } from "@electron-toolkit/utils";
 import path from "path";
 
-const setWindowContent = async (window, pageFile) => {
+const appContent = async (window, pageFile) => {
     if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
         await window.loadURL(process.env["ELECTRON_RENDERER_URL"] + "/" + pageFile);
     }
@@ -10,4 +10,4 @@ const setWindowContent = async (window, pageFile) => {
     }
 };
 
-export default setWindowContent;
+export default appContent;

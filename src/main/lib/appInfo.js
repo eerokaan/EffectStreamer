@@ -1,8 +1,10 @@
-import pkg from "../../package.json";
+import pkg from "../../../package.json";
 
-export const appInfo = {
+const appInfo = {
     name: pkg.name,
     displayName: pkg.displayName,
     version: pkg.version,
     company: pkg.company
 };
+
+export default appInfo;

@@ -1,12 +1,12 @@
-import { appInfo } from "../main/appInfo";
 import { contextBridge, ipcRenderer } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
+import appInfo from "../main/lib/appInfo";
 
 // Define valid channels by operation type
 const validChannels = {
-    invoke: ["jsonFileRead", "jsonFileWrite", "jsonFileDelete"],
-    on: ["storeGetValueRequest", "storeSetValueRequest"],
-    send: ["storeGetValueResponse", "storeSetValueResponse"]
+    invoke: [],
+    on: ["ipc:allClientsConnected"],
+    send: []
 };
 
 // Create a secure wrapper for ipcRenderer
@@ -21,6 +21,7 @@ const appAPI = {
         on: (channel, listener) => {
             if (validChannels.on.includes(channel)) {
                 ipcRenderer.on(channel, listener);
+
                 return () => {
                     ipcRenderer.removeListener(channel, listener);
                 };

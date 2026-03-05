@@ -1,0 +1,9 @@
+function ViewWelcome() {
+    return (
+        <div className="flex h-full items-center justify-center">
+            <p className="text-4xl font-semibold text-center text-gray-700">Welcome</p>
+        </div>
+    );
+}
+
+export default ViewWelcome;
