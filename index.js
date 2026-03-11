@@ -18,34 +18,38 @@ const io = socketIo(server, {
 });
 
 // ===========================================
-// ===== SOCKET CONNECTION ===================
+// ===== WEBSOCKET LOGIC =====================
 // ===========================================
 io.on("connection", (socket) => {
 
-    // Handle registration
-    socket.on("est-event:register", (data) => {
+    // clientRegister
+    socket.on("est-event:clientRegister", (data) => {
         console.log("Client registered: " + socket.id, data);
-
-        // Add new client to map
         connectedClients.set(socket.id, data);
 
         // Check if two clients are connected now
         if (connectedClients.size === 2) {
             connectedClients.forEach((client, socketId) => {
-                io.to(socketId).emit("est-event:allClientsConnected");
+                io.to(socketId).emit("est-event:sessionStart");
             });
         }
     });
 
-    // Handle disconnection
-    socket.on("disconnect", () => {
+    // clientUnregister
+    socket.on("est-event:clientUnregister", (data) => {
         console.log("Client disconnected: " + socket.id);
         connectedClients.delete(socket.id);
+
+        if (connectedClients.size < 2) {
+            connectedClients.forEach((client, socketId) => {
+                io.to(socketId).emit("est-event:sessionEnd");
+            });
+        }
     });
 });
 
 // ===========================================
-// ===== HTTP SERVER =========================
+// ===== HTTP SERVER LOGIC ===================
 // ===========================================
 server.listen(estConfig.server.port, () => {
     console.log("Server is running on port " + estConfig.server.port);
