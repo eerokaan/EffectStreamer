@@ -1,8 +1,10 @@
 function ViewWaiting() {
     return (
-        <div className="flex h-full items-center justify-center">
-            <p className="text-4xl font-semibold text-center text-gray-700">Waiting for experiment to begin...</p>
-        </div>
+        <>
+            <div className="flex flex-col flex-1 justify-center">
+                <h1 className="text-4xl font-semibold text-center text-gray-700">Waiting for experiment to begin...</h1>
+            </div>
+        </>
     );
 }
 

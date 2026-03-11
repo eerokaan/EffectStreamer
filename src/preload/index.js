@@ -4,8 +4,8 @@ import appInfo from "../main/lib/appInfo";
 
 // Define valid channels by operation type
 const validChannels = {
-    invoke: [],
-    on: ["ipc:allClientsConnected"],
+    invoke: ["ipc:nextViewRequested"],
+    on: ["ipc:sessionStart", "ipc:sessionEnd"],
     send: []
 };
 

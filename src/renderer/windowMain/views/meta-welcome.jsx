@@ -1,8 +1,19 @@
+import ComponentFooter from "@/components/footer";
+import ComponentHeader from "@/components/header";
+
 function ViewWelcome() {
     return (
-        <div className="flex h-full items-center justify-center">
-            <p className="text-4xl font-semibold text-center text-gray-700">Welcome</p>
-        </div>
+        <>
+            <div className="flex flex-col flex-1 justify-center">
+                <ComponentHeader headline="Welcome"></ComponentHeader>
+
+                <div className="flex-1">
+                    <p>Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.</p>
+                </div>
+
+                <ComponentFooter></ComponentFooter>
+            </div>
+        </>
     );
 }
 

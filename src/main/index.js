@@ -4,7 +4,7 @@
 import estConfig from "../../est-config.js";
 import path from "path";
 
-import { app, shell, BrowserWindow } from "electron";
+import { app, shell, ipcMain, BrowserWindow } from "electron";
 import { electronApp, optimizer } from "@electron-toolkit/utils";
 import { io } from "socket.io-client";
 
@@ -13,33 +13,32 @@ import appContext from "./lib/appContext";
 import appInfo from "./lib/appInfo";
 
 // ===========================================
-// ===== WINDOW HANDLING =====================
+// ===== STARTUP / INITS =====================
 // ===========================================
 (async () => {
     await app.whenReady();
-
     electronApp.setAppUserModelId(appInfo.name);
     
     app.on("browser-window-created", (_, window) => {
         optimizer.watchWindowShortcuts(window);
     });
     
-    await initWindow();
-    await initSocket();
+    await windowLogic();
+    await socketLogic();
 })();
 
 // ===========================================
-// ===== WINDOW HANDLING =====================
+// ===== WINDOW LOGIC ========================
 // ===========================================
-async function initWindow() {
+async function windowLogic() {
 
     // ===== Common ==============================
     // Window creation
     appContext.windowMain = new BrowserWindow({
         x: 100,
         y: 100,
-        width: 1366,
-        height: 768,
+        width: 800,
+        height: 600,
         title: appInfo.displayName,
         autoHideMenuBar: true,
         webPreferences: {
@@ -51,11 +50,8 @@ async function initWindow() {
     });
 
     // Window closing
-    appContext.windowMain.on("close", async (event) => {
-        event.preventDefault();
-
+    appContext.windowMain.on("closed", () => {
         appContext.socket.disconnect();
-        appContext.windowMain.destroy();
     });
 
     // ===== windowMain ==============================
@@ -75,11 +71,12 @@ async function initWindow() {
 }
 
 // ===========================================
-// ===== SOCKET HANDLING =====================
+// ===== WEBSOCKET LOGIC =====================
 // ===========================================
-async function initSocket() {
+async function socketLogic() {
 
-    // Setup socket client
+    // ===== Common ==============================
+    // Setup socket connection
     const serverUrl = `http://${estConfig.server.host}:${estConfig.server.port}`;
     appContext.socket = io(serverUrl, {
         reconnection: true,
@@ -87,25 +84,40 @@ async function initSocket() {
         reconnectionDelayMax: 5000,
         reconnectionAttempts: Infinity
     });
-    
-    // Connection established
-    appContext.socket.on("connect", () => {
 
-        // Handle registration
-        appContext.socket.emit("est-event:register", {
+    // clientRegister
+    // [MAIN] -> [SERVER]
+    appContext.socket.on("connect", () => {
+        appContext.socket.emit("est-event:clientRegister", {
             appName: appInfo.displayName,
             appVersion: appInfo.version,
             platform: process.platform
         });
+    });
 
-        // Handle est-event:allClientsConnected command from server
-        appContext.socket.on("est-event:allClientsConnected", (data) => {
-            appContext.windowMain.webContents.send("ipc:allClientsConnected", data);
-        });
+    // clientUnregister
+    // [MAIN] -> [SERVER]
+    appContext.windowMain.on("close", () => {
+        appContext.socket.emit("est-event:clientUnregister");
+    });
 
-        // Handle disconnection
-        appContext.socket.on("disconnect", (reason) => {
-            console.log("Disconnected from server:", reason);
-        });
+    // ===== Inbound communication ==============================
+    // sessionStart
+    // [SERVER] -> [MAIN -> PRELOAD -> RENDERER]
+    appContext.socket.on("est-event:sessionStart", (data) => {
+        appContext.windowMain.webContents.send("ipc:sessionStart", data);
+    });
+
+    // sessionEnd
+    // [SERVER] -> [MAIN -> PRELOAD -> RENDERER]
+    appContext.socket.on("est-event:sessionEnd", (data) => {
+        appContext.windowMain.webContents.send("ipc:sessionEnd", data);
+    });
+
+    // ===== Outbound communication ==============================
+    // nextViewRequested
+    // [RENDERER -> PRELOAD -> MAIN] -> [SERVER]
+    ipcMain.handle("ipc:nextViewRequested", (data) => {
+        appContext.socket.emit("est-event:nextViewRequested", data);
     });
 }
