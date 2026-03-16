@@ -88,11 +88,7 @@ async function socketLogic() {
     // clientRegister
     // [MAIN] -> [SERVER]
     appContext.socket.on("connect", () => {
-        appContext.socket.emit("est-event:clientRegister", {
-            appName: appInfo.displayName,
-            appVersion: appInfo.version,
-            platform: process.platform
-        });
+        appContext.socket.emit("est-event:clientRegister");
     });
 
     // clientUnregister
@@ -102,28 +98,19 @@ async function socketLogic() {
     });
 
     // ===== Inbound communication ==============================
-    // sessionStart
+    // viewChangeResponse
     // [SERVER] -> [MAIN -> PRELOAD -> RENDERER]
-    appContext.socket.on("est-event:sessionStart", (data) => {
+    appContext.socket.on("est-event:viewChangeResponse", (data) => {
         appContext.windowMain.webContents.send("ipc:storeSetValueRequest", {
             storeName: "Root",
-            payload: { currentView: "viewWelcome" }
-        });
-    });
-
-    // sessionEnd
-    // [SERVER] -> [MAIN -> PRELOAD -> RENDERER]
-    appContext.socket.on("est-event:sessionEnd", (data) => {
-        appContext.windowMain.webContents.send("ipc:storeSetValueRequest", {
-            storeName: "Root",
-            payload: { currentView: "viewWaiting" }
+            payload: { currentView: data }
         });
     });
 
     // ===== Outbound communication ==============================
-    // nextViewRequested
+    // viewChangeRequest
     // [RENDERER -> PRELOAD -> MAIN] -> [SERVER]
-    ipcMain.handle("ipc:nextViewRequested", (data) => {
-        appContext.socket.emit("est-event:nextViewRequested", data);
+    ipcMain.handle("ipc:viewChangeRequest", (_, ...args) => {
+        appContext.socket.emit("est-event:viewChangeRequest", args[0]);
     });
 }

@@ -2,13 +2,18 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import useStoreComponentFooter from "@/stores/component-footer";
+import useStoreRoot from "@/stores/root";
 
 function ComponentFooter() {
     const { isWaiting, setIsWaiting } = useStoreComponentFooter();
+    const { currentView } = useStoreRoot();
 
     const requestNextView = () => {
         setIsWaiting(true);
-        window.appApi.ipcRenderer.invoke("ipc:nextViewRequested", {});
+
+        window.appApi.ipcRenderer.invoke("ipc:viewChangeRequest", {
+            currentView: currentView
+        });
     };
 
     return (
