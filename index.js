@@ -2,7 +2,8 @@
 // ===== COMMON ==============================
 // ===========================================
 const estConfig = require("./est-config.js");
-const connectedClients = new Map();
+const clientListConnected = new Set();
+const clientListWaiting = new Set();
 
 const http = require("http");
 const express = require("express");
@@ -23,30 +24,66 @@ const io = socketIo(server, {
 io.on("connection", (socket) => {
 
     // clientRegister
-    socket.on("est-event:clientRegister", (data) => {
-        console.log("Client registered: " + socket.id, data);
-        connectedClients.set(socket.id, data);
+    socket.on("est-event:clientRegister", () => {
+        console.log("Client registered: " + socket.id);
+        clientListConnected.add(socket.id);
 
         // Check if two clients are connected now
-        if (connectedClients.size === 2) {
-            connectedClients.forEach((client, socketId) => {
-                io.to(socketId).emit("est-event:sessionStart");
+        if (clientListConnected.size === 2) {
+            clientListConnected.forEach(clientSocketId => {
+                io.to(clientSocketId).emit("est-event:viewChangeResponse", "viewWelcome");
             });
         }
     });
 
     // clientUnregister
-    socket.on("est-event:clientUnregister", (data) => {
+    socket.on("est-event:clientUnregister", () => {
         console.log("Client disconnected: " + socket.id);
-        connectedClients.delete(socket.id);
+        clientListConnected.delete(socket.id);
+        clientListWaiting.delete(socket.id);
 
-        if (connectedClients.size < 2) {
-            connectedClients.forEach((client, socketId) => {
-                io.to(socketId).emit("est-event:sessionEnd");
+        // Check if less than two clients are connected now
+        if (clientListConnected.size < 2) {
+            clientListConnected.forEach(clientSocketId => {
+                io.to(clientSocketId).emit("est-event:viewChangeResponse", "viewWaiting");
             });
         }
     });
+
+    // viewChangeRequest
+    socket.on("est-event:viewChangeRequest", (data) => {
+        const viewsPassDirect = [];
+        const viewsPassGated = ["viewWelcome"];
+
+        // Direct pass views
+        if (viewsPassDirect.includes(data.currentView)) {
+            io.to(socket.id).emit("est-event:viewChangeResponse", helperNextViewLookup(data.currentView));
+        }
+
+        // Gated pass views
+        else if (viewsPassGated.includes(data.currentView)) {
+            clientListWaiting.add(socket.id);
+
+            if (clientListWaiting.size === 2) {
+                clientListWaiting.forEach(clientSocketId => {
+                    io.to(clientSocketId).emit("est-event:viewChangeResponse", helperNextViewLookup(data.currentView));
+                });
+                clientListWaiting.clear();
+            }
+        }
+    });
 });
+
+// ===========================================
+// ===== HELPER ==============================
+// ===========================================
+function helperNextViewLookup(currentView) {
+    const viewMapping = {
+        "viewWaiting": "viewWelcome",
+        "viewWelcome": "viewPreTest"
+    };
+    return viewMapping[currentView];
+}
 
 // ===========================================
 // ===== HTTP SERVER LOGIC ===================
