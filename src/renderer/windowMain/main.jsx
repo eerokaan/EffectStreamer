@@ -1,7 +1,7 @@
 import "@/assets/css/main.css";
-import Root from "./root";
 import React from "react";
 import ReactDOM from "react-dom/client";
+import Root from "./root";
 import storesIpcGateway from "@/lib/stores-ipc-gateway";
 
 storesIpcGateway();

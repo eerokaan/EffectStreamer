@@ -105,6 +105,9 @@ async function socketLogic() {
             storeName: "Root",
             payload: { currentView: data }
         });
+        appContext.windowMain.webContents.send("ipc:storeResetRequest", {
+            storeName: "ComponentFooter"
+        });
     });
 
     // ===== Outbound communication ==============================

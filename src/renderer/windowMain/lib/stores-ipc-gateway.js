@@ -14,7 +14,8 @@ const storesIpcGateway = () => {
         return;
     }
 
-    window.appApi.ipcRenderer.on("ipc:storeGetValueRequest", (event, { storeName, payload }) => {
+    // Read from Zustand stores
+    window.appApi.ipcRenderer.on("ipc:storeGetValueRequest", (_, { storeName, payload }) => {
         try {
             // Get Zustand store
             const store = storeRegistry[storeName];
@@ -35,7 +36,8 @@ const storesIpcGateway = () => {
         }
     });
 
-    window.appApi.ipcRenderer.on("ipc:storeSetValueRequest", (event, { storeName, payload }) => {
+    // Write to Zustand stores
+    window.appApi.ipcRenderer.on("ipc:storeSetValueRequest", (_, { storeName, payload }) => {
         try {
             // Get Zustand store
             const store = storeRegistry[storeName];
@@ -52,6 +54,27 @@ const storesIpcGateway = () => {
         catch (error) {
             console.error("Error setting value in store " + storeName + ": " + error);
             window.appApi.ipcRenderer.send("ipc:storeSetValueResponse", false);
+        }
+    });
+
+    // Reset Zustand stores
+    window.appApi.ipcRenderer.on("ipc:storeResetRequest", (_, { storeName }) => {
+        try {
+            // Get Zustand store
+            const store = storeRegistry[storeName];
+            if (!store) {
+                throw new Error("[ErrorGeneral] Store " + storeName + " not found in registry");
+            }
+
+            // Call resetStates method
+            store.getState().resetStates();
+
+            // Send response back to caller
+            window.appApi.ipcRenderer.send("ipc:storeResetResponse", true);
+        }
+        catch (error) {
+            console.error("Error calling resetStates on store " + storeName + ": " + error);
+            window.appApi.ipcRenderer.send("ipc:storeResetResponse", false);
         }
     });
 };

@@ -1,11 +1,20 @@
-function ViewPreTest() {
+import ComponentFooter from "@/components/footer";
+import ComponentHeader from "@/components/header";
+
+function ViewPretest() {
     return (
         <>
             <div className="flex flex-col flex-1 justify-center">
-                <h1 className="text-4xl font-semibold text-center text-gray-700">PreTest</h1>
+                <ComponentHeader headline="Pretest Questions"></ComponentHeader>
+
+                <div className="flex-1">
+                    <p>Yeah... This is where the content for the Pretest Questions comes.</p>
+                </div>
+
+                <ComponentFooter></ComponentFooter>
             </div>
         </>
     );
 }
 
-export default ViewPreTest;
+export default ViewPretest;
