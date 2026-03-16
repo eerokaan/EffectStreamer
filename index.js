@@ -52,8 +52,20 @@ io.on("connection", (socket) => {
 
     // viewChangeRequest
     socket.on("est-event:viewChangeRequest", (data) => {
-        const viewsPassDirect = [];
-        const viewsPassGated = ["viewWelcome"];
+        const viewsPassDirect = [
+            "viewWelcome",
+            "viewShortConversationTest",
+            "viewListeningSpeakingTest",
+            "viewBreak",
+            "viewEnding"
+        ];
+        const viewsPassGated = [
+            "viewPretest",
+            "viewShortConversationTestExplanation",
+            "viewShortConversationTestEvaluation",
+            "viewListeningSpeakingTestExplanation",
+            "viewListeningSpeakingTestEvaluation"
+        ];
 
         // Direct pass views
         if (viewsPassDirect.includes(data.currentView)) {
@@ -78,11 +90,20 @@ io.on("connection", (socket) => {
 // ===== HELPER ==============================
 // ===========================================
 function helperNextViewLookup(currentView) {
-    const viewMapping = {
+    const viewMap = {
         "viewWaiting": "viewWelcome",
-        "viewWelcome": "viewPreTest"
+        "viewWelcome": "viewPretest",
+        "viewPretest": "viewShortConversationTestExplanation",
+        "viewShortConversationTestExplanation": "viewShortConversationTest",
+        "viewShortConversationTest": "viewShortConversationTestEvaluation",
+        "viewShortConversationTestEvaluation": "viewListeningSpeakingTestExplanation",
+        "viewListeningSpeakingTestExplanation": "viewListeningSpeakingTest",
+        "viewListeningSpeakingTest": "viewListeningSpeakingTestEvaluation",
+        "viewListeningSpeakingTestEvaluation": "viewBreak",
+        "viewBreak": "viewEnding",
+        "viewEnding": "viewWelcome"
     };
-    return viewMapping[currentView];
+    return viewMap[currentView];
 }
 
 // ===========================================
