@@ -2,7 +2,7 @@
 
 This is the EchoStreamer core – a standalone application which allows for the same VoIP echo tests to be held, as the previous script-based EchoStreamer. However the EchoStreamer core is not dependent on a GStreamer instance installed on the host system, as EchoStreamer core comes with its own dynamically linked GStreamer. Moreover, the EchoStreamer core is able to be cross-compiled to Linux and Windows at the same time, while also taking care of audio server differences (ALSA vs. WASAPI2); this allows the EchoStreamer core to be embedded into other applications (hence the naming "Core").
 
-In the following README, is is explained how to compile GStreamer and other prerequisites, aswell as then compiling and running EchoStreamer. There are two important factors to consider, before starting:
+In the following README, it is explained how to compile GStreamer and other prerequisites, aswell as then compiling and running EchoStreamer. There are two important factors to consider, before starting:
 
 - Please make sure to use Ubuntu 24.04 (or other Debian-based Linux distros) as your compiler host
 - Please also make sure to work on a local filesystem, as compiling on network shares will most likely cause permission errors
