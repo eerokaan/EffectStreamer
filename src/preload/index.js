@@ -5,8 +5,8 @@ import appInfo from "../main/lib/appInfo";
 // Define valid channels by operation type
 const validChannels = {
     invoke: ["ipc:nextViewRequested"],
-    on: ["ipc:sessionStart", "ipc:sessionEnd"],
-    send: []
+    on: ["ipc:storeGetValueRequest", "ipc:storeSetValueRequest"],
+    send: ["ipc:storeGetValueResponse", "ipc:storeSetValueResponse"]
 };
 
 // Create a secure wrapper for ipcRenderer

@@ -1,8 +1,7 @@
-import { create } from "zustand";
+import createStore from "@/lib/stores-create";
 
-const useStoreRoot = create((set) => ({
+const useStoreRoot = createStore({
     currentView: "viewWaiting",
-    setCurrentView: (view) => set({ currentView: view }),
-}));
+});
 
 export default useStoreRoot;

@@ -10,7 +10,7 @@ const viewMap = {
 };
 
 function Root() {
-    const currentView = useStoreRoot((state) => state.currentView);
+    const { currentView } = useStoreRoot();
     const View = viewMap[currentView];
 
     return (

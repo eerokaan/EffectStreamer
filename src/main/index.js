@@ -105,13 +105,19 @@ async function socketLogic() {
     // sessionStart
     // [SERVER] -> [MAIN -> PRELOAD -> RENDERER]
     appContext.socket.on("est-event:sessionStart", (data) => {
-        appContext.windowMain.webContents.send("ipc:sessionStart", data);
+        appContext.windowMain.webContents.send("ipc:storeSetValueRequest", {
+            storeName: "Root",
+            payload: { currentView: "viewWelcome" }
+        });
     });
 
     // sessionEnd
     // [SERVER] -> [MAIN -> PRELOAD -> RENDERER]
     appContext.socket.on("est-event:sessionEnd", (data) => {
-        appContext.windowMain.webContents.send("ipc:sessionEnd", data);
+        appContext.windowMain.webContents.send("ipc:storeSetValueRequest", {
+            storeName: "Root",
+            payload: { currentView: "viewWaiting" }
+        });
     });
 
     // ===== Outbound communication ==============================
