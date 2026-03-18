@@ -5,7 +5,7 @@ function ViewShortConversationTest() {
     return (
         <>
             <div className="flex flex-col flex-1 justify-center">
-                <ComponentHeader headline="ShortConversationTest"></ComponentHeader>
+                <ComponentHeader headline="ShortConversationTest [2]"></ComponentHeader>
 
                 <div className="flex-1">
                     <p>Lorem Ipsum</p>

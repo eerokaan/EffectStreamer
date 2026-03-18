@@ -4,7 +4,8 @@ import { create } from "zustand";
 const createStore = (defaultStates) => create(
     (set) => {
         const setActions = Object.entries(defaultStates).reduce((accumulator, [key]) => {
-            accumulator[`set${key.charAt(0).toUpperCase() + key.slice(1)}`] = (newValue) => set({ [key]: newValue });
+            const setterName = "set" + key.charAt(0).toUpperCase() + key.slice(1);
+            accumulator[setterName] = (newValue) => set({ [key]: newValue });
             return accumulator;
         }, {});
 

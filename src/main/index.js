@@ -77,7 +77,7 @@ async function socketLogic() {
 
     // ===== Common ==============================
     // Setup socket connection
-    const serverUrl = `http://${estConfig.server.host}:${estConfig.server.port}`;
+    const serverUrl = "http://" + estConfig.server.host + ":" + estConfig.server.port;
     appContext.socket = io(serverUrl, {
         reconnection: true,
         reconnectionDelay: 1000,
