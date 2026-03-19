@@ -14,14 +14,16 @@
  * @param is_source: TRUE for source devices (microphones), FALSE for sink devices (speakers)
  * @return Device ID string (caller must g_free), or NULL if none found
  */
-char* get_first_audio_device(gboolean is_source) {
+char *get_first_audio_device(gboolean is_source)
+{
     GstDeviceMonitor *mon = gst_device_monitor_new();
     const char *device_class = is_source ? "Audio/Source" : "Audio/Sink";
 
     /* Filter to audio sources or sinks */
     gst_device_monitor_add_filter(mon, device_class, NULL);
 
-    if (!gst_device_monitor_start(mon)) {
+    if (!gst_device_monitor_start(mon))
+    {
         g_printerr("Failed to start GstDeviceMonitor\n");
         gst_object_unref(mon);
         return NULL;
@@ -30,22 +32,23 @@ char* get_first_audio_device(gboolean is_source) {
     GList *devices = gst_device_monitor_get_devices(mon);
     gchar *found_id = NULL;
 
-    for (GList *l = devices; l != NULL; l = l->next) {
+    for (GList *l = devices; l != NULL; l = l->next)
+    {
         GstDevice *dev = GST_DEVICE(l->data);
         GstStructure *props = gst_device_get_properties(dev);
         if (!props)
             continue;
 
         const gchar *api = gst_structure_get_string(props, "device.api");
-        const gchar *id  = gst_structure_get_string(props, "device.id");
+        const gchar *id = gst_structure_get_string(props, "device.id");
         if (!id)
             id = gst_structure_get_string(props, "device.actual-id");
 
         /* Look for WASAPI2 devices */
-        if (api && id && g_strcmp0(api, "wasapi2") == 0) {
+        if (api && id && g_strcmp0(api, "wasapi2") == 0)
+        {
             found_id = g_strdup(id);
-            g_print("Found WASAPI2 %s device: %s\n", 
-                    is_source ? "source" : "sink", id);
+            g_print("Found WASAPI2 %s device: %s\n", is_source ? "source" : "sink", id);
             gst_structure_free(props);
             break;
         }
@@ -53,7 +56,7 @@ char* get_first_audio_device(gboolean is_source) {
         gst_structure_free(props);
     }
 
-    g_list_free_full(devices, (GDestroyNotify) gst_object_unref);
+    g_list_free_full(devices, (GDestroyNotify)gst_object_unref);
     gst_device_monitor_stop(mon);
     gst_object_unref(mon);
 
@@ -63,21 +66,26 @@ char* get_first_audio_device(gboolean is_source) {
 /**
  * Configure audio source element with platform-specific properties
  */
-void configure_audio_source(GstElement *src, const char *device) {
-    g_object_set(G_OBJECT(src), 
+void configure_audio_source(GstElement *src, const char *device)
+{
+    g_object_set(G_OBJECT(src),
                  "device", device,
-                 "low-latency", TRUE,
-                 "loopback", FALSE,
+                 "exclusive", TRUE,
+                 "buffer-time", (gint64)15000,  /* 15 ms in microseconds */
+                 "latency-time", (gint64)5000, /* 5 ms in microseconds */
                  NULL);
 }
 
 /**
  * Configure audio sink element with platform-specific properties
  */
-void configure_audio_sink(GstElement *sink, const char *device) {
+void configure_audio_sink(GstElement *sink, const char *device)
+{
     g_object_set(G_OBJECT(sink),
                  "device", device,
-                 "low-latency", TRUE,
+                 "exclusive", TRUE,
+                 "buffer-time", (gint64)15000,  /* 15 ms in microseconds */
+                 "latency-time", (gint64)5000, /* 5 ms in microseconds */
                  "sync", FALSE,
                  NULL);
 }
@@ -85,7 +93,8 @@ void configure_audio_sink(GstElement *sink, const char *device) {
 /**
  * Get platform name for display
  */
-const char* get_platform_name(void) {
+const char *get_platform_name(void)
+{
     return "Windows (WASAPI2)";
 }
 
@@ -96,14 +105,16 @@ const char* get_platform_name(void) {
  * @param is_source: TRUE for source devices (microphones), FALSE for sink devices (speakers)
  * @return Device ID string (caller must g_free), or NULL if none found
  */
-char* get_first_audio_device(gboolean is_source) {
+char *get_first_audio_device(gboolean is_source)
+{
     GstDeviceMonitor *mon = gst_device_monitor_new();
     const char *device_class = is_source ? "Audio/Source" : "Audio/Sink";
 
     /* Filter to audio sources or sinks */
     gst_device_monitor_add_filter(mon, device_class, NULL);
 
-    if (!gst_device_monitor_start(mon)) {
+    if (!gst_device_monitor_start(mon))
+    {
         g_printerr("Failed to start GstDeviceMonitor\n");
         gst_object_unref(mon);
         return NULL;
@@ -112,22 +123,23 @@ char* get_first_audio_device(gboolean is_source) {
     GList *devices = gst_device_monitor_get_devices(mon);
     gchar *found_id = NULL;
 
-    for (GList *l = devices; l != NULL; l = l->next) {
+    for (GList *l = devices; l != NULL; l = l->next)
+    {
         GstDevice *dev = GST_DEVICE(l->data);
         GstStructure *props = gst_device_get_properties(dev);
         if (!props)
             continue;
 
         const gchar *api = gst_structure_get_string(props, "device.api");
-        const gchar *id  = gst_structure_get_string(props, "device.id");
+        const gchar *id = gst_structure_get_string(props, "device.id");
         if (!id)
             id = gst_structure_get_string(props, "device.path");
 
         /* Look for ALSA devices */
-        if (api && id && g_strcmp0(api, "alsa") == 0) {
+        if (api && id && g_strcmp0(api, "alsa") == 0)
+        {
             found_id = g_strdup(id);
-            g_print("Found ALSA %s device: %s\n", 
-                    is_source ? "source" : "sink", id);
+            g_print("Found ALSA %s device: %s\n", is_source ? "source" : "sink", id);
             gst_structure_free(props);
             break;
         }
@@ -135,7 +147,7 @@ char* get_first_audio_device(gboolean is_source) {
         gst_structure_free(props);
     }
 
-    g_list_free_full(devices, (GDestroyNotify) gst_object_unref);
+    g_list_free_full(devices, (GDestroyNotify)gst_object_unref);
     gst_device_monitor_stop(mon);
     gst_object_unref(mon);
 
@@ -145,22 +157,24 @@ char* get_first_audio_device(gboolean is_source) {
 /**
  * Configure audio source element with platform-specific properties
  */
-void configure_audio_source(GstElement *src, const char *device) {
-    g_object_set(G_OBJECT(src), 
+void configure_audio_source(GstElement *src, const char *device)
+{
+    g_object_set(G_OBJECT(src),
                  "device", device,
-                 "buffer-time", (gint64)5000,   /* 5 ms in microseconds */
-                 "latency-time", (gint64)1000,  /* 1 ms in microseconds */
+                 "buffer-time", (gint64)5000,  /* 5 ms in microseconds */
+                 "latency-time", (gint64)1000, /* 1 ms in microseconds */
                  NULL);
 }
 
 /**
  * Configure audio sink element with platform-specific properties
  */
-void configure_audio_sink(GstElement *sink, const char *device) {
+void configure_audio_sink(GstElement *sink, const char *device)
+{
     g_object_set(G_OBJECT(sink),
                  "device", device,
-                 "buffer-time", (gint64)5000,   /* 5 ms in microseconds */
-                 "latency-time", (gint64)1000,  /* 1 ms in microseconds */
+                 "buffer-time", (gint64)5000,  /* 5 ms in microseconds */
+                 "latency-time", (gint64)1000, /* 1 ms in microseconds */
                  "sync", FALSE,
                  NULL);
 }
@@ -168,7 +182,8 @@ void configure_audio_sink(GstElement *sink, const char *device) {
 /**
  * Get platform name for display
  */
-const char* get_platform_name(void) {
+const char *get_platform_name(void)
+{
     return "Linux (ALSA)";
 }
 

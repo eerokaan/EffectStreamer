@@ -7,65 +7,73 @@
 
 #include "echostreamer.h"
 
-static gboolean bus_call(GstBus *bus, GstMessage *msg, gpointer data) {
+static gboolean bus_call(GstBus *bus, GstMessage *msg, gpointer data)
+{
     AppContext *context = (AppContext *)data;
 
-    switch (GST_MESSAGE_TYPE(msg)) {
-        case GST_MESSAGE_EOS:
-            g_print("End of stream\n");
-            g_main_loop_quit(context->loop);
-            break;
+    switch (GST_MESSAGE_TYPE(msg))
+    {
+    case GST_MESSAGE_EOS:
+        g_print("End of stream\n");
+        g_main_loop_quit(context->loop);
+        break;
 
-        case GST_MESSAGE_ERROR: {
-            gchar *debug;
-            GError *error;
+    case GST_MESSAGE_ERROR:
+    {
+        gchar *debug;
+        GError *error;
 
-            gst_message_parse_error(msg, &error, &debug);
-            g_free(debug);
+        gst_message_parse_error(msg, &error, &debug);
+        g_free(debug);
 
-            g_printerr("Error: %s\n", error->message);
-            g_error_free(error);
+        g_printerr("Error: %s\n", error->message);
+        g_error_free(error);
 
-            g_main_loop_quit(context->loop);
-            break;
-        }
+        g_main_loop_quit(context->loop);
+        break;
+    }
 
-        case GST_MESSAGE_WARNING: {
-            gchar *debug;
-            GError *warning;
+    case GST_MESSAGE_WARNING:
+    {
+        gchar *debug;
+        GError *warning;
 
-            gst_message_parse_warning(msg, &warning, &debug);
-            g_free(debug);
+        gst_message_parse_warning(msg, &warning, &debug);
+        g_free(debug);
 
-            g_warning("Warning: %s\n", warning->message);
-            g_error_free(warning);
-            break;
-        }
+        g_warning("Warning: %s\n", warning->message);
+        g_error_free(warning);
+        break;
+    }
 
-        default:
-            break;
+    default:
+        break;
     }
 
     return TRUE;
 }
 
-int run_sender(SenderParams *params) {
+int run_sender(SenderParams *params)
+{
     AppContext context;
     GstBus *bus;
     guint bus_watch_id;
     GstElement *alsasrc, *audioconvert, *audioresample, *capsfilter;
     GstElement *rtpL16pay, *tee;
-    GstElement *queue1, *udpsink1;  /* To peer */
-    GstElement *queue2, *udpsink2;  /* To localhost with threshold */
-    GstElement *queue3, *udpsink3;  /* To localhost for recording */
+    GstElement *queue1, *udpsink1; /* To peer */
+    GstElement *queue2, *udpsink2; /* To localhost with threshold */
+    GstElement *queue3, *udpsink3; /* To localhost for recording */
     GstCaps *caps;
     gint64 threshold_adjusted;
 
     /* Calculate adjusted threshold (matching bash script logic) */
-    if (params->latency <= 20) {
+    if (params->latency <= 20)
+    {
         threshold_adjusted = 0;
-    } else {
-        threshold_adjusted = (params->latency - 20) * 1000000LL;  /* Convert to nanoseconds */
+    }
+    else
+    {
+        threshold_adjusted = (params->latency - 20) * 1000000LL; /* Convert to nanoseconds */
     }
 
     g_print("Starting EchoStreamer in sender mode\n");
@@ -95,9 +103,10 @@ int run_sender(SenderParams *params) {
     queue3 = gst_element_factory_make("queue", "queue-record");
     udpsink3 = gst_element_factory_make("udpsink", "udpsink-record");
 
-    if (!context.pipeline || !alsasrc || !audioconvert || !audioresample || 
-        !capsfilter || !rtpL16pay || !tee || !queue1 || !udpsink1 || 
-        !queue2 || !udpsink2 || !queue3 || !udpsink3) {
+    if (!context.pipeline || !alsasrc || !audioconvert || !audioresample ||
+        !capsfilter || !rtpL16pay || !tee || !queue1 || !udpsink1 ||
+        !queue2 || !udpsink2 || !queue3 || !udpsink3)
+    {
         g_printerr("Not all elements could be created.\n");
         return 1;
     }
@@ -116,21 +125,21 @@ int run_sender(SenderParams *params) {
     g_object_set(G_OBJECT(queue3), "min-threshold-time", (guint64)0, NULL);
 
     /* UDP Sink 1: To peer */
-    g_object_set(G_OBJECT(udpsink1), 
+    g_object_set(G_OBJECT(udpsink1),
                  "host", params->peerip,
                  "port", 9004,
                  "sync", FALSE,
                  NULL);
 
     /* UDP Sink 2: To localhost port 9005 (echo with delay) */
-    g_object_set(G_OBJECT(udpsink2), 
+    g_object_set(G_OBJECT(udpsink2),
                  "host", "127.0.0.1",
                  "port", 9005,
                  "sync", FALSE,
                  NULL);
 
     /* UDP Sink 3: To localhost port 9006 (recording) */
-    g_object_set(G_OBJECT(udpsink3), 
+    g_object_set(G_OBJECT(udpsink3),
                  "host", "127.0.0.1",
                  "port", 9006,
                  "sync", FALSE,
@@ -154,29 +163,33 @@ int run_sender(SenderParams *params) {
                      NULL);
 
     /* Link main pipeline */
-    if (!gst_element_link_many(alsasrc, audioconvert, audioresample, 
-                               capsfilter, rtpL16pay, tee, NULL)) {
+    if (!gst_element_link_many(alsasrc, audioconvert, audioresample,
+                               capsfilter, rtpL16pay, tee, NULL))
+    {
         g_printerr("Failed to link main pipeline elements.\n");
         gst_object_unref(context.pipeline);
         return 1;
     }
 
     /* Link branch 1 (to peer) */
-    if (!gst_element_link_many(tee, queue1, udpsink1, NULL)) {
+    if (!gst_element_link_many(tee, queue1, udpsink1, NULL))
+    {
         g_printerr("Failed to link branch 1 (peer).\n");
         gst_object_unref(context.pipeline);
         return 1;
     }
 
     /* Link branch 2 (echo with delay) */
-    if (!gst_element_link_many(tee, queue2, udpsink2, NULL)) {
+    if (!gst_element_link_many(tee, queue2, udpsink2, NULL))
+    {
         g_printerr("Failed to link branch 2 (echo).\n");
         gst_object_unref(context.pipeline);
         return 1;
     }
 
     /* Link branch 3 (recording) */
-    if (!gst_element_link_many(tee, queue3, udpsink3, NULL)) {
+    if (!gst_element_link_many(tee, queue3, udpsink3, NULL))
+    {
         g_printerr("Failed to link branch 3 (record).\n");
         gst_object_unref(context.pipeline);
         return 1;
@@ -190,7 +203,8 @@ int run_sender(SenderParams *params) {
     /* Set the pipeline to playing state */
     g_print("Starting sender pipeline...\n");
     GstStateChangeReturn ret = gst_element_set_state(context.pipeline, GST_STATE_PLAYING);
-    if (ret == GST_STATE_CHANGE_FAILURE) {
+    if (ret == GST_STATE_CHANGE_FAILURE)
+    {
         g_printerr("Unable to set the pipeline to the playing state.\n");
         gst_object_unref(context.pipeline);
         return 1;
