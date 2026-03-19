@@ -6,7 +6,6 @@
  */
 
 #include "echostreamer.h"
-#include <time.h>
 
 static gboolean bus_call(GstBus *bus, GstMessage *msg, gpointer data) {
     AppContext *context = (AppContext *)data;
@@ -51,8 +50,16 @@ static gboolean bus_call(GstBus *bus, GstMessage *msg, gpointer data) {
 }
 
 static char* create_session_directory(void) {
-    time_t now = time(NULL);
-    char *session_dir = g_strdup_printf("session-%ld", (long)now);
+    char *session_dir;
+
+    #ifdef _WIN32
+        const char *tmp = getenv("TEMP");
+        if (!tmp) tmp = getenv("TMP");
+        if (!tmp) tmp = "C:\\Temp";
+        session_dir = g_strdup_printf("%s\\echostreamer", tmp);
+    #else
+        session_dir = g_strdup("/tmp/echostreamer");
+    #endif
     
     if (mkdir(session_dir, 0755) != 0) {
         g_printerr("Warning: Could not create session directory %s\n", session_dir);
@@ -96,8 +103,8 @@ int run_receiver(ReceiverParams *params) {
 
     /* Create session directory */
     session_dir = create_session_directory();
-    record_file_microphone = g_strdup_printf("%s/%s-microphone.ogg", session_dir, session_dir);
-    record_file_headphones = g_strdup_printf("%s/%s-headphones.ogg", session_dir, session_dir);
+    record_file_microphone = g_strdup_printf("%s%cmicrophone.ogg", session_dir, G_DIR_SEPARATOR);
+    record_file_headphones = g_strdup_printf("%s%cheadphones.ogg", session_dir, G_DIR_SEPARATOR);
     g_print("  Recording microphone to: %s\n", record_file_microphone);
     g_print("  Recording headphones to: %s\n", record_file_headphones);
 
