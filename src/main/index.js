@@ -77,7 +77,7 @@ async function socketLogic() {
 
     // ===== Common ==============================
     // Setup socket connection
-    const serverUrl = "http://" + estConfig.server.host + ":" + estConfig.server.port;
+    const serverUrl = "http://" + estConfig.server.ipAddress + ":" + estConfig.server.port;
     appContext.socket = io(serverUrl, {
         reconnection: true,
         reconnectionDelay: 1000,
@@ -88,7 +88,12 @@ async function socketLogic() {
     // clientRegister
     // [MAIN] -> [SERVER]
     appContext.socket.on("connect", () => {
-        appContext.socket.emit("est-event:clientRegister");
+        appContext.socket.emit("est-event:clientRegister", {
+            operatingSystem: helperGetOperatingSystem(),
+            ipAddress: estConfig.client.ipAddress,
+            deviceSource: estConfig.client.audioDevices.source,
+            deviceSink: estConfig.client.audioDevices.sink
+        });
     });
 
     // clientUnregister
@@ -110,10 +115,44 @@ async function socketLogic() {
         });
     });
 
+    // coreStartResponse
+    // [SERVER] -> [MAIN]
+    appContext.socket.on("est-event:coreStartResponse", (data) => {
+
+    });
+
+    // coreStopResponse
+    // [SERVER] -> [MAIN]
+    appContext.socket.on("est-event:coreStopResponse", (data) => {
+
+    });
+
     // ===== Outbound communication ==============================
     // viewChangeRequest
     // [RENDERER -> PRELOAD -> MAIN] -> [SERVER]
     ipcMain.handle("ipc:viewChangeRequest", (_, ...args) => {
         appContext.socket.emit("est-event:viewChangeRequest", args[0]);
     });
+
+    // coreStartRequest
+    // [RENDERER -> PRELOAD -> MAIN] -> [SERVER]
+    ipcMain.handle("ipc:coreStartRequest", () => {
+        appContext.socket.emit("est-event:coreStartRequest");
+    });
+
+    // coreStopRequest
+    // [RENDERER -> PRELOAD -> MAIN] -> [SERVER]
+    ipcMain.handle("ipc:coreStopRequest", () => {
+        appContext.socket.emit("est-event:coreStopRequest");
+    });
+}
+
+// ===========================================
+// ===== HELPER ==============================
+// ===========================================
+function helperGetOperatingSystem() {
+    let platform = process.platform;
+    if (platform === "linux") return "linux";
+    if (platform === "win32") return "windows";
+    return null;
 }
