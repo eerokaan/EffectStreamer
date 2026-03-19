@@ -31,7 +31,7 @@ const viewFlow = [
 ];
 
 let appState = {
-    clientListConnected: new Set(),
+    clientListConnected: new Map(),
     clientListWaiting: new Set(),
     conditionIndex: 0,
     conditionOrder: []
@@ -43,13 +43,18 @@ let appState = {
 io.on("connection", (socket) => {
 
     // ===== clientRegister ==============================
-    socket.on("est-event:clientRegister", () => {
+    socket.on("est-event:clientRegister", (data) => {
         console.log("Client registered: " + socket.id);
-        appState.clientListConnected.add(socket.id);
+        appState.clientListConnected.set(socket.id, {
+            operatingSystem: data.operatingSystem,
+            ipAddress: data.ipAddress,
+            deviceSource: data.deviceSource,
+            deviceSink: data.deviceSink
+        });
 
         // Check if two clients are connected now
         if (appState.clientListConnected.size === 2) {
-            appState.clientListConnected.forEach(clientSocketId => {
+            appState.clientListConnected.forEach((clientData, clientSocketId) => {
                 io.to(clientSocketId).emit("est-event:viewChangeResponse", "viewWelcome");
             });
         }
@@ -63,7 +68,7 @@ io.on("connection", (socket) => {
 
         // Check if less than two clients are connected now
         if (appState.clientListConnected.size < 2) {
-            appState.clientListConnected.forEach(clientSocketId => {
+            appState.clientListConnected.forEach((clientData, clientSocketId) => {
                 io.to(clientSocketId).emit("est-event:viewChangeResponse", "viewWaiting");
             });
         }
@@ -109,6 +114,16 @@ io.on("connection", (socket) => {
                 appState.clientListWaiting.clear();
             }
         }
+    });
+
+    // ===== coreStartRequest ==============================
+    socket.on("est-event:coreStartRequest", () => {
+        console.log("coreStartRequest from: " + socket.id);
+    });
+
+    // ===== coreStopRequest ==============================
+    socket.on("est-event:coreStopRequest", () => {
+        console.log("coreStopRequest from: " + socket.id);
     });
 });
 
@@ -164,6 +179,6 @@ function helperGetCurrentCondition() {
 // ===========================================
 // ===== HTTP SERVER LOGIC ===================
 // ===========================================
-server.listen(estConfig.server.port, () => {
+server.listen(estConfig.server.port, estConfig.server.ipAddress, () => {
     console.log("Server is running on port " + estConfig.server.port);
 });
