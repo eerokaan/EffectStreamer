@@ -71,7 +71,7 @@ void configure_audio_source(GstElement *src, const char *device)
     g_object_set(G_OBJECT(src),
                  "device", device,
                  "exclusive", TRUE,
-                 "buffer-time", (gint64)15000,  /* 15 ms in microseconds */
+                 "buffer-time", (gint64)15000, /* 15 ms in microseconds */
                  "latency-time", (gint64)5000, /* 5 ms in microseconds */
                  NULL);
 }
@@ -84,7 +84,7 @@ void configure_audio_sink(GstElement *sink, const char *device)
     g_object_set(G_OBJECT(sink),
                  "device", device,
                  "exclusive", TRUE,
-                 "buffer-time", (gint64)15000,  /* 15 ms in microseconds */
+                 "buffer-time", (gint64)15000, /* 15 ms in microseconds */
                  "latency-time", (gint64)5000, /* 5 ms in microseconds */
                  "sync", FALSE,
                  NULL);
