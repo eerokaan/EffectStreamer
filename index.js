@@ -118,12 +118,24 @@ io.on("connection", (socket) => {
 
     // ===== coreStartRequest ==============================
     socket.on("est-event:coreStartRequest", () => {
-        console.log("coreStartRequest from: " + socket.id);
+        const currentCondition = helperGetCurrentCondition();
+        const peerClient = [...appState.clientListConnected].find(([id]) => id !== socket.id);
+        const thisClient = appState.clientListConnected.get(socket.id);
+
+        const estCoreSettings = {
+            peerIp: peerClient[1].ipAddress,
+            deviceSource: thisClient.deviceSource,
+            deviceSink: thisClient.deviceSink,
+            latency: currentCondition.latency,
+            gain: currentCondition.gain,
+        }
+
+        io.to(socket.id).emit("est-event:coreStartResponse", estCoreSettings);
     });
 
     // ===== coreStopRequest ==============================
     socket.on("est-event:coreStopRequest", () => {
-        console.log("coreStopRequest from: " + socket.id);
+        io.to(socket.id).emit("est-event:coreStopResponse");
     });
 });
 
@@ -172,8 +184,8 @@ function helperGetCurrentCondition() {
     if (appState.conditionIndex === 0) {
         return estConfig.conditions.baseline[0];
     }
-    const randomIndex = appState.conditionOrder[appState.conditionIndex - 1];
-    return estConfig.conditions.random[randomIndex];
+    const index = appState.conditionOrder[appState.conditionIndex - 1];
+    return estConfig.conditions.random[index];
 }
 
 // ===========================================
