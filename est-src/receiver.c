@@ -56,19 +56,9 @@ static gboolean bus_call(GstBus *bus, GstMessage *msg, gpointer data)
 static char *create_session_directory(void)
 {
     char *session_dir;
+    session_dir = g_build_filename(g_get_home_dir(), "echostreamer", NULL);
 
-#ifdef _WIN32
-    const char *tmp = getenv("TEMP");
-    if (!tmp)
-        tmp = getenv("TMP");
-    if (!tmp)
-        tmp = "C:\\Temp";
-    session_dir = g_strdup_printf("%s\\echostreamer", tmp);
-#else
-    session_dir = g_strdup("/tmp/echostreamer");
-#endif
-
-    if (mkdir(session_dir, 0755) != 0)
+    if (g_mkdir_with_parents(session_dir, 0755) != 0)
     {
         g_printerr("Warning: Could not create session directory %s\n", session_dir);
     }
