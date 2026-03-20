@@ -1,8 +1,8 @@
 // ===========================================
 // ===== COMMON ==============================
 // ===========================================
-import estConfig from "../../est-config.js";
 import path from "path";
+import fs from "fs";
 
 import { app, shell, ipcMain, BrowserWindow } from "electron";
 import { electronApp, optimizer } from "@electron-toolkit/utils";
@@ -12,6 +12,10 @@ import { io } from "socket.io-client";
 import appContent from "./lib/appContent";
 import appContext from "./lib/appContext";
 import appInfo from "./lib/appInfo";
+
+const estConfig = JSON.parse(
+    fs.readFileSync(helperResolveConfigPath(), "UTF-8")
+);
 
 // ===========================================
 // ===== STARTUP / INITS =====================
@@ -52,6 +56,7 @@ async function windowLogic() {
 
     // Window closing
     appContext.windowMain.on("closed", () => {
+        helperEstCoreKill();
         appContext.socket.disconnect();
     });
 
@@ -118,14 +123,22 @@ async function socketLogic() {
 
     // coreStartResponse
     // [SERVER] -> [MAIN]
-    appContext.socket.on("est-event:coreStartResponse", (data) => {
-        appContext.estCoreSender = helperSpawnEchoStreamerCore([
+    appContext.socket.on("est-event:coreStartResponse", async (data) => {
+
+        // Start sender component of est-core
+        appContext.estCoreSender = await helperEstCoreSpawn([
             "--mode", "sender",
             ...(data.deviceSource ? ["--device", data.deviceSource] : []),
             "--peerip", data.peerIp,
             "--latency", data.latency
         ]);
-        appContext.estCoreReceiver = helperSpawnEchoStreamerCore([
+
+        // Add 200ms pause to make up for sender-startup asynchronicity due to network ping
+        // This ensures that the sender components runs before we now start the receiver components
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Start receiver component of est-core
+        appContext.estCoreReceiver = await helperEstCoreSpawn([
             "--mode", "receiver",
             ...(data.deviceSink ? ["--device", data.deviceSink] : []),
             "--gain", data.gain
@@ -135,15 +148,7 @@ async function socketLogic() {
     // coreStopResponse
     // [SERVER] -> [MAIN]
     appContext.socket.on("est-event:coreStopResponse", () => {
-        if (appContext.estCoreSender) {
-            appContext.estCoreSender.once("close", () => { appContext.estCoreSender = null; });
-            appContext.estCoreSender.kill();
-        }
-        if (appContext.estCoreReceiver) {
-            appContext.estCoreReceiver.once("close", () => { appContext.estCoreReceiver = null; });
-            appContext.estCoreReceiver.kill();
-        }
-
+        helperEstCoreKill();
         // ToDo: Send audio files to server
     });
 
@@ -170,6 +175,20 @@ async function socketLogic() {
 // ===========================================
 // ===== HELPER ==============================
 // ===========================================
+function helperResolveConfigPath() {
+    const configName = "est-config.json";
+
+    if (process.env.APPIMAGE) {
+        return path.join(path.dirname(process.env.APPIMAGE), configName);
+    }
+    else if (app.isPackaged) {
+        return path.join(path.dirname(app.getPath("exe")), configName);
+    }
+    else {
+        return path.join(app.getAppPath(), configName);
+    }
+}
+
 function helperGetOperatingSystem() {
     let platform = process.platform;
     if (platform === "linux") return "linux";
@@ -177,32 +196,49 @@ function helperGetOperatingSystem() {
     return null;
 }
 
-function helperSpawnEchoStreamerCore(args = []) {
-    const base = path.join(process.resourcesPath, "est-core");
-    const platform = helperGetOperatingSystem();
-    let gstLib, gstBin;
+function helperEstCoreSpawn(args = []) {
+    return new Promise((resolve, reject) => {
+        const base = path.join(process.resourcesPath, "est-core");
+        const platform = helperGetOperatingSystem();
+        let childProcess, gstLib;
 
-    if (platform === "linux") {
-        gstLib = path.join(base, "gst-lib", "x86_64-linux-gnu", "lib");
+        if (platform === "linux") {
+            gstLib = path.join(base, "gst-lib", "x86_64-linux-gnu", "lib");
+            childProcess = spawn(path.join(base, "est-core"), args, {
+                env: {
+                    ...process.env,
+                    LD_LIBRARY_PATH: gstLib + (process.env.LD_LIBRARY_PATH ? ":" + process.env.LD_LIBRARY_PATH : ""),
+                    GST_PLUGIN_PATH: path.join(gstLib, "gstreamer-1.0")
+                }
+            });
+        }
+        else if (platform === "windows") {
+            gstLib = path.join(base, "gst-lib", "x86_64-windows", "lib");
+            childProcess = spawn(path.join(base, "est-core.exe"), args, {
+                env: {
+                    ...process.env,
+                    PATH: path.join(base, "gst-lib", "x86_64-windows", "bin") + ";" + process.env.PATH,
+                    GST_PLUGIN_PATH: path.join(gstLib, "gstreamer-1.0")
+                }
+            });
+        }
+        else {
+            return reject(new Error("Unsupported platform: " + process.platform));
+        }
 
-        return spawn(path.join(base, "est-core"), args, {
-            env: {
-                ...process.env,
-                LD_LIBRARY_PATH: gstLib + (process.env.LD_LIBRARY_PATH ? ":" + process.env.LD_LIBRARY_PATH : ""),
-                GST_PLUGIN_PATH: path.join(gstLib, "gstreamer-1.0"),
-            }
-        });
+        childProcess.stdout.once("data", () => resolve(childProcess));
+        childProcess.once("error", reject);
+        childProcess.once("close", (code) => reject(new Error("est-core exited prematurely with code " + code)));
+    });
+}
+
+function helperEstCoreKill() {
+    if (appContext.estCoreSender) {
+        appContext.estCoreSender.once("close", () => { appContext.estCoreSender = null; });
+        appContext.estCoreSender.kill();
     }
-    else if (platform === "windows") {
-        gstLib = path.join(base, "gst-lib", "x86_64-windows", "lib");
-        gstBin = path.join(base, "gst-lib", "x86_64-windows", "bin");
-        
-        return spawn(path.join(base, "est-core.exe"), args, {
-            env: {
-                ...process.env,
-                PATH: gstBin + ";" + process.env.PATH,
-                GST_PLUGIN_PATH: path.join(gstLib, "gstreamer-1.0"),
-            }
-        });
+    if (appContext.estCoreReceiver) {
+        appContext.estCoreReceiver.once("close", () => { appContext.estCoreReceiver = null; });
+        appContext.estCoreReceiver.kill();
     }
 }
