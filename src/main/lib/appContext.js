@@ -1,6 +1,8 @@
 const defaultStates = {
     windowMain: null,
-    socket: null
+    socket: null,
+    estCoreSender: null,
+    estCoreReceiver: null
 };
 
 const appContext = {

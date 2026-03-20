@@ -1,0 +1,30 @@
+appId: de.tu-berlin.qu.echostreamer.gui
+productName: EchoStreamer
+copyright: Quality and Usability Lab / TU Berlin / Eero Kaan
+
+directories:
+    buildResources: build
+    output: dist
+
+beforePack: ./build_scripts/beforePack.js
+
+linux:
+    target:
+        - AppImage
+    category: Utility
+    extraResources:
+        - from: "build/linux"
+          to: "est-core"
+          filter:
+              - "est-core"
+              - "gst-lib/**/*"
+
+win:
+    target:
+        - nsis
+    extraResources:
+        - from: "build/win"
+          to: "est-core"
+          filter:
+              - "est-core.exe"
+              - "gst-lib/**/*"

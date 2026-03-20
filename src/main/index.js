@@ -6,6 +6,7 @@ import path from "path";
 
 import { app, shell, ipcMain, BrowserWindow } from "electron";
 import { electronApp, optimizer } from "@electron-toolkit/utils";
+import { spawn } from "child_process";
 import { io } from "socket.io-client";
 
 import appContent from "./lib/appContent";
@@ -118,13 +119,32 @@ async function socketLogic() {
     // coreStartResponse
     // [SERVER] -> [MAIN]
     appContext.socket.on("est-event:coreStartResponse", (data) => {
-
+        appContext.estCoreSender = helperSpawnEchoStreamerCore([
+            "--mode", "sender",
+            ...(data.deviceSource ? ["--device", data.deviceSource] : []),
+            "--peerip", data.peerIp,
+            "--latency", data.latency
+        ]);
+        appContext.estCoreReceiver = helperSpawnEchoStreamerCore([
+            "--mode", "receiver",
+            ...(data.deviceSink ? ["--device", data.deviceSink] : []),
+            "--gain", data.gain
+        ]);
     });
 
     // coreStopResponse
     // [SERVER] -> [MAIN]
-    appContext.socket.on("est-event:coreStopResponse", (data) => {
+    appContext.socket.on("est-event:coreStopResponse", () => {
+        if (appContext.estCoreSender) {
+            appContext.estCoreSender.once("close", () => { appContext.estCoreSender = null; });
+            appContext.estCoreSender.kill();
+        }
+        if (appContext.estCoreReceiver) {
+            appContext.estCoreReceiver.once("close", () => { appContext.estCoreReceiver = null; });
+            appContext.estCoreReceiver.kill();
+        }
 
+        // ToDo: Send audio files to server
     });
 
     // ===== Outbound communication ==============================
@@ -155,4 +175,34 @@ function helperGetOperatingSystem() {
     if (platform === "linux") return "linux";
     if (platform === "win32") return "windows";
     return null;
+}
+
+function helperSpawnEchoStreamerCore(args = []) {
+    const base = path.join(process.resourcesPath, "est-core");
+    const platform = helperGetOperatingSystem();
+    let gstLib, gstBin;
+
+    if (platform === "linux") {
+        gstLib = path.join(base, "gst-lib", "x86_64-linux-gnu", "lib");
+
+        return spawn(path.join(base, "est-core"), args, {
+            env: {
+                ...process.env,
+                LD_LIBRARY_PATH: gstLib + (process.env.LD_LIBRARY_PATH ? ":" + process.env.LD_LIBRARY_PATH : ""),
+                GST_PLUGIN_PATH: path.join(gstLib, "gstreamer-1.0"),
+            }
+        });
+    }
+    else if (platform === "windows") {
+        gstLib = path.join(base, "gst-lib", "x86_64-windows", "lib");
+        gstBin = path.join(base, "gst-lib", "x86_64-windows", "bin");
+        
+        return spawn(path.join(base, "est-core.exe"), args, {
+            env: {
+                ...process.env,
+                PATH: gstBin + ";" + process.env.PATH,
+                GST_PLUGIN_PATH: path.join(gstLib, "gstreamer-1.0"),
+            }
+        });
+    }
 }
