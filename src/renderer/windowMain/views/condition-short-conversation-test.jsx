@@ -4,7 +4,9 @@ import ComponentHeader from "@/components/header";
 
 function ViewShortConversationTest() {
     useEffect(() => {
-        window.appApi.ipcRenderer.invoke("ipc:coreStartRequest");
+        window.appApi.ipcRenderer.invoke("ipc:coreStartRequest", {
+            component: "sender"
+        });
         return () => {
             window.appApi.ipcRenderer.invoke("ipc:coreStopRequest");
         };

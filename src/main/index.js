@@ -125,24 +125,27 @@ async function socketLogic() {
     // [SERVER] -> [MAIN]
     appContext.socket.on("est-event:coreStartResponse", async (data) => {
 
-        // Start sender component of est-core
-        appContext.estCoreSender = await helperEstCoreSpawn([
-            "--mode", "sender",
-            ...(data.deviceSource ? ["--device", data.deviceSource] : []),
-            "--peerip", data.peerIp,
-            "--latency", data.latency
-        ]);
+        // Stage 1: Sender component
+        if (data.component === "sender") {
+            appContext.estCoreSender = await helperEstCoreSpawn([
+                "--mode", data.component,
+                ...(data.deviceSource ? ["--device", data.deviceSource] : []),
+                "--peerip", data.peerIp,
+                "--latency", data.latency
+            ]);
+            appContext.socket.emit("est-event:coreStartRequest", {
+                component: "receiver"
+            });
+        }
 
-        // Add 200ms pause to make up for sender-startup asynchronicity due to network ping
-        // This ensures that the sender components runs before we now start the receiver components
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // Start receiver component of est-core
-        appContext.estCoreReceiver = await helperEstCoreSpawn([
-            "--mode", "receiver",
-            ...(data.deviceSink ? ["--device", data.deviceSink] : []),
-            "--gain", data.gain
-        ]);
+        // Stage 2: Receiver component
+        else if (data.component === "receiver") {
+            appContext.estCoreReceiver = await helperEstCoreSpawn([
+                "--mode", data.component,
+                ...(data.deviceSink ? ["--device", data.deviceSink] : []),
+                "--gain", data.gain
+            ]);
+        }
     });
 
     // coreStopResponse
@@ -161,8 +164,8 @@ async function socketLogic() {
 
     // coreStartRequest
     // [RENDERER -> PRELOAD -> MAIN] -> [SERVER]
-    ipcMain.handle("ipc:coreStartRequest", () => {
-        appContext.socket.emit("est-event:coreStartRequest");
+    ipcMain.handle("ipc:coreStartRequest", (_, ...args) => {
+        appContext.socket.emit("est-event:coreStartRequest", args[0]);
     });
 
     // coreStopRequest
