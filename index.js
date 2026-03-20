@@ -32,7 +32,8 @@ const viewFlow = [
 
 let appState = {
     clientListConnected: new Map(),
-    clientListWaiting: new Set(),
+    clientListWaitingOnViewChange: new Set(),
+    clientListWaitingOnCoreStart: new Set(),
     conditionIndex: 0,
     conditionOrder: []
 }
@@ -64,7 +65,8 @@ io.on("connection", (socket) => {
     socket.on("est-event:clientUnregister", () => {
         console.log("Client disconnected: " + socket.id);
         appState.clientListConnected.delete(socket.id);
-        appState.clientListWaiting.delete(socket.id);
+        appState.clientListWaitingOnViewChange.delete(socket.id);
+        appState.clientListWaitingOnCoreStart.delete(socket.id);
 
         // Check if less than two clients are connected now
         if (appState.clientListConnected.size < 2) {
@@ -86,10 +88,10 @@ io.on("connection", (socket) => {
 
         // Views with gated passing
         else if (view.passing === "gated") {
-            appState.clientListWaiting.add(socket.id);
+            appState.clientListWaitingOnViewChange.add(socket.id);
 
             // Both clients now want to proceed
-            if (appState.clientListWaiting.size === 2) {
+            if (appState.clientListWaitingOnViewChange.size === 2) {
 
                 // When current view indicates a loop end: Increment conditionIndex
                 if (view.metadata?.loopBehaviour === "end" && viewNext !== "viewEnding") {
@@ -108,29 +110,48 @@ io.on("connection", (socket) => {
                 }
 
                 // Push new view to clients
-                appState.clientListWaiting.forEach(clientSocketId => {
+                appState.clientListWaitingOnViewChange.forEach(clientSocketId => {
                     io.to(clientSocketId).emit("est-event:viewChangeResponse", viewNext);
                 });
-                appState.clientListWaiting.clear();
+                appState.clientListWaitingOnViewChange.clear();
             }
         }
     });
 
     // ===== coreStartRequest ==============================
-    socket.on("est-event:coreStartRequest", () => {
+    socket.on("est-event:coreStartRequest", (data) => {
         const currentCondition = helperGetCurrentCondition();
-        const peerClient = [...appState.clientListConnected].find(([id]) => id !== socket.id);
-        const thisClient = appState.clientListConnected.get(socket.id);
 
-        const estCoreSettings = {
-            peerIp: peerClient[1].ipAddress,
-            deviceSource: thisClient.deviceSource,
-            deviceSink: thisClient.deviceSink,
-            latency: currentCondition.latency,
-            gain: currentCondition.gain,
+        // Stage 1: Sender component (Direct response)
+        if (data.component === "sender") {
+            const peerClient = [...appState.clientListConnected].find(([id]) => id !== socket.id);
+            const thisClient = appState.clientListConnected.get(socket.id);
+            const estCoreSettings = {
+                component: "sender",
+                peerIp: peerClient[1].ipAddress,
+                deviceSource: thisClient.deviceSource,
+                latency: currentCondition.latency
+            }
+            io.to(socket.id).emit("est-event:coreStartResponse", estCoreSettings);
         }
 
-        io.to(socket.id).emit("est-event:coreStartResponse", estCoreSettings);
+        // Stage 2: Receiver component (Gated response)
+        else if (data.component === "receiver") {
+            appState.clientListWaitingOnCoreStart.add(socket.id);
+
+            if (appState.clientListWaitingOnCoreStart.size === 2) {
+                appState.clientListWaitingOnCoreStart.forEach(clientSocketId => {
+                    const clientData = appState.clientListConnected.get(clientSocketId);
+                    const estCoreSettings = {
+                        component: "receiver",
+                        deviceSink: clientData.deviceSink,
+                        gain: currentCondition.gain
+                    }
+                    io.to(clientSocketId).emit("est-event:coreStartResponse", estCoreSettings);
+                });
+                appState.clientListWaitingOnCoreStart.clear();
+            }
+        }
     });
 
     // ===== coreStopRequest ==============================
