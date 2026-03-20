@@ -1,7 +1,7 @@
 // ===========================================
 // ===== COMMON ==============================
 // ===========================================
-const estConfig = require("./est-config.js");
+const estConfig = require("./est-config.json");
 
 const http = require("http");
 const express = require("express");
