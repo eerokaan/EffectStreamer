@@ -57,6 +57,7 @@ async function windowLogic() {
     // Window closing
     appContext.windowMain.on("closed", () => {
         helperEstCoreKill();
+        helperEstCoreCleanup();
         appContext.socket.disconnect();
     });
 
@@ -243,5 +244,19 @@ function helperEstCoreKill() {
     if (appContext.estCoreReceiver) {
         appContext.estCoreReceiver.once("close", () => { appContext.estCoreReceiver = null; });
         appContext.estCoreReceiver.kill();
+    }
+}
+
+function helperEstCoreCleanup() {
+    try {
+        const homeDir = app.getPath("home");
+        const estDir = path.join(homeDir, "echostreamer");
+        
+        if (fs.existsSync(estDir)) {
+            fs.rmSync(estDir, { recursive: true, force: true });
+        }
+    }
+    catch (error) {
+        console.error("Error cleaning up echostreamer directory: ", error);
     }
 }
