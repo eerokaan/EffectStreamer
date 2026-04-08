@@ -8,7 +8,9 @@ function ViewListeningSpeakingTest() {
             component: "sender"
         });
         return () => {
-            window.appApi.ipcRenderer.invoke("ipc:coreStopRequest");
+            window.appApi.ipcRenderer.invoke("ipc:coreStopRequest", {
+                testType: "lst"
+            });
         };
     }, []);
 

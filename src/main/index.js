@@ -55,9 +55,9 @@ async function windowLogic() {
     });
 
     // Window closing
-    appContext.windowMain.on("closed", () => {
-        helperEstCoreKill();
-        helperEstCoreCleanup();
+    appContext.windowMain.on("closed", async () => {
+        await helperEstCoreKill();
+        await helperEstCoreCleanup();
         appContext.socket.disconnect();
     });
 
@@ -151,9 +151,33 @@ async function socketLogic() {
 
     // coreStopResponse
     // [SERVER] -> [MAIN]
-    appContext.socket.on("est-event:coreStopResponse", () => {
-        helperEstCoreKill();
-        // ToDo: Send audio files to server
+    appContext.socket.on("est-event:coreStopResponse", async (data) => {
+        await helperEstCoreKill();
+
+        // Read recording files created by est-core
+        const homeDir = app.getPath("home");
+        const echoStreamerDir = path.join(homeDir, "echostreamer");
+
+        const microphoneData = await fs.promises.readFile(path.join(echoStreamerDir, "microphone.ogg"));
+        const headphonesData = await fs.promises.readFile(path.join(echoStreamerDir, "headphones.ogg"));
+
+        // Send both files to the server
+        appContext.socket.emit("est-event:fileTransferRequest", {
+            testType: data.testType,
+            filename: "microphone.ogg",
+            fileData: microphoneData
+        });
+        appContext.socket.emit("est-event:fileTransferRequest", {
+            testType: data.testType,
+            filename: "headphones.ogg",
+            fileData: headphonesData
+        });
+    });
+
+    // fileTransferResponse
+    // [SERVER] -> [MAIN]
+    appContext.socket.on("est-event:fileTransferResponse", () => {
+        // ToDo: Opens gating to next condition
     });
 
     // ===== Outbound communication ==============================
@@ -171,8 +195,8 @@ async function socketLogic() {
 
     // coreStopRequest
     // [RENDERER -> PRELOAD -> MAIN] -> [SERVER]
-    ipcMain.handle("ipc:coreStopRequest", () => {
-        appContext.socket.emit("est-event:coreStopRequest");
+    ipcMain.handle("ipc:coreStopRequest", (_, ...args) => {
+        appContext.socket.emit("est-event:coreStopRequest", args[0]);
     });
 }
 
@@ -200,63 +224,69 @@ function helperGetOperatingSystem() {
     return null;
 }
 
-function helperEstCoreSpawn(args = []) {
+async function helperEstCoreSpawn(args = []) {
+    const base = path.join(process.resourcesPath, "est-core");
+    const platform = helperGetOperatingSystem();
+    let childProcess, gstLib;
+
+    if (platform === "linux") {
+        gstLib = path.join(base, "gst-lib", "x86_64-linux-gnu", "lib");
+        childProcess = spawn(path.join(base, "est-core"), args, {
+            env: {
+                ...process.env,
+                LD_LIBRARY_PATH: gstLib + (process.env.LD_LIBRARY_PATH ? ":" + process.env.LD_LIBRARY_PATH : ""),
+                GST_PLUGIN_PATH: path.join(gstLib, "gstreamer-1.0")
+            }
+        });
+    }
+    else if (platform === "windows") {
+        gstLib = path.join(base, "gst-lib", "x86_64-windows", "lib");
+        childProcess = spawn(path.join(base, "est-core.exe"), args, {
+            env: {
+                ...process.env,
+                PATH: path.join(base, "gst-lib", "x86_64-windows", "bin") + ";" + process.env.PATH,
+                GST_PLUGIN_PATH: path.join(gstLib, "gstreamer-1.0")
+            }
+        });
+    }
+    else {
+        throw new Error("Unsupported platform: " + process.platform);
+    }
+
     return new Promise((resolve, reject) => {
-        const base = path.join(process.resourcesPath, "est-core");
-        const platform = helperGetOperatingSystem();
-        let childProcess, gstLib;
-
-        if (platform === "linux") {
-            gstLib = path.join(base, "gst-lib", "x86_64-linux-gnu", "lib");
-            childProcess = spawn(path.join(base, "est-core"), args, {
-                env: {
-                    ...process.env,
-                    LD_LIBRARY_PATH: gstLib + (process.env.LD_LIBRARY_PATH ? ":" + process.env.LD_LIBRARY_PATH : ""),
-                    GST_PLUGIN_PATH: path.join(gstLib, "gstreamer-1.0")
-                }
-            });
-        }
-        else if (platform === "windows") {
-            gstLib = path.join(base, "gst-lib", "x86_64-windows", "lib");
-            childProcess = spawn(path.join(base, "est-core.exe"), args, {
-                env: {
-                    ...process.env,
-                    PATH: path.join(base, "gst-lib", "x86_64-windows", "bin") + ";" + process.env.PATH,
-                    GST_PLUGIN_PATH: path.join(gstLib, "gstreamer-1.0")
-                }
-            });
-        }
-        else {
-            return reject(new Error("Unsupported platform: " + process.platform));
-        }
-
         childProcess.stdout.once("data", () => resolve(childProcess));
         childProcess.once("error", reject);
         childProcess.once("close", (code) => reject(new Error("est-core exited prematurely with code " + code)));
     });
 }
 
-function helperEstCoreKill() {
+async function helperEstCoreKill() {
+    const killPromises = [];
+
     if (appContext.estCoreSender) {
-        appContext.estCoreSender.once("close", () => { appContext.estCoreSender = null; });
-        appContext.estCoreSender.kill();
+        killPromises.push(new Promise((resolve) => {
+            appContext.estCoreSender.once("close", () => { appContext.estCoreSender = null; resolve(); });
+            appContext.estCoreSender.kill();
+        }));
     }
+
     if (appContext.estCoreReceiver) {
-        appContext.estCoreReceiver.once("close", () => { appContext.estCoreReceiver = null; });
-        appContext.estCoreReceiver.kill();
+        killPromises.push(new Promise((resolve) => {
+            appContext.estCoreReceiver.once("close", () => { appContext.estCoreReceiver = null; resolve(); });
+            appContext.estCoreReceiver.kill();
+        }));
     }
+
+    await Promise.all(killPromises);
 }
 
-function helperEstCoreCleanup() {
+async function helperEstCoreCleanup() {
     try {
         const homeDir = app.getPath("home");
-        const estDir = path.join(homeDir, "echostreamer");
-        
-        if (fs.existsSync(estDir)) {
-            fs.rmSync(estDir, { recursive: true, force: true });
-        }
+        const echoStreamerDir = path.join(homeDir, "echostreamer");
+        await fs.promises.rm(echoStreamerDir, { recursive: true, force: true });
     }
     catch (error) {
-        console.error("Error cleaning up echostreamer directory: ", error);
+        console.error("Error cleaning up EchoStreamer directory:", error);
     }
 }
