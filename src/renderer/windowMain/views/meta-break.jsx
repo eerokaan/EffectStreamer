@@ -5,7 +5,7 @@ function ViewBreak() {
     return (
         <>
             <div className="flex flex-1 flex-col justify-center">
-                <ComponentHeader headline="Break"></ComponentHeader>
+                <ComponentHeader headline="Time for a break"></ComponentHeader>
 
                 <div className="flex-1">
                     <p>Now it is time for a break.</p>
