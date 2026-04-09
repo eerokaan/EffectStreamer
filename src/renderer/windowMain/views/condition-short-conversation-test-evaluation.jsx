@@ -19,8 +19,7 @@ function ViewShortConversationTestEvaluation() {
     const hasSelection = scaleValues[scaleName] != null;
 
     const handleScaleTransfer = () => {
-        window.appApi.ipcRenderer.invoke("ipc:scaleTransferRequest", {
-            testType: "sct",
+        window.appApi.ipcRenderer.invoke("ipc:viewChangeRequest", {
             currentView: currentView,
             scaleValues: scaleValues
         });

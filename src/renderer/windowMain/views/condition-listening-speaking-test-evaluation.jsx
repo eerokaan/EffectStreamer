@@ -19,8 +19,7 @@ function ViewListeningSpeakingTestEvaluation() {
     const hasSelection = scaleValues[scaleName] != null;
 
     const handleScaleTransfer = () => {
-        window.appApi.ipcRenderer.invoke("ipc:scaleTransferRequest", {
-            testType: "lst",
+        window.appApi.ipcRenderer.invoke("ipc:viewChangeRequest", {
             currentView: currentView,
             scaleValues: scaleValues
         });
