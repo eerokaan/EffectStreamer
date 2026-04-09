@@ -62,7 +62,7 @@ io.on("connection", (socket) => {
 
         // Check if two clients are connected now
         if (appState.clientListConnected.size === 2) {
-            appState.clientListConnected.forEach(clientSocketId => {
+            appState.clientListConnected.forEach((clientData, clientSocketId) => {
                 io.to(clientSocketId).emit("est-event:viewChangeResponse", "viewWelcome");
             });
         }
@@ -77,7 +77,7 @@ io.on("connection", (socket) => {
 
         // Check if less than two clients are connected now
         if (appState.clientListConnected.size < 2) {
-            appState.clientListConnected.forEach(clientSocketId => {
+            appState.clientListConnected.forEach((clientData, clientSocketId) => {
                 io.to(clientSocketId).emit("est-event:viewChangeResponse", "viewWaiting");
             });
         }
