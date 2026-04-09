@@ -40,6 +40,7 @@ let appState = {
     clientListWaitingOnCoreStart: new Set(),
     clientListWaitingOnCoreStop: new Set(),
     clientListWaitingOnFileTransfer: new Set(),
+    clientListWaitingOnScaleTransfer: new Set(),
     conditionIndex: 0,
     conditionOrder: [],
     sessionDir: null
@@ -74,6 +75,7 @@ io.on("connection", (socket) => {
         appState.clientListConnected.delete(socket.id);
         appState.clientListWaitingOnViewChange.delete(socket.id);
         appState.clientListWaitingOnCoreStart.delete(socket.id);
+        appState.clientListWaitingOnScaleTransfer.delete(socket.id);
 
         // Check if less than two clients are connected now
         if (appState.clientListConnected.size < 2) {
@@ -200,6 +202,45 @@ io.on("connection", (socket) => {
                 io.to(clientSocketId).emit("est-event:fileTransferResponse");
             });
             appState.clientListWaitingOnFileTransfer.clear();
+        }
+    });
+
+    // ===== scaleTransferRequest ==============================
+    socket.on("est-event:scaleTransferRequest", (data) => {
+
+        // Determine client label based on connection order
+        const clientIds = [...appState.clientListConnected.keys()];
+        const clientLabel = clientIds.indexOf(socket.id) === 0 ? "a" : "b";
+
+        // Construct filename: client-{a|b}-{sct|lst}-scales.json
+        const serverFilename = "client-" + clientLabel + "-" + data.testType + "-scales.json";
+
+        // Write file to current condition directory
+        const conditionPadded = String(appState.conditionIndex + 1).padStart(4, "0");
+        const filePath = path.join(appState.sessionDir, conditionPadded, serverFilename);
+        fs.writeFileSync(filePath, JSON.stringify(data.scaleValues, null, 2));
+
+        // Gate: Track received scale submissions (1 per client = 2 total)
+        appState.clientListWaitingOnScaleTransfer.add(socket.id);
+
+        // Both clients submitted: Resolve the gate
+        if (appState.clientListWaitingOnScaleTransfer.size === 2) {
+            const view = viewFlow.find(view => view.name === data.currentView);
+            const viewNext = helperGetNextView(view.name);
+
+            // When current view indicates a loop end: Increment conditionIndex
+            if (view.metadata?.loopBehaviour === "end" && viewNext !== "viewEnding") {
+                appState.conditionIndex++;
+
+                const currentCondition = helperGetCurrentCondition();
+                console.log("Round " + appState.conditionIndex + ": Using condition " + JSON.stringify(currentCondition));
+            }
+
+            // Send responses to both clients
+            appState.clientListWaitingOnScaleTransfer.forEach(clientSocketId => {
+                io.to(clientSocketId).emit("est-event:scaleTransferResponse", viewNext);
+            });
+            appState.clientListWaitingOnScaleTransfer.clear();
         }
     });
 });
