@@ -38,11 +38,11 @@ let appState = {
     clientListConnected: new Map(),
     clientListWaitingOnViewChange: new Set(),
     clientListWaitingOnCoreStart: new Set(),
+    clientListWaitingOnCoreStop: new Set(),
     clientListWaitingOnFileTransfer: new Set(),
     conditionIndex: 0,
     conditionOrder: [],
-    sessionDir: null,
-    coreStopInProgress: false
+    sessionDir: null
 }
 
 // ===========================================
@@ -163,36 +163,16 @@ io.on("connection", (socket) => {
 
     // ===== coreStopRequest ==============================
     socket.on("est-event:coreStopRequest", (data) => {
+        appState.clientListWaitingOnCoreStop.add(socket.id);
 
-        // Prevent duplicate processing (second clients unmount triggers another coreStop)
-        if (appState.coreStopInProgress) return;
-        appState.coreStopInProgress = true;
-
-        // Create folder structure once per session
-        if (!appState.sessionDir) {
-            const echostreamerDir = path.join(os.homedir(), "echostreamer");
-            fs.mkdirSync(echostreamerDir, { recursive: true });
-
-            // Determine next session number (n+1 from existing directories)
-            const existing = fs.readdirSync(echostreamerDir).filter(name => /^\d{4}$/.test(name)).map(Number);
-            const sessionNum = existing.length > 0 ? Math.max(...existing) + 1 : 1;
-
-            appState.sessionDir = path.join(echostreamerDir, String(sessionNum).padStart(4, "0"));
-            fs.mkdirSync(appState.sessionDir);
-
-            // Create condition directories (one per round)
-            const roundsTotal = estConfig.conditions.baseline.length + estConfig.conditions.random.length;
-            for (let counter = 1; counter <= roundsTotal; counter++) {
-                fs.mkdirSync(path.join(appState.sessionDir, String(counter).padStart(4, "0")));
-            }
-        }
-
-        // Send coreStopResponse to both connected clients
-        appState.clientListConnected.forEach((clientData, clientSocketId) => {
-            io.to(clientSocketId).emit("est-event:coreStopResponse", {
-                testType: data.testType
+        if (appState.clientListWaitingOnCoreStop.size === 2) {
+            appState.clientListWaitingOnCoreStop.forEach(clientSocketId => {
+                io.to(clientSocketId).emit("est-event:coreStopResponse", {
+                    testType: data.testType
+                });
             });
-        });
+            appState.clientListWaitingOnCoreStop.clear();
+        }
     });
 
     // ===== fileTransferRequest ==============================
@@ -220,7 +200,6 @@ io.on("connection", (socket) => {
                 io.to(clientSocketId).emit("est-event:fileTransferResponse");
             });
             appState.clientListWaitingOnFileTransfer.clear();
-            appState.coreStopInProgress = false;
         }
     });
 });
@@ -228,6 +207,24 @@ io.on("connection", (socket) => {
 // ===========================================
 // ===== HELPER ==============================
 // ===========================================
+function helperCreateFolderStructure() {
+    const echostreamerDir = path.join(os.homedir(), "echostreamer");
+    fs.mkdirSync(echostreamerDir, { recursive: true });
+
+    // Determine next session number (n+1 from existing directories)
+    const existing = fs.readdirSync(echostreamerDir).filter(name => /^\d{4}$/.test(name)).map(Number);
+    const sessionNum = existing.length > 0 ? Math.max(...existing) + 1 : 1;
+
+    appState.sessionDir = path.join(echostreamerDir, String(sessionNum).padStart(4, "0"));
+    fs.mkdirSync(appState.sessionDir);
+
+    // Create condition directories (one per round)
+    const roundsTotal = estConfig.conditions.baseline.length + estConfig.conditions.random.length;
+    for (let counter = 1; counter <= roundsTotal; counter++) {
+        fs.mkdirSync(path.join(appState.sessionDir, String(counter).padStart(4, "0")));
+    }
+}
+
 function helperGetNextView(currentView) {
     const viewIndex = viewFlow.findIndex(view => view.name === currentView);
     const view = viewFlow[viewIndex];
@@ -278,5 +275,6 @@ function helperGetCurrentCondition() {
 // ===== HTTP SERVER LOGIC ===================
 // ===========================================
 server.listen(estConfig.server.port, estConfig.server.ipAddress, () => {
+    helperCreateFolderStructure();
     console.log("Server is running on port " + estConfig.server.port);
 });
