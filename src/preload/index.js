@@ -4,8 +4,8 @@ import appInfo from "../main/lib/appInfo";
 
 // Define valid channels by operation type
 const validChannels = {
-    invoke: ["ipc:viewChangeRequest", "ipc:coreStartRequest", "ipc:coreStopRequest"],
-    on: ["ipc:storeGetValueRequest", "ipc:storeSetValueRequest", "ipc:storeResetRequest"],
+    invoke: ["ipc:viewChangeRequest", "ipc:coreStartRequest", "ipc:coreStopRequest", "ipc:scaleTransferRequest"],
+    on: ["ipc:storeGetValueRequest", "ipc:storeSetValueRequest", "ipc:storeResetRequest", "ipc:scaleTransferResponse"],
     send: ["ipc:storeGetValueResponse", "ipc:storeSetValueResponse", "ipc:storeResetResponse"]
 };
 

@@ -5,7 +5,7 @@ function ViewListeningSpeakingTestExplanation() {
     return (
         <>
             <div className="flex flex-1 flex-col justify-center">
-                <ComponentHeader headline="ListeningSpeakingTest Explanation [4]"></ComponentHeader>
+                <ComponentHeader headline="Listening/Speaking Test: Explanation"></ComponentHeader>
 
                 <div className="flex-1">
                     <p>Lorem Ipsum</p>

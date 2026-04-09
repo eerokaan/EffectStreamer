@@ -17,12 +17,10 @@ function ViewListeningSpeakingTest() {
     return (
         <>
             <div className="flex flex-1 flex-col justify-center">
-                <ComponentHeader headline="ListeningSpeakingTest [5]"></ComponentHeader>
+                <ComponentHeader headline="Listening/Speaking Test"></ComponentHeader>
 
                 <div className="flex-1">
-                    <p>
-                        <code>est-core</code> now running in background
-                    </p>
+                    <p>Lorem Ipsum</p>
                 </div>
 
                 <ComponentFooter></ComponentFooter>

@@ -5,7 +5,7 @@ function ViewPretest() {
     return (
         <>
             <div className="flex flex-1 flex-col justify-center">
-                <ComponentHeader headline="Pretest Questions"></ComponentHeader>
+                <ComponentHeader headline="Before we begin"></ComponentHeader>
 
                 <div className="flex-1">
                     <p>Yeah... This is where the content for the Pretest Questions comes.</p>

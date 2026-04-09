@@ -17,12 +17,10 @@ function ViewShortConversationTest() {
     return (
         <>
             <div className="flex flex-1 flex-col justify-center">
-                <ComponentHeader headline="ShortConversationTest [2]"></ComponentHeader>
+                <ComponentHeader headline="Short Conversation Test"></ComponentHeader>
 
                 <div className="flex-1">
-                    <p>
-                        <code>est-core</code> now running in background
-                    </p>
+                    <p>Lorem Ipsum</p>
                 </div>
 
                 <ComponentFooter></ComponentFooter>

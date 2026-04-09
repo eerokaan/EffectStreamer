@@ -116,6 +116,12 @@ async function socketLogic() {
         appContext.windowMain.webContents.send("ipc:storeResetRequest", {
             storeName: "ComponentFooter"
         });
+        appContext.windowMain.webContents.send("ipc:storeResetRequest", {
+            storeName: "ComponentScale"
+        });
+        appContext.windowMain.webContents.send("ipc:storeResetRequest", {
+            storeName: "ComponentScaleEvaluation"
+        });
     });
 
     // coreStartResponse
@@ -163,7 +169,27 @@ async function socketLogic() {
     // fileTransferResponse
     // [SERVER] -> [MAIN]
     appContext.socket.on("est-event:fileTransferResponse", () => {
-        // ToDo: Opens gating to next condition
+        // ToDo: Open gating to next condition
+    });
+
+    // scaleTransferResponse
+    // [SERVER] -> [MAIN -> PRELOAD -> RENDERER]
+    appContext.socket.on("est-event:scaleTransferResponse", (data) => {
+        appContext.windowMain.webContents.send("ipc:storeSetValueRequest", {
+            storeName: "Root",
+            payload: { currentView: data }
+        });
+        appContext.windowMain.webContents.send("ipc:storeResetRequest", {
+            storeName: "ComponentFooter"
+        });
+        appContext.windowMain.webContents.send("ipc:storeResetRequest", {
+            storeName: "ComponentScale"
+        });
+        appContext.windowMain.webContents.send("ipc:storeResetRequest", {
+            storeName: "ComponentScaleEvaluation"
+        });
+
+        // ToDo: Open gating to next condition (?)
     });
 
     // ===== Outbound communication ==============================
@@ -183,6 +209,12 @@ async function socketLogic() {
     // [RENDERER -> PRELOAD -> MAIN] -> [SERVER]
     ipcMain.handle("ipc:coreStopRequest", (_, ...args) => {
         appContext.socket.emit("est-event:coreStopRequest", args[0]);
+    });
+
+    // scaleTransferRequest
+    // [RENDERER -> PRELOAD -> MAIN] -> [SERVER]
+    ipcMain.handle("ipc:scaleTransferRequest", (_, ...args) => {
+        appContext.socket.emit("est-event:scaleTransferRequest", args[0]);
     });
 }
 

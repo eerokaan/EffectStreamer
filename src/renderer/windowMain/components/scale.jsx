@@ -2,9 +2,9 @@ import { useRef } from "react";
 import useStoreComponentScale from "@/stores/component-scale";
 
 import imgAudioQuality from "@/assets/img/scales/01_audio_quality.png";
-import imgColoring from "@/assets/img/scales/02_coloring.png";
-import imgContinuity from "@/assets/img/scales/03_continuity.png";
-import imgDegredation from "@/assets/img/scales/04_degredation.png";
+import imgColoration from "@/assets/img/scales/02_coloration.png";
+import imgDiscontinuity from "@/assets/img/scales/03_discontinuity.png";
+import imgDegradation from "@/assets/img/scales/04_degradation.png";
 import imgEcho from "@/assets/img/scales/05_echo.png";
 import imgInteraction from "@/assets/img/scales/06_interaction.png";
 import imgLoudness from "@/assets/img/scales/07_loudness.png";
@@ -16,14 +16,14 @@ const fixedY = 115;
 
 const scaleClasses = {
     class01: { xMin: 223, xMax: 3971 },
-    class02: { xMin: 102, xMax: 4090 },
+    class02: { xMin: 102, xMax: 4090 }
 };
 
 const scales = {
     audio_quality: { scaleClass: "class01", image: imgAudioQuality },
-    coloring: { scaleClass: "class02", image: imgColoring },
-    continuity: { scaleClass: "class02", image: imgContinuity },
-    degredation: { scaleClass: "class02", image: imgDegredation },
+    coloration: { scaleClass: "class02", image: imgColoration },
+    discontinuity: { scaleClass: "class02", image: imgDiscontinuity },
+    degradation: { scaleClass: "class02", image: imgDegradation },
     echo: { scaleClass: "class02", image: imgEcho },
     interaction: { scaleClass: "class02", image: imgInteraction },
     loudness: { scaleClass: "class02", image: imgLoudness },
@@ -39,12 +39,13 @@ function ComponentScale({ scaleName }) {
 
     // Derive marker position directly from the store value
     const storedValue = scaleValues[scaleName];
-    const markerPercentage = storedValue != null
-        ? {
-            leftPercentage: ((storedValue * (xMax - xMin) + xMin) / imageWidth) * 100,
-            topPercentage: (fixedY / imageHeight) * 100
-        }
-        : null;
+    const markerPercentage =
+        storedValue != null
+            ? {
+                  leftPercentage: ((storedValue * (xMax - xMin) + xMin) / imageWidth) * 100,
+                  topPercentage: (fixedY / imageHeight) * 100
+              }
+            : null;
 
     // Handle click on the transparent overlay
     function handleClick(event) {
@@ -71,7 +72,7 @@ function ComponentScale({ scaleName }) {
 
                 {markerPercentage && (
                     <div
-                        className="absolute pointer-events-none"
+                        className="pointer-events-none absolute"
                         style={{
                             left: `${markerPercentage.leftPercentage}%`,
                             top: `${markerPercentage.topPercentage}%`,

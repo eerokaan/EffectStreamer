@@ -5,7 +5,7 @@ function ViewEnding() {
     return (
         <>
             <div className="flex flex-1 flex-col justify-center">
-                <ComponentHeader headline="The End"></ComponentHeader>
+                <ComponentHeader headline="Thank you for your participation"></ComponentHeader>
 
                 <div className="flex-1">
                     <p>🎵 This is the end. My only friend... The end. 🎵</p>
