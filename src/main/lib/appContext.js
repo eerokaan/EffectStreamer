@@ -11,10 +11,9 @@ const appContext = {
 
     // Reset all states
     resetStates() {
-        Object.keys(defaultStates)
-            .forEach((key) => {
-                this[key] = defaultStates[key];
-            });
+        Object.keys(defaultStates).forEach((key) => {
+            this[key] = defaultStates[key];
+        });
     }
 };
 

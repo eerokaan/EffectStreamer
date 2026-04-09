@@ -1,14 +1,15 @@
 import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
+import ComponentScale from "@/components/scale";
 
 function ViewShortConversationTestEvaluation() {
     return (
         <>
-            <div className="flex flex-col flex-1 justify-center">
+            <div className="flex flex-1 flex-col justify-center">
                 <ComponentHeader headline="ShortConversationTest Evaluation [3]"></ComponentHeader>
 
                 <div className="flex-1">
-                    <p>Lorem Ipsum</p>
+                    <ComponentScale scaleName="audio_quality"></ComponentScale>
                 </div>
 
                 <ComponentFooter></ComponentFooter>

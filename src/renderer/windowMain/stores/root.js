@@ -1,7 +1,7 @@
 import createStore from "@/lib/stores-create";
 
 const useStoreRoot = createStore({
-    currentView: "viewWaiting",
+    currentView: "viewWaiting"
 });
 
 export default useStoreRoot;

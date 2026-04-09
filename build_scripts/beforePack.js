@@ -27,13 +27,10 @@ module.exports = async function (context) {
     console.log("[beforePack] Unpacking GStreamer libraries from " + zipPath + "...");
 
     if (platform === "win32") {
-        execSync(
-            "powershell -Command \"Expand-Archive -Path '" + zipPath + "' -DestinationPath '" + buildDir + "'\"",
-            { stdio: "inherit" }
-        );
+        execSync("powershell -Command \"Expand-Archive -Path '" + zipPath + "' -DestinationPath '" + buildDir + "'\"", { stdio: "inherit" });
     }
     else {
-        execSync("unzip -q \"" + zipPath + "\" -d \"" + buildDir + "\"", { stdio: "inherit" });
+        execSync('unzip -q "' + zipPath + '" -d "' + buildDir + '"', { stdio: "inherit" });
     }
 
     console.log("[beforePack] GStreamer libraries unpacked successfully.");

@@ -5,6 +5,4 @@ import storesIpcGateway from "@/lib/stores-ipc-gateway";
 
 storesIpcGateway();
 
-ReactDOM.createRoot(document.getElementById("root")).render(
-    <Root></Root>
-);
+ReactDOM.createRoot(document.getElementById("root")).render(<Root></Root>);

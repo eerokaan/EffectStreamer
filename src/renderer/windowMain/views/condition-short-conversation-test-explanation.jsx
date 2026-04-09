@@ -4,7 +4,7 @@ import ComponentHeader from "@/components/header";
 function ViewShortConversationTestExplanation() {
     return (
         <>
-            <div className="flex flex-col flex-1 justify-center">
+            <div className="flex flex-1 flex-col justify-center">
                 <ComponentHeader headline="ShortConversationTest Explanation [1]"></ComponentHeader>
 
                 <div className="flex-1">

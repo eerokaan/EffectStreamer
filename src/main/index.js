@@ -13,9 +13,7 @@ import appContent from "./lib/appContent";
 import appContext from "./lib/appContext";
 import appInfo from "./lib/appInfo";
 
-const estConfig = JSON.parse(
-    fs.readFileSync(helperResolveConfigPath(), "UTF-8")
-);
+const estConfig = JSON.parse(fs.readFileSync(helperResolveConfigPath(), "UTF-8"));
 
 // ===========================================
 // ===== STARTUP / INITS =====================
@@ -23,11 +21,11 @@ const estConfig = JSON.parse(
 (async () => {
     await app.whenReady();
     electronApp.setAppUserModelId(appInfo.name);
-    
+
     app.on("browser-window-created", (_, window) => {
         optimizer.watchWindowShortcuts(window);
     });
-    
+
     await windowLogic();
     await socketLogic();
 })();
@@ -36,7 +34,6 @@ const estConfig = JSON.parse(
 // ===== WINDOW LOGIC ========================
 // ===========================================
 async function windowLogic() {
-
     // ===== Common ==============================
     // Window creation
     appContext.windowMain = new BrowserWindow({
@@ -81,7 +78,6 @@ async function windowLogic() {
 // ===== WEBSOCKET LOGIC =====================
 // ===========================================
 async function socketLogic() {
-
     // ===== Common ==============================
     // Setup socket connection
     const serverUrl = "http://" + estConfig.server.ipAddress + ":" + estConfig.server.port;
@@ -125,15 +121,9 @@ async function socketLogic() {
     // coreStartResponse
     // [SERVER] -> [MAIN]
     appContext.socket.on("est-event:coreStartResponse", async (data) => {
-
         // Stage 1: Sender component
         if (data.component === "sender") {
-            appContext.estCoreSender = await helperEstCoreSpawn([
-                "--mode", data.component,
-                ...(data.deviceSource ? ["--device", data.deviceSource] : []),
-                "--peerip", data.peerIp,
-                "--latency", data.latency
-            ]);
+            appContext.estCoreSender = await helperEstCoreSpawn(["--mode", data.component, ...(data.deviceSource ? ["--device", data.deviceSource] : []), "--peerip", data.peerIp, "--latency", data.latency]);
             appContext.socket.emit("est-event:coreStartRequest", {
                 component: "receiver"
             });
@@ -141,11 +131,7 @@ async function socketLogic() {
 
         // Stage 2: Receiver component
         else if (data.component === "receiver") {
-            appContext.estCoreReceiver = await helperEstCoreSpawn([
-                "--mode", data.component,
-                ...(data.deviceSink ? ["--device", data.deviceSink] : []),
-                "--gain", data.gain
-            ]);
+            appContext.estCoreReceiver = await helperEstCoreSpawn(["--mode", data.component, ...(data.deviceSink ? ["--device", data.deviceSink] : []), "--gain", data.gain]);
         }
     });
 
@@ -264,17 +250,27 @@ async function helperEstCoreKill() {
     const killPromises = [];
 
     if (appContext.estCoreSender) {
-        killPromises.push(new Promise((resolve) => {
-            appContext.estCoreSender.once("close", () => { appContext.estCoreSender = null; resolve(); });
-            appContext.estCoreSender.kill();
-        }));
+        killPromises.push(
+            new Promise((resolve) => {
+                appContext.estCoreSender.once("close", () => {
+                    appContext.estCoreSender = null;
+                    resolve();
+                });
+                appContext.estCoreSender.kill();
+            })
+        );
     }
 
     if (appContext.estCoreReceiver) {
-        killPromises.push(new Promise((resolve) => {
-            appContext.estCoreReceiver.once("close", () => { appContext.estCoreReceiver = null; resolve(); });
-            appContext.estCoreReceiver.kill();
-        }));
+        killPromises.push(
+            new Promise((resolve) => {
+                appContext.estCoreReceiver.once("close", () => {
+                    appContext.estCoreReceiver = null;
+                    resolve();
+                });
+                appContext.estCoreReceiver.kill();
+            })
+        );
     }
 
     await Promise.all(killPromises);

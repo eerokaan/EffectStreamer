@@ -1,7 +1,7 @@
 import createStore from "@/lib/stores-create";
 
 const useStoreComponentFooter = createStore({
-    isWaiting: false,
+    isWaiting: false
 });
 
 export default useStoreComponentFooter;

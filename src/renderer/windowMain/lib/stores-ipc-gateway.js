@@ -1,10 +1,12 @@
 import useStoreRoot from "@/stores/root";
 import useStoreComponentFooter from "@/stores/component-footer";
+import useStoreComponentScale from "@/stores/component-scale";
 
 // Registry of all Zustand stores
 const storeRegistry = {
     Root: useStoreRoot,
-    ComponentFooter: useStoreComponentFooter
+    ComponentFooter: useStoreComponentFooter,
+    ComponentScale: useStoreComponentScale
 };
 
 // Initialize IPC gateway, so that Zustand stores are accessible via IPC calls
@@ -25,7 +27,7 @@ const storesIpcGateway = () => {
 
             // Getting logic
             const state = store.getState();
-            const values = payload.map(attrName => state[attrName]);
+            const values = payload.map((attrName) => state[attrName]);
 
             // Send response back to caller
             window.appApi.ipcRenderer.send("ipc:storeGetValueResponse", values);

@@ -12,17 +12,17 @@ import ViewWaiting from "@/views/meta-waiting";
 import ViewWelcome from "@/views/meta-welcome";
 
 const viewMap = {
-    "viewWaiting": ViewWaiting,
-    "viewWelcome": ViewWelcome,
-    "viewPretest": ViewPretest,
-    "viewShortConversationTestExplanation": ViewShortConversationTestExplanation,
-    "viewShortConversationTest": ViewShortConversationTest,
-    "viewShortConversationTestEvaluation": ViewShortConversationTestEvaluation,
-    "viewListeningSpeakingTestExplanation": ViewListeningSpeakingTestExplanation,
-    "viewListeningSpeakingTest": ViewListeningSpeakingTest,
-    "viewListeningSpeakingTestEvaluation": ViewListeningSpeakingTestEvaluation,
-    "viewBreak": ViewBreak,
-    "viewEnding": ViewEnding
+    viewWaiting: ViewWaiting,
+    viewWelcome: ViewWelcome,
+    viewPretest: ViewPretest,
+    viewShortConversationTestExplanation: ViewShortConversationTestExplanation,
+    viewShortConversationTest: ViewShortConversationTest,
+    viewShortConversationTestEvaluation: ViewShortConversationTestEvaluation,
+    viewListeningSpeakingTestExplanation: ViewListeningSpeakingTestExplanation,
+    viewListeningSpeakingTest: ViewListeningSpeakingTest,
+    viewListeningSpeakingTestEvaluation: ViewListeningSpeakingTestEvaluation,
+    viewBreak: ViewBreak,
+    viewEnding: ViewEnding
 };
 
 function Root() {
@@ -31,7 +31,7 @@ function Root() {
 
     return (
         <>
-            <div className="min-h-screen p-12 flex flex-col">
+            <div className="flex min-h-screen flex-col p-12">
                 <View></View>
             </div>
         </>
