@@ -19,7 +19,7 @@ function ViewShortConversationTest() {
             <div className="flex flex-1 flex-col justify-center">
                 <ComponentHeader headline="Short Conversation Test"></ComponentHeader>
 
-                <div className="flex-1">
+                <div className="max-w-5xl flex-1">
                     <p>Lorem Ipsum</p>
                 </div>
 

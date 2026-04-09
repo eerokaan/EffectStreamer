@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ComponentFooter from "@/components/footer";
@@ -6,16 +7,24 @@ import ComponentScale from "@/components/scale";
 import useStoreComponentScale from "@/stores/component-scale";
 import useStoreComponentScaleEvaluation from "@/stores/component-scale-evaluation";
 import useStoreRoot from "@/stores/root";
-import { scaleOrder, scaleDetails } from "@/lib/scale-definitions";
+import { scaleDetails, getPermutedScaleOrder } from "@/lib/scale-definitions";
 
 function ViewShortConversationTestEvaluation() {
     const { scaleIndex, setScaleIndex } = useStoreComponentScaleEvaluation();
     const { scaleValues } = useStoreComponentScale();
-    const { currentView } = useStoreRoot();
+    const { currentView, scaleOffset, setScaleOffset } = useStoreRoot();
 
-    const scaleName = scaleOrder[scaleIndex];
+    // Initialize the random scale offset once per session
+    useEffect(() => {
+        if (scaleOffset === null) {
+            setScaleOffset(Math.floor(Math.random() * 7));
+        }
+    }, [scaleOffset, setScaleOffset]);
+
+    const permutedScaleOrder = getPermutedScaleOrder(scaleOffset ?? 0);
+    const scaleName = permutedScaleOrder[scaleIndex];
     const scaleDetail = scaleDetails[scaleName];
-    const isLastScale = scaleIndex === scaleOrder.length - 1;
+    const isLastScale = scaleIndex === permutedScaleOrder.length - 1;
     const hasSelection = scaleValues[scaleName] != null;
 
     const handleScaleTransfer = () => {
@@ -28,13 +37,18 @@ function ViewShortConversationTestEvaluation() {
     return (
         <>
             <div className="flex flex-1 flex-col justify-center">
-                <ComponentHeader headline={"Short Conversation Test: Evaluation (" + scaleDetail.displayName + ")"}></ComponentHeader>
+                <ComponentHeader
+                    headline={
+                        <>
+                            Short Conversation Test:
+                            <br />
+                            Evaluation ({scaleDetail.displayName})
+                        </>
+                    }
+                ></ComponentHeader>
 
-                <div className="flex-1">
+                <div className="max-w-5xl flex-1">
                     <ComponentScale scaleName={scaleName}></ComponentScale>
-                </div>
-
-                <div className="flex-1">
                     <p>{scaleDetail.description}</p>
                 </div>
 

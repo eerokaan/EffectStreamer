@@ -7,7 +7,7 @@ function ViewBreak() {
             <div className="flex flex-1 flex-col justify-center">
                 <ComponentHeader headline="Time for a break"></ComponentHeader>
 
-                <div className="flex-1">
+                <div className="max-w-5xl flex-1">
                     <p>Now it is time for a break.</p>
                 </div>
 
