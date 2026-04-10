@@ -35,16 +35,18 @@ const viewFlow = [
 ];
 
 let appState = {
-    clientListConnected: new Map(),
-    clientListWaitingOnViewChange: new Set(),
-    clientListWaitingOnCoreStart: new Set(),
-    clientListWaitingOnCoreStop: new Set(),
-    clientListWaitingOnFileTransfer: new Set(),
-    fileTransferBatchesCompleted: 0,
-    pendingLoopEndViewName: null,
+    sessionDir: null,
     conditionIndex: 0,
     conditionOrder: [],
-    sessionDir: null
+    evaluationLoopTransfersCompleted: 0,
+    evaluationLoopPendingViewName: null,
+    clients: new Map(),
+    gates: {
+        viewChange: new Set(),
+        coreStart: new Set(),
+        coreStop: new Set(),
+        fileTransfer: new Set()
+    }
 }
 
 // ===========================================
@@ -55,7 +57,7 @@ io.on("connection", (socket) => {
     // ===== clientRegister ==============================
     socket.on("est-event:clientRegister", (data) => {
         console.log("Client registered: " + socket.id);
-        appState.clientListConnected.set(socket.id, {
+        appState.clients.set(socket.id, {
             operatingSystem: data.operatingSystem,
             ipAddress: data.ipAddress,
             deviceSource: data.deviceSource,
@@ -63,25 +65,21 @@ io.on("connection", (socket) => {
         });
 
         // Check if two clients are connected now
-        if (appState.clientListConnected.size === 2) {
-            appState.clientListConnected.forEach((clientData, clientSocketId) => {
-                io.to(clientSocketId).emit("est-event:viewChangeResponse", "viewWelcome");
-            });
+        if (appState.clients.size === 2) {
+            helperEmitToAll("est-event:viewChangeResponse", "viewWelcome");
         }
     });
 
     // ===== clientUnregister ==============================
     socket.on("est-event:clientUnregister", () => {
         console.log("Client disconnected: " + socket.id);
-        appState.clientListConnected.delete(socket.id);
-        appState.clientListWaitingOnViewChange.delete(socket.id);
-        appState.clientListWaitingOnCoreStart.delete(socket.id);
+        appState.clients.delete(socket.id);
+        appState.gates.viewChange.delete(socket.id);
+        appState.gates.coreStart.delete(socket.id);
 
         // Check if less than two clients are connected now
-        if (appState.clientListConnected.size < 2) {
-            appState.clientListConnected.forEach((clientData, clientSocketId) => {
-                io.to(clientSocketId).emit("est-event:viewChangeResponse", "viewWaiting");
-            });
+        if (appState.clients.size < 2) {
+            helperEmitToAll("est-event:viewChangeResponse", "viewWaiting");
         }
     });
 
@@ -92,7 +90,7 @@ io.on("connection", (socket) => {
 
         // Optional: Write scale data file if provided (for evaluation views)
         if (data.scaleValues) {
-            const clientIds = [...appState.clientListConnected.keys()];
+            const clientIds = [...appState.clients.keys()];
             const clientLabel = clientIds.indexOf(socket.id) === 0 ? "a" : "b";
             const serverFilename = "client-" + clientLabel + "-" + view.metadata.testType + "-scales.json";
             const conditionPadded = String(appState.conditionIndex + 1).padStart(4, "0");
@@ -105,12 +103,12 @@ io.on("connection", (socket) => {
             io.to(socket.id).emit("est-event:viewChangeResponse", viewNext);
         }
 
-        // Views with gated passing
+        // Views with gated passing (manual gate — helperGateResolve cannot be used due to deferred double-gate)
         else if (view.passing === "gated") {
-            appState.clientListWaitingOnViewChange.add(socket.id);
+            appState.gates.viewChange.add(socket.id);
 
             // Both clients now want to proceed
-            if (appState.clientListWaitingOnViewChange.size === 2) {
+            if (appState.gates.viewChange.size === 2) {
                 helperResolveGatedViewChange(view.name);
             }
         }
@@ -122,8 +120,8 @@ io.on("connection", (socket) => {
 
         // Stage 1: Sender component (Direct response)
         if (data.component === "sender") {
-            const peerClient = [...appState.clientListConnected].find(([id]) => id !== socket.id);
-            const thisClient = appState.clientListConnected.get(socket.id);
+            const peerClient = [...appState.clients].find(([id]) => id !== socket.id);
+            const thisClient = appState.clients.get(socket.id);
             const estCoreSettings = {
                 component: "sender",
                 peerIp: peerClient[1].ipAddress,
@@ -135,42 +133,28 @@ io.on("connection", (socket) => {
 
         // Stage 2: Receiver component (Gated response)
         else if (data.component === "receiver") {
-            appState.clientListWaitingOnCoreStart.add(socket.id);
-
-            if (appState.clientListWaitingOnCoreStart.size === 2) {
-                appState.clientListWaitingOnCoreStart.forEach(clientSocketId => {
-                    const clientData = appState.clientListConnected.get(clientSocketId);
-                    const estCoreSettings = {
-                        component: "receiver",
-                        deviceSink: clientData.deviceSink,
-                        gain: currentCondition.gain
-                    }
-                    io.to(clientSocketId).emit("est-event:coreStartResponse", estCoreSettings);
-                });
-                appState.clientListWaitingOnCoreStart.clear();
-            }
+            helperGateResolve(appState.gates.coreStart, socket.id, 2, () => {
+                helperEmitToAll("est-event:coreStartResponse", (clientSocketId, clientData) => ({
+                    component: "receiver",
+                    deviceSink: clientData.deviceSink,
+                    gain: currentCondition.gain
+                }));
+            });
         }
     });
 
     // ===== coreStopRequest ==============================
     socket.on("est-event:coreStopRequest", (data) => {
-        appState.clientListWaitingOnCoreStop.add(socket.id);
-
-        if (appState.clientListWaitingOnCoreStop.size === 2) {
-            appState.clientListWaitingOnCoreStop.forEach(clientSocketId => {
-                io.to(clientSocketId).emit("est-event:coreStopResponse", {
-                    testType: data.testType
-                });
-            });
-            appState.clientListWaitingOnCoreStop.clear();
-        }
+        helperGateResolve(appState.gates.coreStop, socket.id, 2, () => {
+            helperEmitToAll("est-event:coreStopResponse", { testType: data.testType });
+        });
     });
 
     // ===== fileTransferRequest ==============================
     socket.on("est-event:fileTransferRequest", (data) => {
 
         // Determine client label based on connection order
-        const clientIds = [...appState.clientListConnected.keys()];
+        const clientIds = [...appState.clients.keys()];
         const clientLabel = clientIds.indexOf(socket.id) === 0 ? "a" : "b";
 
         // Construct filename: client-{a|b}-{sct|lst}-{microphone|headphones}.ogg
@@ -183,21 +167,15 @@ io.on("connection", (socket) => {
         fs.writeFileSync(filePath, Buffer.from(data.fileData));
 
         // Gate: Track received files (2 files from 2 clients = 4 total)
-        appState.clientListWaitingOnFileTransfer.add(socket.id + ":" + data.filename);
-
-        // All files received: Resolve the gate
-        if (appState.clientListWaitingOnFileTransfer.size === 4) {
-            appState.fileTransferBatchesCompleted++;
-            appState.clientListConnected.forEach((clientData, clientSocketId) => {
-                io.to(clientSocketId).emit("est-event:fileTransferResponse");
-            });
-            appState.clientListWaitingOnFileTransfer.clear();
+        helperGateResolve(appState.gates.fileTransfer, socket.id + ":" + data.filename, 4, () => {
+            appState.evaluationLoopTransfersCompleted++;
+            helperEmitToAll("est-event:fileTransferResponse");
 
             // Try to resolve any pending double-gated view change
-            if (appState.pendingLoopEndViewName && appState.clientListWaitingOnViewChange.size === 2) {
-                helperResolveGatedViewChange(appState.pendingLoopEndViewName);
+            if (appState.evaluationLoopPendingViewName && appState.gates.viewChange.size === 2) {
+                helperResolveGatedViewChange(appState.evaluationLoopPendingViewName);
             }
-        }
+        });
     });
 
 });
@@ -223,14 +201,37 @@ function helperCreateFolderStructure() {
     }
 }
 
+function helperEmitToAll(eventName, dataOrFunction) {
+    appState.clients.forEach((clientData, clientSocketId) => {
+        if (dataOrFunction === undefined) {
+            io.to(clientSocketId).emit(eventName);
+        }
+        else if (typeof dataOrFunction === "function") {
+            io.to(clientSocketId).emit(eventName, dataOrFunction(clientSocketId, clientData));
+        }
+        else {
+            io.to(clientSocketId).emit(eventName, dataOrFunction);
+        }
+    });
+}
+
+function helperGateResolve(gateSet, key, threshold, onResolve) {
+    gateSet.add(key);
+
+    if (gateSet.size >= threshold) {
+        onResolve();
+        gateSet.clear();
+    }
+}
+
 function helperResolveGatedViewChange(currentViewName) {
     const view = viewFlow.find(view => view.name === currentViewName);
     const viewNext = helperGetNextView(currentViewName);
 
     // Double-gated: loopEnd views also require all file transfer batches to be complete
     if (view.metadata?.loopBehaviour === "end") {
-        if (appState.fileTransferBatchesCompleted < 2) {
-            appState.pendingLoopEndViewName = currentViewName;
+        if (appState.evaluationLoopTransfersCompleted < 2) {
+            appState.evaluationLoopPendingViewName = currentViewName;
             return;
         }
     }
@@ -252,16 +253,14 @@ function helperResolveGatedViewChange(currentViewName) {
     }
 
     // Push new view to clients
-    appState.clientListWaitingOnViewChange.forEach(clientSocketId => {
-        io.to(clientSocketId).emit("est-event:viewChangeResponse", viewNext);
-    });
-    appState.clientListWaitingOnViewChange.clear();
+    helperEmitToAll("est-event:viewChangeResponse", viewNext);
+    appState.gates.viewChange.clear();
 
     // Reset file transfer tracking for the next condition
     if (view.metadata?.loopBehaviour === "end") {
-        appState.fileTransferBatchesCompleted = 0;
+        appState.evaluationLoopTransfersCompleted = 0;
     }
-    appState.pendingLoopEndViewName = null;
+    appState.evaluationLoopPendingViewName = null;
 }
 
 function helperGetNextView(currentView) {
