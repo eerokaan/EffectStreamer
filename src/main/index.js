@@ -124,6 +124,15 @@ async function socketLogic() {
         });
     });
 
+    // fileTransferResponse
+    // [SERVER] -> [MAIN -> PRELOAD -> RENDERER]
+    appContext.socket.on("est-event:fileTransferResponse", () => {
+        appContext.windowMain.webContents.send("ipc:storeSetValueRequest", {
+            storeName: "ComponentFooter",
+            payload: { isUploading: false }
+        });
+    });
+
     // coreStartResponse
     // [SERVER] -> [MAIN]
     appContext.socket.on("est-event:coreStartResponse", async (data) => {
@@ -164,12 +173,6 @@ async function socketLogic() {
             filename: "headphones.ogg",
             fileData: headphonesData
         });
-    });
-
-    // fileTransferResponse
-    // [SERVER] -> [MAIN]
-    appContext.socket.on("est-event:fileTransferResponse", () => {
-        // ToDo: Open gating to next condition
     });
 
     // ===== Outbound communication ==============================
