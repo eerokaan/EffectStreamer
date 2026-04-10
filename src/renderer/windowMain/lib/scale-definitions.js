@@ -38,10 +38,7 @@ const scaleDetails = {
 function getPermutedScaleOrder(offset) {
     const dimensionScales = scaleOrder.slice(1);
     const normalizedOffset = ((offset % dimensionScales.length) + dimensionScales.length) % dimensionScales.length;
-    const shifted = [
-        ...dimensionScales.slice(normalizedOffset),
-        ...dimensionScales.slice(0, normalizedOffset)
-    ];
+    const shifted = [...dimensionScales.slice(normalizedOffset), ...dimensionScales.slice(0, normalizedOffset)];
     return [scaleOrder[0], ...shifted];
 }
 

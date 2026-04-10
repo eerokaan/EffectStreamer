@@ -125,12 +125,9 @@ async function socketLogic() {
     });
 
     // fileTransferResponse
-    // [SERVER] -> [MAIN -> PRELOAD -> RENDERER]
+    // [SERVER] -> [MAIN]
     appContext.socket.on("est-event:fileTransferResponse", () => {
-        appContext.windowMain.webContents.send("ipc:storeSetValueRequest", {
-            storeName: "ComponentFooter",
-            payload: { isUploading: false }
-        });
+        // Handled server-side via double-gated view change resolution
     });
 
     // coreStartResponse

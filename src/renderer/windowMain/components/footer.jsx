@@ -5,7 +5,7 @@ import useStoreComponentFooter from "@/stores/component-footer";
 import useStoreRoot from "@/stores/root";
 
 function ComponentFooter({ onNext, disabled }) {
-    const { isWaiting, isUploading, setIsWaiting } = useStoreComponentFooter();
+    const { isWaiting, setIsWaiting } = useStoreComponentFooter();
     const { currentView } = useStoreRoot();
 
     const requestNextView = () => {
@@ -21,13 +21,11 @@ function ComponentFooter({ onNext, disabled }) {
         }
     };
 
-    const waitingLabel = isUploading ? "Uploading audio files" : "Waiting for partner";
-
     return (
         <>
             <div className="mt-8 flex flex-none justify-end">
                 <Button className="cursor-pointer" onClick={requestNextView} disabled={isWaiting || disabled}>
-                    {isWaiting ? waitingLabel : "Next"} {isWaiting ? <Spinner data-icon="inline-end" /> : <ArrowRight data-icon="inline-end" />}
+                    {isWaiting ? "Waiting for partner" : "Next"} {isWaiting ? <Spinner data-icon="inline-end" /> : <ArrowRight data-icon="inline-end" />}
                 </Button>
             </div>
         </>
