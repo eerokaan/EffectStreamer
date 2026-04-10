@@ -40,6 +40,8 @@ let appState = {
     clientListWaitingOnCoreStart: new Set(),
     clientListWaitingOnCoreStop: new Set(),
     clientListWaitingOnFileTransfer: new Set(),
+    fileTransferBatchesCompleted: 0,
+    pendingLoopEndViewName: null,
     conditionIndex: 0,
     conditionOrder: [],
     sessionDir: null
@@ -109,28 +111,7 @@ io.on("connection", (socket) => {
 
             // Both clients now want to proceed
             if (appState.clientListWaitingOnViewChange.size === 2) {
-
-                // When current view indicates a loop end: Increment conditionIndex
-                if (view.metadata?.loopBehaviour === "end" && viewNext !== "viewEnding") {
-                    appState.conditionIndex++;
-
-                    const currentCondition = helperGetCurrentCondition();
-                    console.log("Round " + appState.conditionIndex + ": Using condition " + JSON.stringify(currentCondition));
-                }
-
-                // When next view indicates a loop start: Define shuffled condition order using Fisher-Yates method
-                else if (viewNext === viewFlow.find(view => view.metadata?.loopBehaviour === "start").name && appState.conditionIndex === 0) {
-                    helperSetConditionOrder();
-
-                    const currentCondition = helperGetCurrentCondition();
-                    console.log("Round " + appState.conditionIndex + ": Using condition " + JSON.stringify(currentCondition));
-                }
-
-                // Push new view to clients
-                appState.clientListWaitingOnViewChange.forEach(clientSocketId => {
-                    io.to(clientSocketId).emit("est-event:viewChangeResponse", viewNext);
-                });
-                appState.clientListWaitingOnViewChange.clear();
+                helperResolveGatedViewChange(view.name);
             }
         }
     });
@@ -206,10 +187,16 @@ io.on("connection", (socket) => {
 
         // All files received: Resolve the gate
         if (appState.clientListWaitingOnFileTransfer.size === 4) {
+            appState.fileTransferBatchesCompleted++;
             appState.clientListConnected.forEach((clientData, clientSocketId) => {
                 io.to(clientSocketId).emit("est-event:fileTransferResponse");
             });
             appState.clientListWaitingOnFileTransfer.clear();
+
+            // Try to resolve any pending double-gated view change
+            if (appState.pendingLoopEndViewName && appState.clientListWaitingOnViewChange.size === 2) {
+                helperResolveGatedViewChange(appState.pendingLoopEndViewName);
+            }
         }
     });
 
@@ -229,11 +216,52 @@ function helperCreateFolderStructure() {
     appState.sessionDir = path.join(echostreamerDir, String(sessionNum).padStart(4, "0"));
     fs.mkdirSync(appState.sessionDir);
 
-    // Create condition directories (one per round)
+    // Create condition directories
     const roundsTotal = estConfig.conditions.baseline.length + estConfig.conditions.random.length;
     for (let counter = 1; counter <= roundsTotal; counter++) {
         fs.mkdirSync(path.join(appState.sessionDir, String(counter).padStart(4, "0")));
     }
+}
+
+function helperResolveGatedViewChange(currentViewName) {
+    const view = viewFlow.find(view => view.name === currentViewName);
+    const viewNext = helperGetNextView(currentViewName);
+
+    // Double-gated: loopEnd views also require all file transfer batches to be complete
+    if (view.metadata?.loopBehaviour === "end") {
+        if (appState.fileTransferBatchesCompleted < 2) {
+            appState.pendingLoopEndViewName = currentViewName;
+            return;
+        }
+    }
+
+    // When current view indicates a loop end: Increment conditionIndex
+    if (view.metadata?.loopBehaviour === "end" && viewNext !== "viewEnding") {
+        appState.conditionIndex++;
+
+        const currentCondition = helperGetCurrentCondition();
+        console.log("Round " + appState.conditionIndex + ": Using condition " + JSON.stringify(currentCondition));
+    }
+
+    // When next view indicates a loop start: Define shuffled condition order using Fisher-Yates method
+    else if (viewNext === viewFlow.find(view => view.metadata?.loopBehaviour === "start").name && appState.conditionIndex === 0) {
+        helperSetConditionOrder();
+
+        const currentCondition = helperGetCurrentCondition();
+        console.log("Round " + appState.conditionIndex + ": Using condition " + JSON.stringify(currentCondition));
+    }
+
+    // Push new view to clients
+    appState.clientListWaitingOnViewChange.forEach(clientSocketId => {
+        io.to(clientSocketId).emit("est-event:viewChangeResponse", viewNext);
+    });
+    appState.clientListWaitingOnViewChange.clear();
+
+    // Reset file transfer tracking for the next condition
+    if (view.metadata?.loopBehaviour === "end") {
+        appState.fileTransferBatchesCompleted = 0;
+    }
+    appState.pendingLoopEndViewName = null;
 }
 
 function helperGetNextView(currentView) {
