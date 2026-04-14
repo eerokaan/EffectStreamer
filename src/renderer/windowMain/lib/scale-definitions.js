@@ -1,9 +1,14 @@
 const scaleOrder = ["audio_quality", "noisiness", "discontinuity", "coloration", "loudness", "echo", "degradation", "interaction"];
 
+const listeningSpeakingTestScaleGroups = {
+    listener: ["noisiness", "discontinuity", "coloration", "loudness"],
+    speaker: ["echo", "degradation"]
+};
+
 const scaleDetails = {
     audio_quality: {
         displayName: "Audio Quality",
-        description: 'The term "Audio Quality" means that you rate the overall quality of the sound you heard during the call.'
+        description: 'The term "Audio Quality" means that you rate the overall quality of the call as a whole.'
     },
     noisiness: {
         displayName: "Noisiness",
@@ -35,11 +40,19 @@ const scaleDetails = {
     }
 };
 
-function getPermutedScaleOrder(offset) {
+function getPermutedDimensionScaleOrder(offset) {
     const dimensionScales = scaleOrder.slice(1);
     const normalizedOffset = ((offset % dimensionScales.length) + dimensionScales.length) % dimensionScales.length;
-    const shifted = [...dimensionScales.slice(normalizedOffset), ...dimensionScales.slice(0, normalizedOffset)];
-    return [scaleOrder[0], ...shifted];
+    return [...dimensionScales.slice(normalizedOffset), ...dimensionScales.slice(0, normalizedOffset)];
 }
 
-export { scaleOrder, scaleDetails, getPermutedScaleOrder };
+function getPermutedScaleOrder(offset) {
+    return [scaleOrder[0], ...getPermutedDimensionScaleOrder(offset)];
+}
+
+function getListeningSpeakingTestScaleOrder(offset, participantRole) {
+    const roleScales = new Set(listeningSpeakingTestScaleGroups[participantRole] ?? []);
+    return [scaleOrder[0], ...getPermutedDimensionScaleOrder(offset).filter((scaleName) => roleScales.has(scaleName))];
+}
+
+export { scaleOrder, scaleDetails, getPermutedScaleOrder, getListeningSpeakingTestScaleOrder };
