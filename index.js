@@ -252,8 +252,22 @@ function helperResolveGatedViewChange(currentViewName) {
         console.log("Round " + appState.conditionIndex + ": Using condition " + JSON.stringify(currentCondition));
     }
 
-    // Push new view to clients
-    helperEmitToAll("est-event:viewChangeResponse", viewNext);
+    // Push new view to clients (test views include per-client condition image)
+    if (viewNext === "viewShortConversationTest" || viewNext === "viewListeningSpeakingTest") {
+        helperEmitToAll("est-event:viewChangeResponse", (clientSocketId) => {
+            const clientIds = [...appState.clients.keys()];
+            const clientNumber = clientIds.indexOf(clientSocketId) === 0 ? "01" : "02";
+            const conditionPadded = String(appState.conditionIndex + 1).padStart(2, "0");
+            
+            return {
+                viewName: viewNext,
+                conditionImage: "client_" + clientNumber + "/" + conditionPadded + ".png"
+            };
+        });
+    }
+    else {
+        helperEmitToAll("est-event:viewChangeResponse", viewNext);
+    }
     appState.gates.viewChange.clear();
 
     // Reset file transfer tracking for the next condition
