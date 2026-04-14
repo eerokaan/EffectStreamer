@@ -8,18 +8,18 @@
             {"latency": "20", "gain": "0.002"}
         ],
         "random": [
-            {"latency": "70", "gain": "0.03"},
-            {"latency": "70", "gain": "0.1"},
-            {"latency": "70", "gain": "0.35"},
-            {"latency": "120", "gain": "0.03"},
-            {"latency": "120", "gain": "0.1"},
-            {"latency": "120", "gain": "0.35"},
-            {"latency": "220", "gain": "0.03"},
-            {"latency": "220", "gain": "0.1"},
-            {"latency": "220", "gain": "0.35"},
-            {"latency": "420", "gain": "0.03"},
-            {"latency": "420", "gain": "0.1"},
-            {"latency": "420", "gain": "0.35"}
+            {"latency": "50", "gain": "0.03"},
+            {"latency": "50", "gain": "0.1"},
+            {"latency": "50", "gain": "0.35"},
+            {"latency": "100", "gain": "0.03"},
+            {"latency": "100", "gain": "0.1"},
+            {"latency": "100", "gain": "0.35"},
+            {"latency": "200", "gain": "0.03"},
+            {"latency": "200", "gain": "0.1"},
+            {"latency": "200", "gain": "0.35"},
+            {"latency": "400", "gain": "0.03"},
+            {"latency": "400", "gain": "0.1"},
+            {"latency": "400", "gain": "0.35"}
         ]
     }
 }
