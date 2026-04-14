@@ -354,7 +354,7 @@ function helperGetListeningSpeakingTestRole(clientSocketId) {
     if (appState.lstRoundIndex === 0) {
         return clientIndex === 0 ? "speaker" : "listener";
     }
-    
+
     return clientIndex === 0 ? "listener" : "speaker";
 }
 
@@ -367,15 +367,25 @@ function helperGetViewChangeResponse(viewName, clientSocketId) {
         const clientIndex = helperGetClientIndex(clientSocketId);
         const clientNumber = clientIndex === 0 ? "01" : "02";
         const conditionPadded = String(appState.conditionIndex + 1).padStart(2, "0");
-        
+        const clientConditionImage = "client_" + clientNumber + "/" + conditionPadded + ".png";
+        const participantRole = (isLst || isLstEvaluation) ? helperGetListeningSpeakingTestRole(clientSocketId) : null;
+        let conditionImage = null;
+
+        if (isSct) {
+            conditionImage = clientConditionImage;
+        }
+        else if (isLst) {
+            conditionImage = participantRole === "speaker" ? clientConditionImage : "listener.png";
+        }
+
         const response = {
             viewName: viewName,
-            conditionImage: (isSct || isLst) ? "client_" + clientNumber + "/" + conditionPadded + ".png" : null
+            conditionImage: conditionImage
         };
 
         if (isLst || isLstEvaluation) {
             response.lstRoundIndex = appState.lstRoundIndex;
-            response.participantRole = helperGetListeningSpeakingTestRole(clientSocketId);
+            response.participantRole = participantRole;
         }
 
         return response;
