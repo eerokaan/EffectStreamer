@@ -38,6 +38,7 @@ let appState = {
     sessionDir: null,
     conditionIndex: 0,
     conditionOrder: [],
+    lstRoundIndex: 0,
     evaluationLoopTransfersCompleted: 0,
     evaluationLoopPendingViewName: null,
     clients: new Map(),
@@ -90,9 +91,9 @@ io.on("connection", (socket) => {
 
         // Optional: Write scale data file if provided (for evaluation views)
         if (data.scaleValues) {
-            const clientIds = [...appState.clients.keys()];
-            const clientLabel = clientIds.indexOf(socket.id) === 0 ? "a" : "b";
-            const serverFilename = "client-" + clientLabel + "-" + view.metadata.testType + "-scales.json";
+            const clientLabel = helperGetClientLabel(socket.id);
+            const roundSuffix = helperGetRoundSuffix(view.metadata.testType);
+            const serverFilename = "client-" + clientLabel + "-" + view.metadata.testType + roundSuffix + "-scales.json";
             const conditionPadded = String(appState.conditionIndex + 1).padStart(4, "0");
             const filePath = path.join(appState.sessionDir, conditionPadded, serverFilename);
             fs.writeFileSync(filePath, JSON.stringify(data.scaleValues, null, 2));
@@ -100,7 +101,7 @@ io.on("connection", (socket) => {
 
         // Views with direct passing
         if (view.passing === "direct") {
-            io.to(socket.id).emit("est-event:viewChangeResponse", viewNext);
+            io.to(socket.id).emit("est-event:viewChangeResponse", helperGetViewChangeResponse(viewNext, socket.id));
         }
 
         // Views with gated passing (manual gate — helperGateResolve cannot be used due to deferred double-gate)
@@ -154,12 +155,13 @@ io.on("connection", (socket) => {
     socket.on("est-event:fileTransferRequest", (data) => {
 
         // Determine client label based on connection order
-        const clientIds = [...appState.clients.keys()];
-        const clientLabel = clientIds.indexOf(socket.id) === 0 ? "a" : "b";
+        const clientLabel = helperGetClientLabel(socket.id);
 
         // Construct filename: client-{a|b}-{sct|lst}-{microphone|headphones}.ogg
         const originalName = data.filename.replace(".ogg", "");
-        const serverFilename = "client-" + clientLabel + "-" + data.testType + "-" + originalName + ".ogg";
+        const roundSuffix = helperGetRoundSuffix(data.testType);
+        const transferStageKey = helperGetTransferStageKey(data.testType);
+        const serverFilename = "client-" + clientLabel + "-" + data.testType + roundSuffix + "-" + originalName + ".ogg";
 
         // Write file to current condition directory
         const conditionPadded = String(appState.conditionIndex + 1).padStart(4, "0");
@@ -167,7 +169,7 @@ io.on("connection", (socket) => {
         fs.writeFileSync(filePath, Buffer.from(data.fileData));
 
         // Gate: Track received files (2 files from 2 clients = 4 total)
-        helperGateResolve(appState.gates.fileTransfer, socket.id + ":" + data.filename, 4, () => {
+        helperGateResolve(appState.gates.fileTransfer, transferStageKey + ":" + socket.id + ":" + data.filename, 4, () => {
             appState.evaluationLoopTransfersCompleted++;
             helperEmitToAll("est-event:fileTransferResponse");
 
@@ -227,17 +229,23 @@ function helperGateResolve(gateSet, key, threshold, onResolve) {
 function helperResolveGatedViewChange(currentViewName) {
     const view = viewFlow.find(view => view.name === currentViewName);
     const viewNext = helperGetNextView(currentViewName);
+    const isFirstListeningSpeakingTestEvaluation = currentViewName === "viewListeningSpeakingTestEvaluation" && appState.lstRoundIndex === 0;
+    const requiresFileTransfers = currentViewName === "viewListeningSpeakingTestEvaluation";
+    const requiredTransferBatches = currentViewName === "viewListeningSpeakingTestEvaluation"
+        ? (appState.lstRoundIndex === 0 ? 2 : 3)
+        : 0;
+    const isLoopEndView = view.metadata?.loopBehaviour === "end" && !isFirstListeningSpeakingTestEvaluation;
 
-    // Double-gated: loopEnd views also require all file transfer batches to be complete
-    if (view.metadata?.loopBehaviour === "end") {
-        if (appState.evaluationLoopTransfersCompleted < 2) {
+    // Double-gated: LST evaluation views also require all file transfer batches to be complete
+    if (requiresFileTransfers) {
+        if (appState.evaluationLoopTransfersCompleted < requiredTransferBatches) {
             appState.evaluationLoopPendingViewName = currentViewName;
             return;
         }
     }
 
     // When current view indicates a loop end: Increment conditionIndex
-    if (view.metadata?.loopBehaviour === "end" && viewNext !== "viewEnding") {
+    if (isLoopEndView && viewNext !== "viewEnding") {
         appState.conditionIndex++;
 
         const currentCondition = helperGetCurrentCondition();
@@ -252,27 +260,21 @@ function helperResolveGatedViewChange(currentViewName) {
         console.log("Round " + appState.conditionIndex + ": Using condition " + JSON.stringify(currentCondition));
     }
 
-    // Push new view to clients (test views include per-client condition image)
-    if (viewNext === "viewShortConversationTest" || viewNext === "viewListeningSpeakingTest") {
-        helperEmitToAll("est-event:viewChangeResponse", (clientSocketId) => {
-            const clientIds = [...appState.clients.keys()];
-            const clientNumber = clientIds.indexOf(clientSocketId) === 0 ? "01" : "02";
-            const conditionPadded = String(appState.conditionIndex + 1).padStart(2, "0");
-            
-            return {
-                viewName: viewNext,
-                conditionImage: "client_" + clientNumber + "/" + conditionPadded + ".png"
-            };
-        });
+    if (viewNext === "viewListeningSpeakingTestExplanation") {
+        appState.lstRoundIndex = 0;
     }
-    else {
-        helperEmitToAll("est-event:viewChangeResponse", viewNext);
+
+    if (isFirstListeningSpeakingTestEvaluation) {
+        appState.lstRoundIndex = 1;
     }
+
+    helperEmitToAll("est-event:viewChangeResponse", (clientSocketId) => helperGetViewChangeResponse(viewNext, clientSocketId));
     appState.gates.viewChange.clear();
 
     // Reset file transfer tracking for the next condition
-    if (view.metadata?.loopBehaviour === "end") {
+    if (isLoopEndView) {
         appState.evaluationLoopTransfersCompleted = 0;
+        appState.lstRoundIndex = 0;
     }
     appState.evaluationLoopPendingViewName = null;
 }
@@ -280,6 +282,10 @@ function helperResolveGatedViewChange(currentViewName) {
 function helperGetNextView(currentView) {
     const viewIndex = viewFlow.findIndex(view => view.name === currentView);
     const view = viewFlow[viewIndex];
+
+    if (currentView === "viewListeningSpeakingTestEvaluation" && appState.lstRoundIndex === 0) {
+        return "viewListeningSpeakingTest";
+    }
 
     // When current view indicates a loop end: Either exit (viewEnding), show break (viewBreak) or loop back
     if (view.metadata?.loopBehaviour === "end") {
@@ -321,6 +327,62 @@ function helperGetCurrentCondition() {
     }
     const index = appState.conditionOrder[appState.conditionIndex - 1];
     return estConfig.conditions.random[index];
+}
+
+function helperGetClientIndex(clientSocketId) {
+    return [...appState.clients.keys()].indexOf(clientSocketId);
+}
+
+function helperGetClientLabel(clientSocketId) {
+    return helperGetClientIndex(clientSocketId) === 0 ? "a" : "b";
+}
+
+function helperGetRoundSuffix(testType) {
+    if (testType !== "lst") {
+        return "";
+    }
+    return "-r" + (appState.lstRoundIndex + 1);
+}
+
+function helperGetTransferStageKey(testType) {
+    return testType + helperGetRoundSuffix(testType);
+}
+
+function helperGetListeningSpeakingTestRole(clientSocketId) {
+    const clientIndex = helperGetClientIndex(clientSocketId);
+
+    if (appState.lstRoundIndex === 0) {
+        return clientIndex === 0 ? "speaker" : "listener";
+    }
+    
+    return clientIndex === 0 ? "listener" : "speaker";
+}
+
+function helperGetViewChangeResponse(viewName, clientSocketId) {
+    if (viewName === "viewShortConversationTest") {
+        const clientIndex = helperGetClientIndex(clientSocketId);
+        const clientNumber = clientIndex === 0 ? "01" : "02";
+        const conditionPadded = String(appState.conditionIndex + 1).padStart(2, "0");
+
+        return {
+            viewName: viewName,
+            conditionImage: "client_" + clientNumber + "/" + conditionPadded + ".png"
+        };
+    }
+
+    if (viewName === "viewListeningSpeakingTest" || viewName === "viewListeningSpeakingTestEvaluation") {
+        const conditionPadded = String(appState.conditionIndex + 1).padStart(2, "0");
+        const participantRole = helperGetListeningSpeakingTestRole(clientSocketId);
+
+        return {
+            viewName: viewName,
+            conditionImage: viewName === "viewListeningSpeakingTest" ? "client_" + (participantRole === "speaker" ? "01" : "02") + "/" + conditionPadded + ".png" : null,
+            lstRoundIndex: appState.lstRoundIndex,
+            participantRole: participantRole
+        };
+    }
+
+    return viewName;
 }
 
 // ===========================================
