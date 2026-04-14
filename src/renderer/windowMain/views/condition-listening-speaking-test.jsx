@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
 import useStoreRoot from "@/stores/root";
+import listenerImage from "@/assets/img/condition-listening-speaking-test/listener.png";
 
 const conditionImages = import.meta.glob("@/assets/img/condition-listening-speaking-test/client_*/*.png", { eager: true, import: "default" });
 
@@ -19,7 +20,8 @@ function ViewListeningSpeakingTest() {
         };
     }, []);
 
-    const imageSrc = conditionImage ? conditionImages[Object.keys(conditionImages).find((key) => key.endsWith(conditionImage))] : null;
+    const clientImageKey = conditionImage && conditionImage !== "listener.png" ? Object.keys(conditionImages).find((key) => key.endsWith(conditionImage)) : null;
+    const imageSrc = conditionImage === "listener.png" ? listenerImage : clientImageKey ? conditionImages[clientImageKey] : null;
 
     return (
         <>
