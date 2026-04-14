@@ -109,9 +109,14 @@ async function socketLogic() {
     // viewChangeResponse
     // [SERVER] -> [MAIN -> PRELOAD -> RENDERER]
     appContext.socket.on("est-event:viewChangeResponse", (data) => {
+        const isObject = typeof data === "object" && data !== null;
+        
         appContext.windowMain.webContents.send("ipc:storeSetValueRequest", {
             storeName: "Root",
-            payload: { currentView: data }
+            payload: {
+                currentView: isObject ? data.viewName : data,
+                conditionImage: isObject ? data.conditionImage : null
+            }
         });
         appContext.windowMain.webContents.send("ipc:storeResetRequest", {
             storeName: "ComponentFooter"

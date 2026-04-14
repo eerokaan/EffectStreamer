@@ -2,7 +2,8 @@ import createStore from "@/lib/stores-create";
 
 const useStoreRoot = createStore({
     currentView: "viewWaiting",
-    scaleOffset: null
+    scaleOffset: null,
+    conditionImage: null
 });
 
 export default useStoreRoot;

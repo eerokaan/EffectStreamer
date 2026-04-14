@@ -1,5 +1,6 @@
 import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
+import explanationImage from "@/assets/img/condition-short-conversation-test/explanation.png";
 
 function ViewShortConversationTestExplanation() {
     return (
@@ -8,7 +9,7 @@ function ViewShortConversationTestExplanation() {
                 <ComponentHeader headline="Short Conversation Test: Explanation"></ComponentHeader>
 
                 <div className="max-w-5xl flex-1">
-                    <p>Lorem Ipsum</p>
+                    <img src={explanationImage} alt="Short Conversation Test Explanation" className="block w-full" draggable="false" />
                 </div>
 
                 <ComponentFooter></ComponentFooter>
