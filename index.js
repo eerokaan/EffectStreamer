@@ -67,7 +67,7 @@ io.on("connection", (socket) => {
 
         // Check if two clients are connected now
         if (appState.clients.size === 2) {
-            helperEmitToAll("est-event:viewChangeResponse", "viewWelcome");
+            helperEmitToAll("est-event:viewChangeResponse", { currentView: "viewWelcome" });
         }
     });
 
@@ -80,7 +80,7 @@ io.on("connection", (socket) => {
 
         // Check if less than two clients are connected now
         if (appState.clients.size < 2) {
-            helperEmitToAll("est-event:viewChangeResponse", "viewWaiting");
+            helperEmitToAll("est-event:viewChangeResponse", { currentView: "viewWaiting" });
         }
     });
 
@@ -101,10 +101,16 @@ io.on("connection", (socket) => {
 
         // Views with direct passing
         if (view.passing === "direct") {
-            io.to(socket.id).emit("est-event:viewChangeResponse", helperGetViewChangeResponse(viewNext, socket.id));
+            io.to(socket.id).emit("est-event:viewChangeResponse", helperGetViewData(viewNext, socket.id));
+
+            // On SCT and LST testing views: Notify partner that they were left in the room
+            const peerClient = [...appState.clients].find(([id]) => id !== socket.id);
+            if (peerClient && (view.name === "viewShortConversationTest" || view.name === "viewListeningSpeakingTest")) {
+                io.to(peerClient[0]).emit("est-event:viewChangeResponse", { showDialog: true });
+            }
         }
 
-        // Views with gated passing (manual gate — helperGateResolve cannot be used due to deferred double-gate)
+        // Views with gated passing (Manual gate: helperGateResolve cannot be used due to deferred double-gate)
         else if (view.passing === "gated") {
             appState.gates.viewChange.add(socket.id);
 
@@ -179,7 +185,6 @@ io.on("connection", (socket) => {
             }
         });
     });
-
 });
 
 // ===========================================
@@ -268,7 +273,7 @@ function helperResolveGatedViewChange(currentViewName) {
         appState.lstRoundIndex = 1;
     }
 
-    helperEmitToAll("est-event:viewChangeResponse", (clientSocketId) => helperGetViewChangeResponse(viewNext, clientSocketId));
+    helperEmitToAll("est-event:viewChangeResponse", (clientSocketId) => helperGetViewData(viewNext, clientSocketId));
     appState.gates.viewChange.clear();
 
     // Reset file transfer tracking for the next condition
@@ -358,7 +363,7 @@ function helperGetListeningSpeakingTestRole(clientSocketId) {
     return clientIndex === 0 ? "listener" : "speaker";
 }
 
-function helperGetViewChangeResponse(viewName, clientSocketId) {
+function helperGetViewData(viewName, clientSocketId) {
     const isSct = viewName === "viewShortConversationTest";
     const isLst = viewName === "viewListeningSpeakingTest";
     const isLstEvaluation = viewName === "viewListeningSpeakingTestEvaluation";
@@ -368,30 +373,30 @@ function helperGetViewChangeResponse(viewName, clientSocketId) {
         const clientNumber = clientIndex === 0 ? "01" : "02";
         const conditionPadded = String(appState.conditionIndex + 1).padStart(2, "0");
         const clientConditionImage = "client_" + clientNumber + "/" + conditionPadded + ".png";
-        const participantRole = (isLst || isLstEvaluation) ? helperGetListeningSpeakingTestRole(clientSocketId) : null;
+        const lstRole = (isLst || isLstEvaluation) ? helperGetListeningSpeakingTestRole(clientSocketId) : null;
         let conditionImage = null;
 
         if (isSct) {
             conditionImage = clientConditionImage;
         }
         else if (isLst) {
-            conditionImage = participantRole === "speaker" ? clientConditionImage : "listener.png";
+            conditionImage = lstRole === "speaker" ? clientConditionImage : "listener.png";
         }
 
         const response = {
-            viewName: viewName,
+            currentView: viewName,
             conditionImage: conditionImage
         };
 
         if (isLst || isLstEvaluation) {
             response.lstRoundIndex = appState.lstRoundIndex;
-            response.participantRole = participantRole;
+            response.lstRole = lstRole;
         }
 
         return response;
     }
 
-    return viewName;
+    return { currentView: viewName };
 }
 
 // ===========================================
