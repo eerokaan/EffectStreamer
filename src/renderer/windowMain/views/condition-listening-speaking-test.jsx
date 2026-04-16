@@ -1,13 +1,12 @@
 import { useEffect } from "react";
+import { conditionLstImages, resolveImage } from "@/lib/helper-images";
 import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
 import useStoreRoot from "@/stores/root";
-import listenerImage from "@/assets/img/condition-listening-speaking-test/listener.png";
-
-const conditionImages = import.meta.glob("@/assets/img/condition-listening-speaking-test/client_*/*.png", { eager: true, import: "default" });
 
 function ViewListeningSpeakingTest() {
     const { conditionImage } = useStoreRoot();
+    const imageSrc = resolveImage(conditionLstImages, conditionImage);
 
     useEffect(() => {
         window.appApi.ipcRenderer.invoke("ipc:coreStartRequest", {
@@ -20,15 +19,14 @@ function ViewListeningSpeakingTest() {
         };
     }, []);
 
-    const clientImageKey = conditionImage && conditionImage !== "listener.png" ? Object.keys(conditionImages).find((key) => key.endsWith(conditionImage)) : null;
-    const imageSrc = conditionImage === "listener.png" ? listenerImage : clientImageKey ? conditionImages[clientImageKey] : null;
-
     return (
         <>
             <div className="flex flex-1 flex-col justify-center">
                 <ComponentHeader headline="Listening/Speaking Test"></ComponentHeader>
 
-                <div className="max-w-5xl flex-1">{imageSrc && <img src={imageSrc} alt="Listening/Speaking Test" className="block w-full" draggable="false" />}</div>
+                <div className="max-w-5xl flex-1">
+                    <img src={imageSrc} alt="Listening/Speaking Test" className="block w-full" draggable="false" />
+                </div>
 
                 <ComponentFooter></ComponentFooter>
             </div>

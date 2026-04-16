@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { scaleDetails, getPermutedScaleOrder } from "@/lib/scale-definitions";
+import { scaleDetails, getPermutedScaleOrder } from "@/lib/helper-scales";
 import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
 import ComponentScale from "@/components/scale";

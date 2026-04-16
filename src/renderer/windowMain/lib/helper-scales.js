@@ -40,19 +40,19 @@ const scaleDetails = {
     }
 };
 
-function getPermutedDimensionScaleOrder(offset) {
+const getPermutedDimensionScaleOrder = (offset) => {
     const dimensionScales = scaleOrder.slice(1);
     const normalizedOffset = ((offset % dimensionScales.length) + dimensionScales.length) % dimensionScales.length;
     return [...dimensionScales.slice(normalizedOffset), ...dimensionScales.slice(0, normalizedOffset)];
-}
+};
 
-function getPermutedScaleOrder(offset) {
+const getPermutedScaleOrder = (offset) => {
     return [scaleOrder[0], ...getPermutedDimensionScaleOrder(offset)];
-}
+};
 
-function getListeningSpeakingTestScaleOrder(offset, participantRole) {
+const getListeningSpeakingTestScaleOrder = (offset, participantRole) => {
     const roleScales = new Set(listeningSpeakingTestScaleGroups[participantRole] ?? []);
     return [scaleOrder[0], ...getPermutedDimensionScaleOrder(offset).filter((scaleName) => roleScales.has(scaleName))];
-}
+};
 
 export { scaleOrder, scaleDetails, getPermutedScaleOrder, getListeningSpeakingTestScaleOrder };

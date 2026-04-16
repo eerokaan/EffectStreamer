@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { scaleDetails, getListeningSpeakingTestScaleOrder } from "@/lib/scale-definitions";
+import { scaleDetails, getListeningSpeakingTestScaleOrder } from "@/lib/helper-scales";
 import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
 import ComponentScale from "@/components/scale";
