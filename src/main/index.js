@@ -128,8 +128,9 @@ async function socketLogic() {
                 lstRole: data.lstRole ?? null
             }
         });
-        appContext.windowMain.webContents.send("ipc:storeResetRequest", {
-            storeName: "ComponentFooter"
+        appContext.windowMain.webContents.send("ipc:storeSetValueRequest", {
+            storeName: "ComponentFooter",
+            payload: { isWaitingForPeer: false }
         });
         appContext.windowMain.webContents.send("ipc:storeResetRequest", {
             storeName: "ComponentScale"
@@ -168,6 +169,12 @@ async function socketLogic() {
         const microphoneData = await fs.promises.readFile(path.join(echoStreamerDir, "microphone.ogg"));
         const headphonesData = await fs.promises.readFile(path.join(echoStreamerDir, "headphones.ogg"));
 
+        // Adjust footer button
+        appContext.windowMain.webContents.send("ipc:storeSetValueRequest", {
+            storeName: "ComponentFooter",
+            payload: { isWaitingForUpload: true }
+        });
+
         // Send both files to the server
         appContext.socket.emit("est-event:fileTransferRequest", {
             testType: data.testType,
@@ -184,7 +191,10 @@ async function socketLogic() {
     // fileTransferResponse
     // [SERVER] -> [MAIN]
     appContext.socket.on("est-event:fileTransferResponse", () => {
-        // Handled server-side via double-gated view change resolution
+        appContext.windowMain.webContents.send("ipc:storeSetValueRequest", {
+            storeName: "ComponentFooter",
+            payload: { isWaitingForUpload: false }
+        });
     });
 
     // ===== Outbound communication ==============================
