@@ -7,36 +7,36 @@ const listeningSpeakingTestScaleGroups = {
 
 const scaleDetails = {
     audio_quality: {
-        displayName: "Audio Quality",
-        description: 'The term "Audio Quality" means that you rate the overall quality of the call as a whole.'
+        displayName: "Audioqualität",
+        description: 'Der Begriff "Audioqualität" bedeutet, dass Sie die Gesamtqualität des Gesprächs als Ganzes bewerten.'
     },
     noisiness: {
-        displayName: "Noisiness",
-        description: 'The term "Noisiness" means that you evaluate the noisiness of what you heard. The terms "not noisy" and "noisy" can be described with the terms "noiseless" and "not hissing" vs. "noisy" and "hissing", respectively.'
+        displayName: "Rauschen",
+        description: 'Der Begriff "Rauschen" bedeutet, dass Sie das Rauschen des Gehörten bewerten. Die Begriffe "nicht verrauscht" und "verrauscht" können mit den Begriffen "rauschfrei" und "nicht zischend" bzw. "verrauscht" und "zischend" beschrieben werden.'
     },
     discontinuity: {
-        displayName: "Discontinuity",
-        description: 'The term "Discontinuity" means that you evaluate the continuity of what you heard. The terms "continuous" and "discontinuous" can be described with the terms "even" and "not chopped" vs. "uneven" and "chopped", respectively.'
+        displayName: "Diskontinuität",
+        description: 'Der Begriff "Diskontinuität" bedeutet, dass Sie die Kontinuität des Gehörten bewerten. Die Begriffe "kontinuierlich" und "diskontinuierlich" können mit den Begriffen "gleichmäßig" und "nicht abgehackt" bzw. "ungleichmäßig" und "abgehackt" beschrieben werden.'
     },
     coloration: {
-        displayName: "Coloration",
-        description: 'The term "Coloration" means that you evaluate the coloration of what you heard. The terms "uncolored" and "colored" can be described with the terms "direct" and "full" vs. "indirect" and "thin", respectively.'
+        displayName: "Verfärbung",
+        description: 'Der Begriff "Verfärbung" bedeutet, dass Sie die klangliche Verfärbung des Gehörten bewerten. Die Begriffe "unverfärbt" und "verfärbt" können mit den Begriffen "direkt" und "voll" bzw. "indirekt" und "dünn" beschrieben werden.'
     },
     loudness: {
-        displayName: "Loudness",
-        description: 'The term "Loudness" means that you evaluate whether the volume of what you heard is optimal. The terms "optimal" and "not optimal" can be described with the terms "not too loud" and "not too quiet" vs. "too loud" and "too quiet", respectively.'
+        displayName: "Lautstärke",
+        description: 'Der Begriff "Lautstärke" bedeutet, dass Sie bewerten, ob die Lautstärke des Gehörten optimal ist. Die Begriffe "optimal" und "nicht optimal" können mit den Begriffen "nicht zu laut" und "nicht zu leise" bzw. "zu laut" und "zu leise" beschrieben werden.'
     },
     echo: {
         displayName: "Echo",
-        description: 'The term "Echo" means that you evaluate the impact of your own voice being played back to you. The terms "not disturbing" and "disturbing" can be described with the terms "not distracting" and "not irritating" vs. "distracting" and "irritating", respectively.'
+        description: 'Der Begriff "Echo" bedeutet, dass Sie die Auswirkung der Rückkopplung Ihrer eigenen Stimme bewerten. Die Begriffe "nicht störend" und "störend" können mit den Begriffen "nicht ablenkend" und "nicht irritierend" bzw. "ablenkend" und "irritierend" beschrieben werden.'
     },
     degradation: {
-        displayName: "Degradation",
-        description: 'The term "Degradation" means that you evaluate the degradation of your own voice as heard during the call. The terms "own voice not degraded" and "own voice degraded" can be described with the terms "not distorted" and "echofree" vs. "distorted" and "echoed", respectively.'
+        displayName: "Beeinträchtigung",
+        description: 'Der Begriff "Beeinträchtigung" bedeutet, dass Sie die Beeinträchtigung Ihrer eigenen Stimme während des Gesprächs bewerten. Die Begriffe "eigene Stimme nicht beeinträchtigt" und "eigene Stimme beeinträchtigt" können mit den Begriffen "nicht verzerrt" und "echofrei" bzw. "verzerrt" und "mit Echo" beschrieben werden.'
     },
     interaction: {
-        displayName: "Interaction",
-        description: 'The term "Interaction" means that you evaluate the ease of interaction between you and your conversational partner. The terms "easy to interact" and "hard to interact" can be described with the terms "effective" and "pleasant" vs. "ineffective" and "unpleasant", respectively.'
+        displayName: "Interaktion",
+        description: 'Der Begriff "Interaktion" bedeutet, dass Sie bewerten, wie leicht die Interaktion zwischen Ihnen und Ihrem Gesprächspartner ist. Die Begriffe "leichte Interaktion" und "schwere Interaktion" können mit den Begriffen "effektiv" und "angenehm" bzw. "ineffektiv" und "unangenehm" beschrieben werden.'
     }
 };
 

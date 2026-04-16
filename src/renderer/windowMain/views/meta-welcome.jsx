@@ -5,7 +5,7 @@ function ViewWelcome() {
     return (
         <>
             <div className="flex flex-1 flex-col justify-center">
-                <ComponentHeader headline="Welcome"></ComponentHeader>
+                <ComponentHeader headline="Willkommen beim Experiment"></ComponentHeader>
 
                 <div className="max-w-5xl flex-1">
                     <p>

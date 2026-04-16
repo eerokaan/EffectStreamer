@@ -5,10 +5,10 @@ function ViewPretest() {
     return (
         <>
             <div className="flex flex-1 flex-col justify-center">
-                <ComponentHeader headline="A little bit about you"></ComponentHeader>
+                <ComponentHeader headline="Bevor es losgeht"></ComponentHeader>
 
                 <div className="max-w-5xl flex-1">
-                    <p>Yeah... This is where the content for the Pretest Questions comes.</p>
+                    <p>Lorem Ipsum</p>
                 </div>
 
                 <ComponentFooter></ComponentFooter>

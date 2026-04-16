@@ -67,7 +67,7 @@ function ComponentScale({ scaleName }) {
     return (
         <>
             <div className="relative inline-block select-none">
-                <img ref={imgReference} src={scaleInfo.image} alt={scaleName} className="block w-full" draggable="false" />
+                <img ref={imgReference} src={scaleInfo.image} alt="Scale Image" className="block w-full" draggable="false" />
                 <div className="absolute inset-0 cursor-crosshair" onClick={handleClick} />
 
                 {markerPercentage && (

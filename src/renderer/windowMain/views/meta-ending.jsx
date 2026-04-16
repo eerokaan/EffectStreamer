@@ -5,10 +5,10 @@ function ViewEnding() {
     return (
         <>
             <div className="flex flex-1 flex-col justify-center">
-                <ComponentHeader headline="Thank you for your participation"></ComponentHeader>
+                <ComponentHeader headline="Vielen Dank für deine Teilnahme"></ComponentHeader>
 
                 <div className="max-w-5xl flex-1">
-                    <p>🎵 This is the end. My only friend... The end. 🎵</p>
+                    <p>Lorem Ipsum</p>
                 </div>
 
                 <ComponentFooter></ComponentFooter>

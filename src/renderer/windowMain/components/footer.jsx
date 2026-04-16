@@ -25,7 +25,7 @@ function ComponentFooter({ onNext, disabled }) {
         <>
             <div className="mt-8 flex flex-none justify-end">
                 <Button className="cursor-pointer" onClick={requestNextView} disabled={isWaiting || disabled}>
-                    {isWaiting ? "Waiting for partner" : "Next"} {isWaiting ? <Spinner data-icon="inline-end" /> : <ArrowRight data-icon="inline-end" />}
+                    {isWaiting ? "Warte auf Partner" : "Weiter"} {isWaiting ? <Spinner data-icon="inline-end" /> : <ArrowRight data-icon="inline-end" />}
                 </Button>
             </div>
         </>

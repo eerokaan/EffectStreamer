@@ -2,9 +2,11 @@ import { useEffect } from "react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { scaleDetails, getPermutedScaleOrder } from "@/lib/helper-scales";
+
 import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
 import ComponentScale from "@/components/scale";
+
 import useStoreComponentScale from "@/stores/component-scale";
 import useStoreComponentScaleEvaluation from "@/stores/component-scale-evaluation";
 import useStoreRoot from "@/stores/root";
@@ -40,9 +42,9 @@ function ViewShortConversationTestEvaluation() {
                 <ComponentHeader
                     headline={
                         <>
-                            Short Conversation Test:
+                            Auswertung des Gesprächs:
                             <br />
-                            Evaluation ({scaleDetail.displayName})
+                            {scaleDetail.displayName}
                         </>
                     }
                 ></ComponentHeader>
