@@ -109,15 +109,23 @@ async function socketLogic() {
     // viewChangeResponse
     // [SERVER] -> [MAIN -> PRELOAD -> RENDERER]
     appContext.socket.on("est-event:viewChangeResponse", (data) => {
-        const isObject = typeof data === "object" && data !== null;
+        if (data?.showDialog) {
+            appContext.windowMain.webContents.send("ipc:storeSetValueRequest", {
+                storeName: "Root",
+                payload: { showDialog: true }
+            });
+            return;
+        }
 
         appContext.windowMain.webContents.send("ipc:storeSetValueRequest", {
             storeName: "Root",
             payload: {
-                currentView: isObject ? data.viewName : data,
-                conditionImage: isObject ? (data.conditionImage ?? null) : null,
-                lstRoundIndex: isObject ? (data.lstRoundIndex ?? null) : null,
-                participantRole: isObject ? (data.participantRole ?? null) : null
+                currentView: data.currentView,
+                showDialog: data.showDialog ?? false,
+                conditionScaleOffset: data.conditionScaleOffset ?? null,
+                conditionImage: data.conditionImage ?? null,
+                lstRoundIndex: data.lstRoundIndex ?? null,
+                lstRole: data.lstRole ?? null,
             }
         });
         appContext.windowMain.webContents.send("ipc:storeResetRequest", {
@@ -129,12 +137,6 @@ async function socketLogic() {
         appContext.windowMain.webContents.send("ipc:storeResetRequest", {
             storeName: "ComponentScaleEvaluation"
         });
-    });
-
-    // fileTransferResponse
-    // [SERVER] -> [MAIN]
-    appContext.socket.on("est-event:fileTransferResponse", () => {
-        // Handled server-side via double-gated view change resolution
     });
 
     // coreStartResponse
@@ -177,6 +179,12 @@ async function socketLogic() {
             filename: "headphones.ogg",
             fileData: headphonesData
         });
+    });
+
+    // fileTransferResponse
+    // [SERVER] -> [MAIN]
+    appContext.socket.on("est-event:fileTransferResponse", () => {
+        // Handled server-side via double-gated view change resolution
     });
 
     // ===== Outbound communication ==============================

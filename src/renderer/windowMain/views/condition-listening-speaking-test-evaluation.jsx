@@ -14,16 +14,16 @@ import useStoreRoot from "@/stores/root";
 function ViewListeningSpeakingTestEvaluation() {
     const { scaleIndex, setScaleIndex } = useStoreComponentScaleEvaluation();
     const { scaleValues } = useStoreComponentScale();
-    const { currentView, scaleOffset, setScaleOffset, participantRole } = useStoreRoot();
+    const { currentView, conditionScaleOffset, setConditionScaleOffset, lstRole } = useStoreRoot();
 
     // Initialize the random scale offset once per session
     useEffect(() => {
-        if (scaleOffset === null) {
-            setScaleOffset(Math.floor(Math.random() * 7));
+        if (conditionScaleOffset === null) {
+            setConditionScaleOffset(Math.floor(Math.random() * 7));
         }
-    }, [scaleOffset, setScaleOffset]);
+    }, [conditionScaleOffset, setConditionScaleOffset]);
 
-    const permutedScaleOrder = getListeningSpeakingTestScaleOrder(scaleOffset ?? 0, participantRole);
+    const permutedScaleOrder = getListeningSpeakingTestScaleOrder(conditionScaleOffset ?? 0, lstRole);
     const scaleName = permutedScaleOrder[scaleIndex] ?? permutedScaleOrder[0];
     const scaleDetail = scaleDetails[scaleName];
     const isLastScale = scaleIndex === permutedScaleOrder.length - 1;

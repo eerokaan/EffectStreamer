@@ -14,16 +14,16 @@ import useStoreRoot from "@/stores/root";
 function ViewShortConversationTestEvaluation() {
     const { scaleIndex, setScaleIndex } = useStoreComponentScaleEvaluation();
     const { scaleValues } = useStoreComponentScale();
-    const { currentView, scaleOffset, setScaleOffset } = useStoreRoot();
+    const { currentView, conditionScaleOffset, setConditionScaleOffset } = useStoreRoot();
 
     // Initialize the random scale offset once per session
     useEffect(() => {
-        if (scaleOffset === null) {
-            setScaleOffset(Math.floor(Math.random() * 7));
+        if (conditionScaleOffset === null) {
+            setConditionScaleOffset(Math.floor(Math.random() * 7));
         }
-    }, [scaleOffset, setScaleOffset]);
+    }, [conditionScaleOffset, setConditionScaleOffset]);
 
-    const permutedScaleOrder = getPermutedScaleOrder(scaleOffset ?? 0);
+    const permutedScaleOrder = getPermutedScaleOrder(conditionScaleOffset ?? 0);
     const scaleName = permutedScaleOrder[scaleIndex];
     const scaleDetail = scaleDetails[scaleName];
     const isLastScale = scaleIndex === permutedScaleOrder.length - 1;

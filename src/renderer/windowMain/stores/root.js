@@ -2,10 +2,11 @@ import createStore from "@/lib/stores-create";
 
 const useStoreRoot = createStore({
     currentView: "viewWaiting",
-    scaleOffset: null,
+    showDialog: false,
+    conditionScaleOffset: null,
     conditionImage: null,
     lstRoundIndex: null,
-    participantRole: null
+    lstRole: null
 });
 
 export default useStoreRoot;
