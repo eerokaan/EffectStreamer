@@ -58,8 +58,8 @@ function ViewShortConversationTestEvaluation() {
                     <ComponentFooter onNext={handleScaleTransfer} disabled={!hasSelection}></ComponentFooter>
                 ) : (
                     <div className="mt-8 flex flex-none justify-end">
-                        <Button className="cursor-pointer" onClick={() => setScaleIndex(scaleIndex + 1)} disabled={!hasSelection}>
-                            Next <ArrowRight data-icon="inline-end" />
+                        <Button onClick={() => setScaleIndex(scaleIndex + 1)} disabled={!hasSelection}>
+                            Weiter <ArrowRight data-icon="inline-end" />
                         </Button>
                     </div>
                 )}

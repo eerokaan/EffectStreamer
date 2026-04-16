@@ -125,7 +125,7 @@ async function socketLogic() {
                 conditionScaleOffset: data.conditionScaleOffset ?? null,
                 conditionImage: data.conditionImage ?? null,
                 lstRoundIndex: data.lstRoundIndex ?? null,
-                lstRole: data.lstRole ?? null,
+                lstRole: data.lstRole ?? null
             }
         });
         appContext.windowMain.webContents.send("ipc:storeResetRequest", {

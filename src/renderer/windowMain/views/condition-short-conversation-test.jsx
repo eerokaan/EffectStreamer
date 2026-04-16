@@ -34,13 +34,13 @@ function ViewShortConversationTest() {
             </div>
 
             <Dialog open={showDialog} onOpenChange={setShowDialog}>
-                <DialogContent showCloseButton={false}>
+                <DialogContent showCloseButton={true}>
                     <DialogHeader>
-                        <DialogTitle>Partner hat den Raum verlassen</DialogTitle>
-                        <DialogDescription>Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.</DialogDescription>
+                        <DialogTitle>Der Gesprächspartner hat das Gespräch verlassen</DialogTitle>
+                        <DialogDescription>Sie befinden sich nun alleine im Gespächsraum. Sie können nun auch den Raum verlassen und zur nächsten Ansicht gehen.</DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowDialog(false)}>
+                        <Button variant="default" onClick={() => setShowDialog(false)}>
                             Schließen
                         </Button>
                     </DialogFooter>

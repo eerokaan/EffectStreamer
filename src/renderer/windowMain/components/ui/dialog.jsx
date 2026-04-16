@@ -60,7 +60,7 @@ function DialogFooter({ className, showCloseButton = false, children, ...props }
 }
 
 function DialogTitle({ className, ...props }) {
-    return <DialogPrimitive.Title data-slot="dialog-title" className={cn("text-base leading-none font-medium", className)} {...props} />;
+    return <DialogPrimitive.Title data-slot="dialog-title" className={cn("text-base leading-5 font-medium", className)} {...props} />;
 }
 
 function DialogDescription({ className, ...props }) {
