@@ -74,14 +74,10 @@ io.on("connection", (socket) => {
     // ===== clientUnregister ==============================
     socket.on("est-event:clientUnregister", () => {
         console.log("Client disconnected: " + socket.id);
-        appState.clients.delete(socket.id);
-        appState.gates.viewChange.delete(socket.id);
-        appState.gates.coreStart.delete(socket.id);
+        helperEmitToAll("est-event:viewChangeResponse", { currentView: "viewWaiting" });
 
-        // Check if less than two clients are connected now
-        if (appState.clients.size < 2) {
-            helperEmitToAll("est-event:viewChangeResponse", { currentView: "viewWaiting" });
-        }
+        console.log("Shutting down current server instance due to client disconnect");
+        process.exit();
     });
 
     // ===== viewChangeRequest ==============================
