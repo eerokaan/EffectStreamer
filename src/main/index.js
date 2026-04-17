@@ -1,14 +1,12 @@
 // ===========================================
 // ===== COMMON ==============================
 // ===========================================
-import path from "path";
-import fs from "fs";
-
-import { app, shell, ipcMain, BrowserWindow } from "electron";
 import { electronApp, optimizer } from "@electron-toolkit/utils";
 import { spawn } from "child_process";
+import { app, BrowserWindow, ipcMain, shell } from "electron";
+import fs from "fs";
+import path from "path";
 import { io } from "socket.io-client";
-
 import appContent from "./lib/appContent";
 import appContext from "./lib/appContext";
 import appInfo from "./lib/appInfo";

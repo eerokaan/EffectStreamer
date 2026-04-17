@@ -1,7 +1,7 @@
-import useStoreRoot from "@/stores/root";
 import useStoreComponentFooter from "@/stores/component-footer";
 import useStoreComponentScale from "@/stores/component-scale";
 import useStoreComponentScaleEvaluation from "@/stores/component-scale-evaluation";
+import useStoreRoot from "@/stores/root";
 
 // Registry of all Zustand stores
 const storeRegistry = {

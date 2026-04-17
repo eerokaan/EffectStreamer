@@ -1,5 +1,4 @@
 import { conditionSctExplanationImages, resolveImage } from "@/lib/helper-images";
-
 import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
 

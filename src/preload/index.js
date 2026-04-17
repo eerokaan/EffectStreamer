@@ -1,5 +1,5 @@
-import { contextBridge, ipcRenderer } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
+import { contextBridge, ipcRenderer } from "electron";
 import appInfo from "../main/lib/appInfo";
 
 // Define valid channels by operation type

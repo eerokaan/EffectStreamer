@@ -1,9 +1,9 @@
 import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { conditionSctImages, resolveImage } from "@/lib/helper-images";
 import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import useStoreRoot from "@/stores/root";
 
 function ViewShortConversationTest() {

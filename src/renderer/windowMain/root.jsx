@@ -1,15 +1,15 @@
-import useStoreRoot from "@/stores/root";
-import ViewBreak from "@/views/meta-break";
-import ViewEnding from "@/views/meta-ending";
 import ViewListeningSpeakingTest from "@/views/condition-listening-speaking-test";
 import ViewListeningSpeakingTestEvaluation from "@/views/condition-listening-speaking-test-evaluation";
 import ViewListeningSpeakingTestExplanation from "@/views/condition-listening-speaking-test-explanation";
-import ViewPretest from "@/views/meta-pretest";
 import ViewShortConversationTest from "@/views/condition-short-conversation-test";
 import ViewShortConversationTestEvaluation from "@/views/condition-short-conversation-test-evaluation";
 import ViewShortConversationTestExplanation from "@/views/condition-short-conversation-test-explanation";
+import ViewBreak from "@/views/meta-break";
+import ViewEnding from "@/views/meta-ending";
+import ViewPretest from "@/views/meta-pretest";
 import ViewWaiting from "@/views/meta-waiting";
 import ViewWelcome from "@/views/meta-welcome";
+import useStoreRoot from "@/stores/root";
 
 const viewMap = {
     viewWaiting: ViewWaiting,

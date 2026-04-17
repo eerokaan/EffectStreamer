@@ -55,4 +55,4 @@ const getListeningSpeakingTestScaleOrder = (offset, lstRole) => {
     return [scaleOrder[0], ...getPermutedDimensionScaleOrder(offset).filter((scaleName) => roleScales.has(scaleName))];
 };
 
-export { scaleOrder, scaleDetails, getPermutedScaleOrder, getListeningSpeakingTestScaleOrder };
+export { getListeningSpeakingTestScaleOrder, getPermutedScaleOrder, scaleDetails, scaleOrder };

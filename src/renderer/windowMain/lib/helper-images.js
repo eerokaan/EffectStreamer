@@ -11,4 +11,4 @@ const resolveImage = (images, imageName) => {
     return key ? images[key] : null;
 };
 
-export { conditionSctImages, conditionSctExplanationImages, conditionLstImages, conditionLstExplanationImages, resolveImage };
+export { conditionLstExplanationImages, conditionLstImages, conditionSctExplanationImages, conditionSctImages, resolveImage };

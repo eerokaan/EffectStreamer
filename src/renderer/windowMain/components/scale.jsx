@@ -1,6 +1,5 @@
 import { useRef } from "react";
 import useStoreComponentScale from "@/stores/component-scale";
-
 import imgAudioQuality from "@/assets/img/scales/01_audio_quality.png";
 import imgColoration from "@/assets/img/scales/02_coloration.png";
 import imgDiscontinuity from "@/assets/img/scales/03_discontinuity.png";
