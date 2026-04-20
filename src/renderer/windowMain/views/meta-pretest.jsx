@@ -8,22 +8,20 @@ import { Switch } from "@/components/ui/switch";
 import { formSchema } from "@/lib/helper-form-schema";
 import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
+import useStoreRoot from "@/stores/root";
 
 function ViewPretest() {
+    const { currentView } = useStoreRoot();
     const form = useForm({ resolver: zodResolver(formSchema) });
-    const { handleSubmit } = form;
-
-    const handleSubmitClick = handleSubmit((data) => {
-        console.log("Pretest form data: ", data);
-    });
-
-    const handleFooterClick = async () => {
+    
+    const handleFormSubmit = async () => {
         const isValid = await form.trigger();
-        if (isValid) {
-            handleSubmitClick();
-        } else {
-            return false;
-        }
+        if (!isValid) return false;
+
+        console.log("Pretest form data: ", form.getValues());
+        window.appApi.ipcRenderer.invoke("ipc:viewChangeRequest", {
+            currentView
+        });
     };
 
     return (
@@ -37,7 +35,7 @@ function ViewPretest() {
                         tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
                     </p>
 
-                    <form onSubmit={handleSubmitClick} className="w-full rounded-md border p-8">
+                    <form onSubmit={handleFormSubmit} className="w-full rounded-md border p-8">
                         <FieldGroup className="grid grid-cols-6 gap-x-4 gap-y-6">
                             <Controller
                                 name="input-age"
@@ -287,7 +285,7 @@ function ViewPretest() {
                     </form>
                 </div>
 
-                <ComponentFooter onNext={handleFooterClick}></ComponentFooter>
+                <ComponentFooter onNext={handleFormSubmit}></ComponentFooter>
             </div>
         </>
     );
