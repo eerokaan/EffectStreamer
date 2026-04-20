@@ -20,18 +20,32 @@ const io = socketIo(server, {
     maxHttpBufferSize: 100e6 // Support for max. 100 MB file transfers
 });
 
+const views = {
+    waiting: "viewWaiting",
+    welcome: "viewWelcome",
+    pretest: "viewPretest",
+    sctExp: "viewShortConversationTestExplanation",
+    sct: "viewShortConversationTest",
+    sctEval: "viewShortConversationTestEvaluation",
+    lstExp: "viewListeningSpeakingTestExplanation",
+    lst: "viewListeningSpeakingTest",
+    lstEval: "viewListeningSpeakingTestEvaluation",
+    break: "viewBreak",
+    ending: "viewEnding"
+};
+
 const viewFlow = [
-    { name: "viewWaiting", passing: "direct", metadata: {} },
-    { name: "viewWelcome", passing: "direct", metadata: {} },
-    { name: "viewPretest", passing: "gated", metadata: {} },
-    { name: "viewShortConversationTestExplanation", passing: "gated", metadata: { loopBehaviour: "start" } },
-    { name: "viewShortConversationTest", passing: "direct", metadata: {} },
-    { name: "viewShortConversationTestEvaluation", passing: "gated", metadata: { testType: "sct" } },
-    { name: "viewListeningSpeakingTestExplanation", passing: "gated", metadata: {} },
-    { name: "viewListeningSpeakingTest", passing: "direct", metadata: {} },
-    { name: "viewListeningSpeakingTestEvaluation", passing: "gated", metadata: { loopBehaviour: "end", testType: "lst" } },
-    { name: "viewBreak", passing: "gated", metadata: { loopBehaviour: "break" } },
-    { name: "viewEnding", passing: "direct", metadata: {} },
+    { name: views.waiting, passing: "direct", metadata: {} },
+    { name: views.welcome, passing: "direct", metadata: {} },
+    { name: views.pretest, passing: "gated", metadata: {} },
+    { name: views.sctExp, passing: "gated", metadata: { loopBehaviour: "start" } },
+    { name: views.sct, passing: "direct", metadata: {} },
+    { name: views.sctEval, passing: "gated", metadata: { testType: "sct" } },
+    { name: views.lstExp, passing: "gated", metadata: {} },
+    { name: views.lst, passing: "direct", metadata: {} },
+    { name: views.lstEval, passing: "gated", metadata: { loopBehaviour: "end", testType: "lst" } },
+    { name: views.break, passing: "gated", metadata: { loopBehaviour: "break" } },
+    { name: views.ending, passing: "direct", metadata: {} },
 ];
 
 let appState = {
@@ -58,7 +72,13 @@ io.on("connection", (socket) => {
     // ===== clientRegister ==============================
     socket.on("est-event:clientRegister", (data) => {
         console.log("Client registered: " + socket.id);
+        
+        const clientIndex = appState.clients.size;
+        const clientLabel = clientIndex === 0 ? "a" : "b";
+
         appState.clients.set(socket.id, {
+            clientIndex,
+            clientLabel,
             operatingSystem: data.operatingSystem,
             ipAddress: data.ipAddress,
             deviceSource: data.deviceSource,
@@ -67,14 +87,14 @@ io.on("connection", (socket) => {
 
         // Check if two clients are connected now
         if (appState.clients.size === 2) {
-            helperEmitToAll("est-event:viewChangeResponse", { currentView: "viewWelcome" });
+            io.emit("est-event:viewChangeResponse", { currentView: views.welcome });
         }
     });
 
     // ===== clientUnregister ==============================
     socket.on("est-event:clientUnregister", () => {
         console.log("Client disconnected: " + socket.id);
-        helperEmitToAll("est-event:viewChangeResponse", { currentView: "viewWaiting" });
+        io.emit("est-event:viewChangeResponse", { currentView: views.waiting });
 
         console.log("Shutting down current server instance due to client disconnect");
         process.exit();
@@ -82,17 +102,15 @@ io.on("connection", (socket) => {
 
     // ===== viewChangeRequest ==============================
     socket.on("est-event:viewChangeRequest", (data) => {
-        const view = viewFlow.find(view => view.name === data.currentView);
+        const view = viewFlow.find(v => v.name === data.currentView);
         const viewNext = helperGetNextView(view.name);
+        const client = appState.clients.get(socket.id);
 
         // Optional: Write scale data file if provided (for evaluation views)
         if (data.scaleValues) {
-            const clientLabel = helperGetClientLabel(socket.id);
             const roundSuffix = helperGetRoundSuffix(view.metadata.testType);
-            const serverFilename = "client-" + clientLabel + "-" + view.metadata.testType + roundSuffix + "-scales.json";
-            const conditionPadded = String(appState.conditionIndex + 1).padStart(4, "0");
-            const filePath = path.join(appState.sessionDir, conditionPadded, serverFilename);
-            fs.writeFileSync(filePath, JSON.stringify(data.scaleValues, null, 4));
+            const serverFilename = `client-${client.clientLabel}-${view.metadata.testType}${roundSuffix}-scales.json`;
+            helperSaveSessionFile(serverFilename, JSON.stringify(data.scaleValues, null, 4), true);
         }
 
         // Views with direct passing
@@ -100,9 +118,9 @@ io.on("connection", (socket) => {
             io.to(socket.id).emit("est-event:viewChangeResponse", helperGetViewData(viewNext, socket.id));
 
             // On SCT and LST testing views: Notify partner that they were left in the room
-            const peerClient = [...appState.clients].find(([id]) => id !== socket.id);
-            if (peerClient && (view.name === "viewShortConversationTest" || view.name === "viewListeningSpeakingTest")) {
-                io.to(peerClient[0]).emit("est-event:viewChangeResponse", { showDialog: true });
+            const peerSocketId = helperGetPeerSocketId(socket.id);
+            if (peerSocketId && (view.name === views.sct || view.name === views.lst)) {
+                io.to(peerSocketId).emit("est-event:viewChangeResponse", { showDialog: true });
             }
         }
 
@@ -119,11 +137,10 @@ io.on("connection", (socket) => {
 
     // ===== pretestSubmitRequest ==============================
     socket.on("est-event:pretestSubmitRequest", (data) => {
-        const clientLabel = helperGetClientLabel(socket.id);
-        const serverFilename = "client-" + clientLabel + "-pretest-form.json";
-        const filePath = path.join(appState.sessionDir, serverFilename);
+        const client = appState.clients.get(socket.id);
+        const serverFilename = `client-${client.clientLabel}-pretest-form.json`;
+        helperSaveSessionFile(serverFilename, JSON.stringify(data.formData, null, 4), false);
         
-        fs.writeFileSync(filePath, JSON.stringify(data.formData, null, 4));
         io.to(socket.id).emit("est-event:pretestSubmitResponse");
     });
 
@@ -133,14 +150,16 @@ io.on("connection", (socket) => {
 
         // Stage 1: Sender component (Direct response)
         if (data.component === "sender") {
-            const peerClient = [...appState.clients].find(([id]) => id !== socket.id);
+            const peerSocketId = helperGetPeerSocketId(socket.id);
+            const peerClient = appState.clients.get(peerSocketId);
             const thisClient = appState.clients.get(socket.id);
+            
             const estCoreSettings = {
                 component: "sender",
-                peerIp: peerClient[1].ipAddress,
+                peerIp: peerClient?.ipAddress,
                 deviceSource: thisClient.deviceSource,
                 latency: currentCondition.latency
-            }
+            };
             io.to(socket.id).emit("est-event:coreStartResponse", estCoreSettings);
         }
 
@@ -159,31 +178,27 @@ io.on("connection", (socket) => {
     // ===== coreStopRequest ==============================
     socket.on("est-event:coreStopRequest", (data) => {
         helperGateResolve(appState.gates.coreStop, socket.id, 2, () => {
-            helperEmitToAll("est-event:coreStopResponse", { testType: data.testType });
+            io.emit("est-event:coreStopResponse", { testType: data.testType });
         });
     });
 
     // ===== fileTransferRequest ==============================
     socket.on("est-event:fileTransferRequest", (data) => {
-
-        // Determine client label based on connection order
-        const clientLabel = helperGetClientLabel(socket.id);
+        const client = appState.clients.get(socket.id);
 
         // Construct filename: client-{a|b}-{sct|lst}-{microphone|headphones}.ogg
         const originalName = data.filename.replace(".ogg", "");
         const roundSuffix = helperGetRoundSuffix(data.testType);
-        const transferStageKey = helperGetTransferStageKey(data.testType);
-        const serverFilename = "client-" + clientLabel + "-" + data.testType + roundSuffix + "-" + originalName + ".ogg";
+        const serverFilename = `client-${client.clientLabel}-${data.testType}${roundSuffix}-${originalName}.ogg`;
 
         // Write file to current condition directory
-        const conditionPadded = String(appState.conditionIndex + 1).padStart(4, "0");
-        const filePath = path.join(appState.sessionDir, conditionPadded, serverFilename);
-        fs.writeFileSync(filePath, Buffer.from(data.fileData));
+        helperSaveSessionFile(serverFilename, Buffer.from(data.fileData), true);
 
         // Gate: Track received files (2 files from 2 clients = 4 total)
-        helperGateResolve(appState.gates.fileTransfer, transferStageKey + ":" + socket.id + ":" + data.filename, 4, () => {
+        const transferStageKey = `${data.testType}${roundSuffix}`;
+        helperGateResolve(appState.gates.fileTransfer, `${transferStageKey}:${socket.id}:${data.filename}`, 4, () => {
             appState.evaluationLoopTransfersCompleted++;
-            helperEmitToAll("est-event:fileTransferResponse");
+            io.emit("est-event:fileTransferResponse");
 
             // Try to resolve any pending double-gated view change
             if (appState.evaluationLoopPendingViewName && appState.gates.viewChange.size === 2) {
@@ -196,6 +211,22 @@ io.on("connection", (socket) => {
 // ===========================================
 // ===== HELPER ==============================
 // ===========================================
+function helperGetConditionDirName() {
+    return String(appState.conditionIndex + 1).padStart(4, "0");
+}
+
+function helperGetConditionImageName(clientNumber) {
+    const conditionPadded = String(appState.conditionIndex + 1).padStart(2, "0");
+    return `client_${clientNumber}/${conditionPadded}.png`;
+}
+
+function helperSaveSessionFile(filename, data, useConditionSubdir = false) {
+    const filePath = useConditionSubdir 
+        ? path.join(appState.sessionDir, helperGetConditionDirName(), filename)
+        : path.join(appState.sessionDir, filename);
+    fs.writeFileSync(filePath, data);
+}
+
 function helperCreateFolderStructure() {
     const echostreamerDir = path.join(os.homedir(), "echostreamer");
     fs.mkdirSync(echostreamerDir, { recursive: true });
@@ -228,6 +259,13 @@ function helperEmitToAll(eventName, dataOrFunction) {
     });
 }
 
+function helperGetPeerSocketId(socketId) {
+    for (const [id] of appState.clients) {
+        if (id !== socketId) return id;
+    }
+    return null;
+}
+
 function helperGateResolve(gateSet, key, threshold, onResolve) {
     gateSet.add(key);
 
@@ -237,67 +275,70 @@ function helperGateResolve(gateSet, key, threshold, onResolve) {
     }
 }
 
-function helperResolveGatedViewChange(currentViewName) {
-    const view = viewFlow.find(view => view.name === currentViewName);
-    const viewNext = helperGetNextView(currentViewName);
-    const isFirstListeningSpeakingTestEvaluation = currentViewName === "viewListeningSpeakingTestEvaluation" && appState.lstRoundIndex === 0;
-    
-    // Check if the current view requires file transfers to complete
-    const requiresFileTransfers = currentViewName === "viewShortConversationTestEvaluation" || currentViewName === "viewListeningSpeakingTestEvaluation";
-    
+function helperIsWaitingForFileTransfers(currentViewName) {
+    const requiresFileTransfers = currentViewName === views.sctEval || currentViewName === views.lstEval;
+    if (!requiresFileTransfers) return false;
+
     let requiredTransferBatches = 0;
-    if (currentViewName === "viewShortConversationTestEvaluation") {
-        // SCT finishes -> 1 batch
-        requiredTransferBatches = 1;
+    if (currentViewName === views.sctEval) {
+        requiredTransferBatches = 1; // SCT finishes -> 1 batch
     }
-    else if (currentViewName === "viewListeningSpeakingTestEvaluation") {
+    else if (currentViewName === views.lstEval) {
         // LST evaluation 1 finishes -> 2 batches (SCT + LST1)
         // LST evaluation 2 finishes -> 3 batches (SCT + LST1 + LST2)
         requiredTransferBatches = appState.lstRoundIndex === 0 ? 2 : 3; 
     }
 
-    const isLoopEndView = view.metadata?.loopBehaviour === "end" && !isFirstListeningSpeakingTestEvaluation;
+    return appState.evaluationLoopTransfersCompleted < requiredTransferBatches;
+}
 
-    // Double-gated: Evaluation views also require all file transfer batches to be complete
-    if (requiresFileTransfers) {
-        if (appState.evaluationLoopTransfersCompleted < requiredTransferBatches) {
-            appState.evaluationLoopPendingViewName = currentViewName;
-            return;
-        }
-    }
+function helperAdvanceConditionIfNeeded(currentViewName, viewNext) {
+    const view = viewFlow.find(v => v.name === currentViewName);
+    const isFirstLstEval = currentViewName === views.lstEval && appState.lstRoundIndex === 0;
+    const isLoopEndView = view.metadata?.loopBehaviour === "end" && !isFirstLstEval;
 
     // When current view indicates a loop end: Increment conditionIndex
-    if (isLoopEndView && viewNext !== "viewEnding") {
+    if (isLoopEndView && viewNext !== views.ending) {
         appState.conditionIndex++;
-
-        const currentCondition = helperGetCurrentCondition();
-        console.log("Round " + appState.conditionIndex + ": Using condition " + JSON.stringify(currentCondition));
+        console.log(`Round ${appState.conditionIndex}: Using condition ${JSON.stringify(helperGetCurrentCondition())}`);
     }
-
-    // When next view indicates a loop start: Define shuffled condition order using Fisher-Yates method
-    else if (viewNext === viewFlow.find(view => view.metadata?.loopBehaviour === "start").name && appState.conditionIndex === 0) {
+    // When next view indicates a loop start: Define shuffled condition order
+    else if (viewNext === viewFlow.find(v => v.metadata?.loopBehaviour === "start")?.name && appState.conditionIndex === 0) {
         helperSetConditionOrder();
-
-        const currentCondition = helperGetCurrentCondition();
-        console.log("Round " + appState.conditionIndex + ": Using condition " + JSON.stringify(currentCondition));
+        console.log(`Round ${appState.conditionIndex}: Using condition ${JSON.stringify(helperGetCurrentCondition())}`);
     }
 
-    if (viewNext === "viewListeningSpeakingTestExplanation") {
+    return isLoopEndView;
+}
+
+function helperUpdateLstState(currentViewName, viewNext, isLoopEndView) {
+    const isFirstLstEval = currentViewName === views.lstEval && appState.lstRoundIndex === 0;
+
+    if (viewNext === views.lstExp) {
         appState.lstRoundIndex = 0;
     }
-
-    if (isFirstListeningSpeakingTestEvaluation) {
+    if (isFirstLstEval) {
         appState.lstRoundIndex = 1;
     }
-
-    helperEmitToAll("est-event:viewChangeResponse", (clientSocketId) => helperGetViewData(viewNext, clientSocketId));
-    appState.gates.viewChange.clear();
-
-    // Reset file transfer tracking for the next condition
     if (isLoopEndView) {
         appState.evaluationLoopTransfersCompleted = 0;
         appState.lstRoundIndex = 0;
     }
+}
+
+function helperResolveGatedViewChange(currentViewName) {
+    const viewNext = helperGetNextView(currentViewName);
+
+    if (helperIsWaitingForFileTransfers(currentViewName)) {
+        appState.evaluationLoopPendingViewName = currentViewName;
+        return;
+    }
+
+    const isLoopEndView = helperAdvanceConditionIfNeeded(currentViewName, viewNext);
+    helperUpdateLstState(currentViewName, viewNext, isLoopEndView);
+
+    helperEmitToAll("est-event:viewChangeResponse", (clientSocketId) => helperGetViewData(viewNext, clientSocketId));
+    appState.gates.viewChange.clear();
     appState.evaluationLoopPendingViewName = null;
 }
 
@@ -305,8 +346,8 @@ function helperGetNextView(currentView) {
     const viewIndex = viewFlow.findIndex(view => view.name === currentView);
     const view = viewFlow[viewIndex];
 
-    if (currentView === "viewListeningSpeakingTestEvaluation" && appState.lstRoundIndex === 0) {
-        return "viewListeningSpeakingTest";
+    if (currentView === views.lstEval && appState.lstRoundIndex === 0) {
+        return views.lst;
     }
 
     // When current view indicates a loop end: Either exit (viewEnding), show break (viewBreak) or loop back
@@ -314,24 +355,23 @@ function helperGetNextView(currentView) {
         const roundsTotal = estConfig.conditions.baseline.length + estConfig.conditions.random.length;
 
         if (appState.conditionIndex >= roundsTotal - 1) {
-            return "viewEnding";
+            return views.ending;
         }
         else if (appState.conditionIndex + 1 === Math.floor(roundsTotal / 2)) {
-            return viewFlow.find(view => view.metadata?.loopBehaviour === "break").name;
+            return viewFlow.find(v => v.metadata?.loopBehaviour === "break").name;
         }
         else {
-            return viewFlow.find(view => view.metadata?.loopBehaviour === "start").name;
+            return viewFlow.find(v => v.metadata?.loopBehaviour === "start").name;
         }
     }
 
     // When current view indicates a break: Resume to the loop
     if (view.metadata?.loopBehaviour === "break") {
-        return viewFlow.find(view => view.metadata?.loopBehaviour === "start").name;
+        return viewFlow.find(v => v.metadata?.loopBehaviour === "start").name;
     }
 
     // When nothing applies, just continue with the next view
-    const viewNext = viewFlow[viewIndex + 1];
-    return viewNext.name;
+    return viewFlow[viewIndex + 1].name;
 }
 
 function helperSetConditionOrder() {
@@ -347,49 +387,34 @@ function helperGetCurrentCondition() {
     if (appState.conditionIndex === 0) {
         return estConfig.conditions.baseline[0];
     }
-    const index = appState.conditionOrder[appState.conditionIndex - 1];
-    return estConfig.conditions.random[index];
-}
-
-function helperGetClientIndex(clientSocketId) {
-    return [...appState.clients.keys()].indexOf(clientSocketId);
-}
-
-function helperGetClientLabel(clientSocketId) {
-    return helperGetClientIndex(clientSocketId) === 0 ? "a" : "b";
+    return estConfig.conditions.random[appState.conditionOrder[appState.conditionIndex - 1]];
 }
 
 function helperGetRoundSuffix(testType) {
-    if (testType !== "lst") {
-        return "";
-    }
+    if (testType !== "lst") return "";
     return "-r" + (appState.lstRoundIndex + 1);
 }
 
-function helperGetTransferStageKey(testType) {
-    return testType + helperGetRoundSuffix(testType);
-}
-
 function helperGetListeningSpeakingTestRole(clientSocketId) {
-    const clientIndex = helperGetClientIndex(clientSocketId);
+    const client = appState.clients.get(clientSocketId);
 
     if (appState.lstRoundIndex === 0) {
-        return clientIndex === 0 ? "speaker" : "listener";
+        return client.clientIndex === 0 ? "speaker" : "listener";
     }
 
-    return clientIndex === 0 ? "listener" : "speaker";
+    return client.clientIndex === 0 ? "listener" : "speaker";
 }
 
 function helperGetViewData(viewName, clientSocketId) {
-    const isSct = viewName === "viewShortConversationTest";
-    const isLst = viewName === "viewListeningSpeakingTest";
-    const isLstEvaluation = viewName === "viewListeningSpeakingTestEvaluation";
+    const isSct = viewName === views.sct;
+    const isLst = viewName === views.lst;
+    const isLstEvaluation = viewName === views.lstEval;
 
     if (isSct || isLst || isLstEvaluation) {
-        const clientIndex = helperGetClientIndex(clientSocketId);
-        const clientNumber = clientIndex === 0 ? "01" : "02";
-        const conditionPadded = String(appState.conditionIndex + 1).padStart(2, "0");
-        const clientConditionImage = "client_" + clientNumber + "/" + conditionPadded + ".png";
+        const client = appState.clients.get(clientSocketId);
+        const clientNumber = client.clientIndex === 0 ? "01" : "02";
+        const clientConditionImage = helperGetConditionImageName(clientNumber);
+        
         const lstRole = (isLst || isLstEvaluation) ? helperGetListeningSpeakingTestRole(clientSocketId) : null;
         let conditionImage = null;
 
