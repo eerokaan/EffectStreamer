@@ -92,7 +92,7 @@ io.on("connection", (socket) => {
             const serverFilename = "client-" + clientLabel + "-" + view.metadata.testType + roundSuffix + "-scales.json";
             const conditionPadded = String(appState.conditionIndex + 1).padStart(4, "0");
             const filePath = path.join(appState.sessionDir, conditionPadded, serverFilename);
-            fs.writeFileSync(filePath, JSON.stringify(data.scaleValues, null, 2));
+            fs.writeFileSync(filePath, JSON.stringify(data.scaleValues, null, 4));
         }
 
         // Views with direct passing
@@ -115,6 +115,16 @@ io.on("connection", (socket) => {
                 helperResolveGatedViewChange(view.name);
             }
         }
+    });
+
+    // ===== pretestSubmitRequest ==============================
+    socket.on("est-event:pretestSubmitRequest", (data) => {
+        const clientLabel = helperGetClientLabel(socket.id);
+        const serverFilename = "client-" + clientLabel + "-pretest-form.json";
+        const filePath = path.join(appState.sessionDir, serverFilename);
+        
+        fs.writeFileSync(filePath, JSON.stringify(data.formData, null, 4));
+        io.to(socket.id).emit("est-event:pretestSubmitResponse");
     });
 
     // ===== coreStartRequest ==============================
