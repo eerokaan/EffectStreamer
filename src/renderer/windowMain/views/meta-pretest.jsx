@@ -12,8 +12,8 @@ import useStoreRoot from "@/stores/root";
 
 function ViewPretest() {
     const { currentView } = useStoreRoot();
-    const form = useForm({ resolver: zodResolver(formSchema) });
-    
+    const form = useForm({ resolver: zodResolver(formSchema), defaultValues: { "switch-gaming": false, "switch-streaming": false, "switch-first-time": false, "switch-audio-tech-familiarity": false } });
+
     const handleFormSubmit = async () => {
         const isValid = await form.trigger();
         if (!isValid) return false;
@@ -180,7 +180,7 @@ function ViewPretest() {
                                     return (
                                         <Field data-invalid={fieldState.invalid} className="gap-1 md:col-span-3">
                                             <FieldLabel htmlFor="select-hours-calls">Stunden in (Video)Calls / Woche</FieldLabel>
-                                           <Select value={field.value} onValueChange={field.onChange}>
+                                            <Select value={field.value} onValueChange={field.onChange}>
                                                 <SelectTrigger className="w-full" aria-invalid={fieldState.invalid}>
                                                     <SelectValue placeholder="Bitte angeben" />
                                                 </SelectTrigger>
@@ -202,20 +202,18 @@ function ViewPretest() {
                             <Controller
                                 name="slider-experience"
                                 control={form.control}
+                                defaultValue={50}
                                 render={({ field, fieldState }) => {
                                     const { max = 100 } = field;
                                     const value = Array.isArray(field.value) ? field.value : [field.value ?? max / 2];
                                     return (
                                         <Field data-invalid={fieldState.invalid} className="col-span-full">
-                                            <FieldContent className="mb-2 gap-1">
-                                                <FieldLabel htmlFor={field.name} className="flex w-full items-center justify-between">
-                                                    Bisherige Erfahrung mit Sprach/Videotelefonie
-                                                    <span className="text-sm">
-                                                        {value}/{max}
-                                                    </span>
-                                                </FieldLabel>
-                                            </FieldContent>
+                                            <FieldLabel htmlFor={field.name}>Bisherige Erfahrung mit Sprach/Videotelefonie</FieldLabel>
                                             <Slider {...field} value={value} onValueChange={(newValue) => field.onChange(newValue[0])} aria-invalid={fieldState.invalid} min={0} max={100} step={1} />
+                                            <div className="flex justify-between">
+                                                <span className="text-sm whitespace-nowrap text-muted-foreground">Nicht erfahren</span>
+                                                <span className="text-sm whitespace-nowrap text-muted-foreground">Sehr erfahren</span>
+                                            </div>
                                             {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                                         </Field>
                                     );
