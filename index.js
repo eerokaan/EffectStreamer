@@ -231,13 +231,24 @@ function helperResolveGatedViewChange(currentViewName) {
     const view = viewFlow.find(view => view.name === currentViewName);
     const viewNext = helperGetNextView(currentViewName);
     const isFirstListeningSpeakingTestEvaluation = currentViewName === "viewListeningSpeakingTestEvaluation" && appState.lstRoundIndex === 0;
-    const requiresFileTransfers = currentViewName === "viewListeningSpeakingTestEvaluation";
-    const requiredTransferBatches = currentViewName === "viewListeningSpeakingTestEvaluation"
-        ? (appState.lstRoundIndex === 0 ? 2 : 3)
-        : 0;
+    
+    // Check if the current view requires file transfers to complete
+    const requiresFileTransfers = currentViewName === "viewShortConversationTestEvaluation" || currentViewName === "viewListeningSpeakingTestEvaluation";
+    
+    let requiredTransferBatches = 0;
+    if (currentViewName === "viewShortConversationTestEvaluation") {
+        // SCT finishes -> 1 batch
+        requiredTransferBatches = 1;
+    }
+    else if (currentViewName === "viewListeningSpeakingTestEvaluation") {
+        // LST evaluation 1 finishes -> 2 batches (SCT + LST1)
+        // LST evaluation 2 finishes -> 3 batches (SCT + LST1 + LST2)
+        requiredTransferBatches = appState.lstRoundIndex === 0 ? 2 : 3; 
+    }
+
     const isLoopEndView = view.metadata?.loopBehaviour === "end" && !isFirstListeningSpeakingTestEvaluation;
 
-    // Double-gated: LST evaluation views also require all file transfer batches to be complete
+    // Double-gated: Evaluation views also require all file transfer batches to be complete
     if (requiresFileTransfers) {
         if (appState.evaluationLoopTransfersCompleted < requiredTransferBatches) {
             appState.evaluationLoopPendingViewName = currentViewName;
