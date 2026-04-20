@@ -10,12 +10,21 @@ import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
 
 function ViewPretest() {
-    const form = useForm({resolver: zodResolver(formSchema)});
-    const { handleSubmit, formState } = form;
+    const form = useForm({ resolver: zodResolver(formSchema) });
+    const { handleSubmit } = form;
 
     const handleSubmitClick = handleSubmit((data) => {
         console.log("Pretest form data: ", data);
     });
+
+    const handleFooterClick = async () => {
+        const isValid = await form.trigger();
+        if (isValid) {
+            handleSubmitClick();
+        } else {
+            return false;
+        }
+    };
 
     return (
         <>
@@ -29,7 +38,7 @@ function ViewPretest() {
                     </p>
 
                     <form onSubmit={handleSubmitClick} className="w-full rounded-md border p-8">
-                        <FieldGroup className="grid gap-x-4 gap-y-6 grid-cols-6">
+                        <FieldGroup className="grid grid-cols-6 gap-x-4 gap-y-6">
                             <Controller
                                 name="input-age"
                                 control={form.control}
@@ -41,7 +50,7 @@ function ViewPretest() {
                                             id="input-age"
                                             type="number"
                                             onChange={(e) => {
-                                                field.onChange(e.target.valueAsNumber);
+                                                field.onChange(e.target.value);
                                             }}
                                             aria-invalid={fieldState.invalid}
                                             placeholder="Bitte angeben"
@@ -67,7 +76,7 @@ function ViewPretest() {
                                         <Field data-invalid={fieldState.invalid} className="gap-1 md:col-span-3">
                                             <FieldLabel htmlFor="select-gender">Gender</FieldLabel>
                                             <Select value={field.value} onValueChange={field.onChange}>
-                                                <SelectTrigger className="w-full">
+                                                <SelectTrigger className="w-full" aria-invalid={fieldState.invalid}>
                                                     <SelectValue placeholder="Bitte angeben" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -100,7 +109,7 @@ function ViewPretest() {
                                         <Field data-invalid={fieldState.invalid} className="col-span-full gap-1">
                                             <FieldLabel htmlFor="select-german-proficiency">Deutschkenntnisse</FieldLabel>
                                             <Select value={field.value} onValueChange={field.onChange}>
-                                                <SelectTrigger className="w-full">
+                                                <SelectTrigger className="w-full" aria-invalid={fieldState.invalid}>
                                                     <SelectValue placeholder="Bitte angeben" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -137,7 +146,7 @@ function ViewPretest() {
                                         <Field data-invalid={fieldState.invalid} className="gap-1 md:col-span-3">
                                             <FieldLabel htmlFor="select-hours-internet">Stunden im Internet / Woche</FieldLabel>
                                             <Select value={field.value} onValueChange={field.onChange}>
-                                                <SelectTrigger className="w-full">
+                                                <SelectTrigger className="w-full" aria-invalid={fieldState.invalid}>
                                                     <SelectValue placeholder="Bitte angeben" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -173,8 +182,8 @@ function ViewPretest() {
                                     return (
                                         <Field data-invalid={fieldState.invalid} className="gap-1 md:col-span-3">
                                             <FieldLabel htmlFor="select-hours-calls">Stunden in (Video)Calls / Woche</FieldLabel>
-                                            <Select value={field.value} onValueChange={field.onChange}>
-                                                <SelectTrigger className="w-full">
+                                           <Select value={field.value} onValueChange={field.onChange}>
+                                                <SelectTrigger className="w-full" aria-invalid={fieldState.invalid}>
                                                     <SelectValue placeholder="Bitte angeben" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -278,7 +287,7 @@ function ViewPretest() {
                     </form>
                 </div>
 
-                <ComponentFooter onNext={handleSubmitClick} disabled={!formState.isValid}></ComponentFooter>
+                <ComponentFooter onNext={handleFooterClick}></ComponentFooter>
             </div>
         </>
     );

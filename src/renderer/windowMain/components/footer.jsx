@@ -8,11 +8,14 @@ function ComponentFooter({ onNext, disabled }) {
     const { isWaitingForPeer, setIsWaitingForPeer, isWaitingForUpload } = useStoreComponentFooter();
     const { currentView } = useStoreRoot();
 
-    const requestNextView = () => {
+    const requestNextView = async () => {
         setIsWaitingForPeer(true);
 
         if (onNext) {
-            onNext();
+            const success = await onNext();
+            if (success === false) {
+                setIsWaitingForPeer(false);
+            }
         }
         else {
             window.appApi.ipcRenderer.invoke("ipc:viewChangeRequest", {
