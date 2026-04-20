@@ -1,3 +1,4 @@
+import { forwardRef, useImperativeHandle } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -6,20 +7,35 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { formSchema } from "@/lib/helper-form-schema";
+import useStoreComponentPretestForm from "@/stores/component-pretest-form";
 
-function PretestForm({ onSubmit }) {
+const PretestForm = forwardRef(({ onSubmit }, ref) => {
     const form = useForm({ resolver: zodResolver(formSchema), defaultValues: { "switch-gaming": false, "switch-streaming": false, "switch-first-time": false, "switch-audio-tech-familiarity": false } });
+    const { setFormData } = useStoreComponentPretestForm();
 
-    const handleFormSubmit = async () => {
-        const isValid = await form.trigger();
-        if (!isValid) return false;
-
-        console.log("Pretest form data: ", form.getValues());
-        await onSubmit();
+    const handleValidSubmit = async (data) => {
+        setFormData(data);
+        await onSubmit(data);
     };
 
+    useImperativeHandle(ref, () => ({
+        submit: async () => {
+            let isSuccess = false;
+            await form.handleSubmit(
+                async () => {
+                    await handleValidSubmit(form.getValues());
+                    isSuccess = true;
+                },
+                () => {
+                    isSuccess = false;
+                }
+            )();
+            return isSuccess;
+        }
+    }));
+
     return (
-        <form onSubmit={handleFormSubmit} className="w-full rounded-md border p-8">
+        <form onSubmit={(e) => e.preventDefault()} className="w-full rounded-md border p-8">
             <FieldGroup className="grid grid-cols-6 gap-x-4 gap-y-6">
                 <Controller
                     name="input-age"
@@ -266,6 +282,8 @@ function PretestForm({ onSubmit }) {
             </FieldGroup>
         </form>
     );
-}
+});
+
+PretestForm.displayName = "PretestForm";
 
 export default PretestForm;
