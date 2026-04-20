@@ -1,14 +1,12 @@
 import useStoreComponentFooter from "@/stores/component-footer";
 import useStoreComponentScale from "@/stores/component-scale";
-import useStoreComponentScaleEvaluation from "@/stores/component-scale-evaluation";
 import useStoreRoot from "@/stores/root";
 
 // Registry of all Zustand stores
 const storeRegistry = {
     Root: useStoreRoot,
     ComponentFooter: useStoreComponentFooter,
-    ComponentScale: useStoreComponentScale,
-    ComponentScaleEvaluation: useStoreComponentScaleEvaluation
+    ComponentScale: useStoreComponentScale
 };
 
 // Initialize IPC gateway, so that Zustand stores are accessible via IPC calls

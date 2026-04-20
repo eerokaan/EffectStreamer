@@ -6,12 +6,10 @@ import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
 import ComponentScale from "@/components/scale";
 import useStoreComponentScale from "@/stores/component-scale";
-import useStoreComponentScaleEvaluation from "@/stores/component-scale-evaluation";
 import useStoreRoot from "@/stores/root";
 
 function ViewShortConversationTestEvaluation() {
-    const { scaleIndex, setScaleIndex } = useStoreComponentScaleEvaluation();
-    const { scaleValues } = useStoreComponentScale();
+    const { scaleIndex, setScaleIndex, scaleValues } = useStoreComponentScale();
     const { currentView, conditionScaleOffset, setConditionScaleOffset } = useStoreRoot();
 
     // Initialize the random scale offset once per session

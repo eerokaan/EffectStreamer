@@ -133,9 +133,6 @@ async function socketLogic() {
         appContext.windowMain.webContents.send("ipc:storeResetRequest", {
             storeName: "ComponentScale"
         });
-        appContext.windowMain.webContents.send("ipc:storeResetRequest", {
-            storeName: "ComponentScaleEvaluation"
-        });
     });
 
     // coreStartResponse
