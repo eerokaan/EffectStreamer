@@ -1,14 +1,14 @@
 // ===========================================
 // ===== COMMON ==============================
 // ===========================================
-const estConfig = require("./est-config.json");
-
 const http = require("http");
 const express = require("express");
 const socketIo = require("socket.io");
 const os = require("os");
 const path = require("path");
 const fs = require("fs");
+
+const estConfig = JSON.parse(fs.readFileSync(helperResolveConfigPath(), "UTF-8"));
 
 const app = express();
 const server = http.createServer(app);
@@ -220,6 +220,17 @@ io.on("connection", (socket) => {
 // ===========================================
 // ===== HELPER ==============================
 // ===========================================
+function helperResolveConfigPath() {
+    const configName = "est-config.json";
+
+    if (process.resourcesPath) {
+        return path.join(process.resourcesPath, configName);
+    }
+    else {
+        return path.join(__dirname, configName);
+    }
+}
+
 function helperGetConditionDirName() {
     return String(appState.conditionIndex + 1).padStart(4, "0");
 }
