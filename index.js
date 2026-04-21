@@ -269,7 +269,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
             return path.join(process.resourcesPath, configName);
         }
         else {
-            return path.join(__dirname, configName);
+            return path.join(path.dirname(process.execPath), configName);
         }
     }
 

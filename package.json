@@ -9,7 +9,8 @@
     "scripts": {
         "dev:format": "prettier --write .",
         "dev:lint": "eslint --cache --fix .",
-        "dev:run": "EST_SERVER_TYPE=harness node index.js"
+        "dev:run": "EST_SERVER_TYPE=harness node index.js",
+        "dev:build": "./build_scripts/build.sh"
     },
     "dependencies": {
         "express": "^5.2.1",
@@ -18,7 +19,9 @@
     "devDependencies": {
         "@electron-toolkit/eslint-config": "^2.1.0",
         "@electron-toolkit/eslint-config-prettier": "^3.0.0",
+        "@vercel/ncc": "^0.38.4",
         "eslint": "^9.39.1",
+        "postject": "^1.0.0-alpha.6",
         "prettier": "^3.8.1",
         "prettier-plugin-brace-style": "^0.9.0",
         "prettier-plugin-merge": "^0.9.1"
