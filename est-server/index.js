@@ -59,7 +59,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
             origin: "*",
             methods: ["GET", "POST"]
         },
-        maxHttpBufferSize: 1e7 // Support for max. 1 GB file transfers
+        maxHttpBufferSize: 1e9 // Support for max. 1 GB file transfers
     });
 
     const views = {
