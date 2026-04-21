@@ -1,7 +1,7 @@
 {
     "name": "de.tu-berlin.qu.echostreamer.server",
     "displayName": "EchoStreamer",
-    "version": "1.0.0",
+    "version": "2026.0421.0001",
     "description": "Tool to research the effects of echo in voice calls",
     "main": "index.js",
     "author": "Eero Kaan",
