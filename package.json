@@ -9,7 +9,7 @@
     "scripts": {
         "dev:format": "prettier --write .",
         "dev:lint": "eslint --cache --fix .",
-        "dev:run": "node index.js"
+        "dev:run": "EST_SERVER_TYPE=harness node index.js"
     },
     "dependencies": {
         "express": "^5.2.1",
