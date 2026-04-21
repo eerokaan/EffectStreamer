@@ -30,15 +30,9 @@ function ViewPretest() {
                 <ComponentHeader headline="Bevor es losgeht"></ComponentHeader>
 
                 <div className="max-w-5xl flex-1">
-                    <p className="mb-4">
-                        Bevor wir gemeinsam in die Tests starten, bitten wir Sie, ein paar kurze Angaben zu Ihrer Person zu machen.
-                        <br />
-                        <br />
-                        Diese Informationen helfen uns dabei, die Ergebnisse der Studie besser zu verstehen und statistisch einzuordnen. Wir versichern Ihnen, dass Ihre Daten streng vertraulich behandelt werden und ausschließlich für die Zwecke dieser Untersuchung verwendet werden.
-                        <br />
-                        <br />
-                        Bitte nehmen Sie sich einen Moment Zeit, um das folgende Formular auszufüllen, damit wir anschließend direkt mit den Tests beginnen können.
-                    </p>
+                    <p className="mb-4">Bevor wir gemeinsam in die Tests starten, bitten wir Sie, ein paar kurze Angaben zu Ihrer Person zu machen.</p>
+                    <p className="mb-4">Diese Informationen helfen uns dabei, die Ergebnisse der Studie besser zu verstehen und statistisch einzuordnen.</p>
+                    <p className="mb-6">Bitte nehmen Sie sich einen Moment Zeit, um das folgende Formular auszufüllen, damit wir anschließend direkt mit den Tests beginnen können.</p>
 
                     <PretestForm ref={formRef} onSubmit={handleFormSubmit} />
                 </div>
