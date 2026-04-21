@@ -31,8 +31,13 @@ function ViewPretest() {
 
                 <div className="max-w-5xl flex-1">
                     <p className="mb-4">
-                        Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod
-                        tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
+                        Bevor wir gemeinsam in die Tests starten, bitten wir Sie, ein paar kurze Angaben zu Ihrer Person zu machen.
+                        <br />
+                        <br />
+                        Diese Informationen helfen uns dabei, die Ergebnisse der Studie besser zu verstehen und statistisch einzuordnen. Wir versichern Ihnen, dass Ihre Daten streng vertraulich behandelt werden und ausschließlich für die Zwecke dieser Untersuchung verwendet werden.
+                        <br />
+                        <br />
+                        Bitte nehmen Sie sich einen Moment Zeit, um das folgende Formular auszufüllen, damit wir anschließend direkt mit den Tests beginnen können.
                     </p>
 
                     <PretestForm ref={formRef} onSubmit={handleFormSubmit} />
