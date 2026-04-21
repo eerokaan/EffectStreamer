@@ -17,7 +17,7 @@ const io = socketIo(server, {
         origin: "*",
         methods: ["GET", "POST"]
     },
-    maxHttpBufferSize: 100e6 // Support for max. 100 MB file transfers
+    maxHttpBufferSize: 1e7 // Support for max. 1 GB file transfers
 });
 
 const views = {
@@ -38,14 +38,22 @@ const viewFlow = [
     { name: views.waiting, passing: "direct", metadata: {} },
     { name: views.welcome, passing: "direct", metadata: {} },
     { name: views.pretest, passing: "gated", metadata: {} },
-    { name: views.sctExp, passing: "gated", metadata: { loopBehaviour: "start" } },
+    {
+        name: views.sctExp,
+        passing: "gated",
+        metadata: { loopBehaviour: "start" }
+    },
     { name: views.sct, passing: "direct", metadata: {} },
     { name: views.sctEval, passing: "gated", metadata: { testType: "sct" } },
     { name: views.lstExp, passing: "gated", metadata: {} },
     { name: views.lst, passing: "direct", metadata: {} },
-    { name: views.lstEval, passing: "gated", metadata: { loopBehaviour: "end", testType: "lst" } },
+    {
+        name: views.lstEval,
+        passing: "gated",
+        metadata: { loopBehaviour: "end", testType: "lst" }
+    },
     { name: views.break, passing: "gated", metadata: { loopBehaviour: "break" } },
-    { name: views.ending, passing: "direct", metadata: {} },
+    { name: views.ending, passing: "direct", metadata: {} }
 ];
 
 let appState = {
@@ -62,17 +70,16 @@ let appState = {
         coreStop: new Set(),
         fileTransfer: new Set()
     }
-}
+};
 
 // ===========================================
 // ===== WEBSOCKET LOGIC =====================
 // ===========================================
 io.on("connection", (socket) => {
-
     // ===== clientRegister ==============================
     socket.on("est-event:clientRegister", (data) => {
         console.log("Client registered: " + socket.id);
-        
+
         const clientIndex = appState.clients.size;
         const clientLabel = clientIndex === 0 ? "a" : "b";
 
@@ -102,7 +109,7 @@ io.on("connection", (socket) => {
 
     // ===== viewChangeRequest ==============================
     socket.on("est-event:viewChangeRequest", (data) => {
-        const view = viewFlow.find(v => v.name === data.currentView);
+        const view = viewFlow.find((v) => v.name === data.currentView);
         const viewNext = helperGetNextView(view.name);
         const client = appState.clients.get(socket.id);
 
@@ -120,7 +127,9 @@ io.on("connection", (socket) => {
             // On SCT and LST testing views: Notify partner that they were left in the room
             const peerSocketId = helperGetPeerSocketId(socket.id);
             if (peerSocketId && (view.name === views.sct || view.name === views.lst)) {
-                io.to(peerSocketId).emit("est-event:viewChangeResponse", { showDialog: true });
+                io.to(peerSocketId).emit("est-event:viewChangeResponse", {
+                    showDialog: true
+                });
             }
         }
 
@@ -140,7 +149,7 @@ io.on("connection", (socket) => {
         const client = appState.clients.get(socket.id);
         const serverFilename = `client-${client.clientLabel}-pretest-form.json`;
         helperSaveSessionFile(serverFilename, JSON.stringify(data.formData, null, 4), false);
-        
+
         io.to(socket.id).emit("est-event:pretestSubmitResponse");
     });
 
@@ -153,7 +162,7 @@ io.on("connection", (socket) => {
             const peerSocketId = helperGetPeerSocketId(socket.id);
             const peerClient = appState.clients.get(peerSocketId);
             const thisClient = appState.clients.get(socket.id);
-            
+
             const estCoreSettings = {
                 component: "sender",
                 peerIp: peerClient?.ipAddress,
@@ -221,9 +230,7 @@ function helperGetConditionImageName(clientNumber) {
 }
 
 function helperSaveSessionFile(filename, data, useConditionSubdir = false) {
-    const filePath = useConditionSubdir 
-        ? path.join(appState.sessionDir, helperGetConditionDirName(), filename)
-        : path.join(appState.sessionDir, filename);
+    const filePath = useConditionSubdir ? path.join(appState.sessionDir, helperGetConditionDirName(), filename) : path.join(appState.sessionDir, filename);
     fs.writeFileSync(filePath, data);
 }
 
@@ -232,7 +239,10 @@ function helperCreateFolderStructure() {
     fs.mkdirSync(echostreamerDir, { recursive: true });
 
     // Determine next session number (n+1 from existing directories)
-    const existing = fs.readdirSync(echostreamerDir).filter(name => /^\d{4}$/.test(name)).map(Number);
+    const existing = fs
+        .readdirSync(echostreamerDir)
+        .filter((name) => /^\d{4}$/.test(name))
+        .map(Number);
     const sessionNum = existing.length > 0 ? Math.max(...existing) + 1 : 1;
 
     appState.sessionDir = path.join(echostreamerDir, String(sessionNum).padStart(4, "0"));
@@ -286,14 +296,14 @@ function helperIsWaitingForFileTransfers(currentViewName) {
     else if (currentViewName === views.lstEval) {
         // LST evaluation 1 finishes -> 2 batches (SCT + LST1)
         // LST evaluation 2 finishes -> 3 batches (SCT + LST1 + LST2)
-        requiredTransferBatches = appState.lstRoundIndex === 0 ? 2 : 3; 
+        requiredTransferBatches = appState.lstRoundIndex === 0 ? 2 : 3;
     }
 
     return appState.evaluationLoopTransfersCompleted < requiredTransferBatches;
 }
 
 function helperAdvanceConditionIfNeeded(currentViewName, viewNext) {
-    const view = viewFlow.find(v => v.name === currentViewName);
+    const view = viewFlow.find((v) => v.name === currentViewName);
     const isFirstLstEval = currentViewName === views.lstEval && appState.lstRoundIndex === 0;
     const isLoopEndView = view.metadata?.loopBehaviour === "end" && !isFirstLstEval;
 
@@ -303,7 +313,7 @@ function helperAdvanceConditionIfNeeded(currentViewName, viewNext) {
         console.log(`Round ${appState.conditionIndex}: Using condition ${JSON.stringify(helperGetCurrentCondition())}`);
     }
     // When next view indicates a loop start: Define shuffled condition order
-    else if (viewNext === viewFlow.find(v => v.metadata?.loopBehaviour === "start")?.name && appState.conditionIndex === 0) {
+    else if (viewNext === viewFlow.find((v) => v.metadata?.loopBehaviour === "start")?.name && appState.conditionIndex === 0) {
         helperSetConditionOrder();
         console.log(`Round ${appState.conditionIndex}: Using condition ${JSON.stringify(helperGetCurrentCondition())}`);
     }
@@ -343,7 +353,7 @@ function helperResolveGatedViewChange(currentViewName) {
 }
 
 function helperGetNextView(currentView) {
-    const viewIndex = viewFlow.findIndex(view => view.name === currentView);
+    const viewIndex = viewFlow.findIndex((view) => view.name === currentView);
     const view = viewFlow[viewIndex];
 
     if (currentView === views.lstEval && appState.lstRoundIndex === 0) {
@@ -358,16 +368,16 @@ function helperGetNextView(currentView) {
             return views.ending;
         }
         else if (appState.conditionIndex + 1 === Math.floor(roundsTotal / 2)) {
-            return viewFlow.find(v => v.metadata?.loopBehaviour === "break").name;
+            return viewFlow.find((v) => v.metadata?.loopBehaviour === "break").name;
         }
         else {
-            return viewFlow.find(v => v.metadata?.loopBehaviour === "start").name;
+            return viewFlow.find((v) => v.metadata?.loopBehaviour === "start").name;
         }
     }
 
     // When current view indicates a break: Resume to the loop
     if (view.metadata?.loopBehaviour === "break") {
-        return viewFlow.find(v => v.metadata?.loopBehaviour === "start").name;
+        return viewFlow.find((v) => v.metadata?.loopBehaviour === "start").name;
     }
 
     // When nothing applies, just continue with the next view
@@ -414,8 +424,8 @@ function helperGetViewData(viewName, clientSocketId) {
         const client = appState.clients.get(clientSocketId);
         const clientNumber = client.clientIndex === 0 ? "01" : "02";
         const clientConditionImage = helperGetConditionImageName(clientNumber);
-        
-        const lstRole = (isLst || isLstEvaluation) ? helperGetListeningSpeakingTestRole(clientSocketId) : null;
+
+        const lstRole = isLst || isLstEvaluation ? helperGetListeningSpeakingTestRole(clientSocketId) : null;
         let conditionImage = null;
 
         if (isSct) {
