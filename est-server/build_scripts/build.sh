@@ -5,7 +5,7 @@ set -e
 mkdir -p out
 
 # Bundle application
-npx ncc build index.js -o dist
+npx ncc build src/index.js -o dist
 
 # Generate SEA blob
 node --experimental-sea-config sea-config.json
