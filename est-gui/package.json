@@ -1,7 +1,7 @@
 {
     "name": "de.tu-berlin.qu.echostreamer.gui",
     "displayName": "EchoStreamer",
-    "version": "2026.0421.0001",
+    "version": "1.0.0",
     "description": "Tool to research the effects of echo in voice calls",
     "main": "./out/main/index.js",
     "author": "Eero Kaan",
@@ -12,7 +12,6 @@
         "dev:run": "electron-vite dev -- --no-sandbox",
         "dev:preview": "electron-vite preview -- --no-sandbox",
         "build:run": "electron-vite build",
-        "build:dir": "npm run build:run && electron-builder --dir",
         "build:win": "npm run build:run && electron-builder --win",
         "build:linux": "npm run build:run && electron-builder --linux"
     },

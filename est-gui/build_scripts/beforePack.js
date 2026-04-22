@@ -4,11 +4,12 @@ const path = require("path");
 
 module.exports = async function (context) {
     const projectDir = path.resolve(__dirname, "..");
-    const platform = context.electronPlatformName;
+    const platformTarget = context.electronPlatformName;
+    const platformThis = process.platform;
 
     let buildSubDir;
-    if (platform === "linux") buildSubDir = "linux";
-    else if (platform === "win32") buildSubDir = "win";
+    if (platformTarget === "linux") buildSubDir = "linux";
+    else if (platformTarget === "win32") buildSubDir = "win";
     else return;
 
     const buildDir = path.join(projectDir, "build", buildSubDir);
@@ -26,7 +27,7 @@ module.exports = async function (context) {
 
     console.log("[beforePack] Unpacking GStreamer libraries from " + zipPath + "...");
 
-    if (platform === "win32") {
+    if (platformThis === "win32") {
         execSync("powershell -Command \"Expand-Archive -Path '" + zipPath + "' -DestinationPath '" + buildDir + "'\"", { stdio: "inherit" });
     }
     else {
