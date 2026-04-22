@@ -10,7 +10,7 @@
         "dev:format": "prettier --write .",
         "dev:lint": "eslint --cache --fix .",
         "dev:run": "EST_SERVER_TYPE=harness node ./src/index.js",
-        "dev:build": "./build_scripts/build.sh"
+        "build:run": "./build_scripts/build.sh"
     },
     "dependencies": {
         "express": "^5.2.1",

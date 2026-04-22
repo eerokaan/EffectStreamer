@@ -11,10 +11,10 @@
         "dev:lint": "eslint --cache --fix .",
         "dev:run": "electron-vite dev -- --no-sandbox",
         "dev:preview": "electron-vite preview -- --no-sandbox",
-        "dev:build": "electron-vite build",
-        "build:unpack": "npm run dev:build && electron-builder --dir",
-        "build:win": "npm run dev:build && electron-builder --win",
-        "build:linux": "npm run dev:build && electron-builder --linux"
+        "build:run": "electron-vite build",
+        "build:dir": "npm run build:run && electron-builder --dir",
+        "build:win": "npm run build:run && electron-builder --win",
+        "build:linux": "npm run build:run && electron-builder --linux"
     },
     "dependencies": {
         "@electron-toolkit/preload": "^3.0.2",
