@@ -1,0 +1,7 @@
+node_modules/
+build/linux/gst-lib/
+build/win/gst-lib/
+dist/
+out/
+.DS_Store
+.eslintcache
