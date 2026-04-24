@@ -413,6 +413,13 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         helperEmitToAll("est-event:viewChangeResponse", (clientSocketId) => helperGetViewData(viewNext, clientSocketId));
         appState.gates.viewChange.clear();
         appState.evaluationLoopPendingViewName = null;
+
+        if (viewNext === views.ending) {
+            setTimeout(() => {
+                console.log("[Server] Shutting down current server instance due to experiment completion");
+                process.exit();
+            }, 60000);
+        }
     }
 
     function helperGetNextView(currentView) {
