@@ -12,8 +12,6 @@ function ViewEnding() {
                     <p className="mb-4">Wir bedanken uns herzlich für Ihre Zeit und Ihre wertvolle Unterstützung bei dieser Studie. Ihre Bewertungen helfen uns maßgeblich dabei, die Qualität von Voicechat-Verbindungen besser zu verstehen und zu optimieren.</p>
                     <p className="mb-4">Sie können nun den Testplatz verlassen. Wir wünschen Ihnen einen schönen restlichen Tag!</p>
                 </div>
-
-                <ComponentFooter></ComponentFooter>
             </div>
         </>
     );
