@@ -115,14 +115,29 @@ int run_sender(SenderParams *params)
     configure_audio_source(alsasrc, params->device);
     g_object_set(G_OBJECT(rtpL16pay), "pt", 96, NULL);
 
-    /* Queue 1: min-threshold-time = 0 */
-    g_object_set(G_OBJECT(queue1), "min-threshold-time", (guint64)0, NULL);
+    /* Queue 1: Define buffer limits */
+    g_object_set(G_OBJECT(queue1),
+        "max-size-buffers", (guint64)0,
+        "max-size-bytes", (guint64)0,
+        "max-size-time", (guint64)0,
+        "min-threshold-time", (guint64)0,
+        NULL);
 
-    /* Queue 2: min-threshold-time = adjusted threshold */
-    g_object_set(G_OBJECT(queue2), "min-threshold-time", (guint64)threshold_adjusted, NULL);
+    /* Queue 2: Define buffer limits */
+    g_object_set(G_OBJECT(queue2),
+        "max-size-buffers", (guint64)0,
+        "max-size-bytes", (guint64)0,
+        "max-size-time", (guint64)0,
+        "min-threshold-time", (guint64)threshold_adjusted,
+        NULL);
 
-    /* Queue 3: min-threshold-time = 0 */
-    g_object_set(G_OBJECT(queue3), "min-threshold-time", (guint64)0, NULL);
+    /* Queue 3: Define buffer limits */
+    g_object_set(G_OBJECT(queue3),
+        "max-size-buffers", (guint64)0,
+        "max-size-bytes", (guint64)0,
+        "max-size-time", (guint64)0,
+        "min-threshold-time", (guint64)0,
+        NULL);
 
     /* UDP Sink 1: To peer */
     g_object_set(G_OBJECT(udpsink1),
