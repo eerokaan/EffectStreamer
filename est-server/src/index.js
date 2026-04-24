@@ -377,7 +377,10 @@ else if (process.env.EST_SERVER_TYPE === "server") {
             return isLoopEndView;
         }
 
-        console.log(`[Server] Round ${appState.conditionIndex}: Using condition ${JSON.stringify(helperGetCurrentCondition())}`);
+        const currentCondition = helperGetCurrentCondition();
+        console.log(`[Server] Round ${appState.conditionIndex}: Using condition ${JSON.stringify(currentCondition)}`);
+        helperSaveSessionFile("condition-settings.json", JSON.stringify(currentCondition, null, 4), true);
+        
         return isLoopEndView;
     }
 
