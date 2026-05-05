@@ -11,7 +11,7 @@ function ViewListeningSpeakingTestExplanation() {
                 <ComponentHeader headline="Erklärung des folgenden Gesprächs"></ComponentHeader>
 
                 <div className="flex w-full max-w-5xl flex-1 flex-col">
-                    {asset?.type === "html" && <iframe src={asset.src} className="min-h-[600px] w-full flex-1 border-none" title="Test Document" />}
+                    {asset?.type === "html" && <iframe src={asset.src} className="w-full flex-1 border-none" title="Test Document" />}
                     {asset?.type === "image" && <img src={asset.src} alt="Test Asset" className="block w-full" draggable="false" />}
                 </div>
 
