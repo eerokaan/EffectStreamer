@@ -281,7 +281,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         return String(appState.conditionIndex + 1).padStart(4, "0");
     }
 
-    function helperGetConditionImageName(clientNumber) {
+    function helperGetConditionAssetName(clientNumber) {
         const conditionPadded = String(appState.conditionIndex + 1).padStart(2, "0");
         return `client_${clientNumber}/${conditionPadded}.png`;
     }
@@ -493,21 +493,21 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         if (isSct || isLst || isLstEvaluation) {
             const client = appState.clients.get(clientSocketId);
             const clientNumber = client.clientIndex === 0 ? "01" : "02";
-            const clientConditionImage = helperGetConditionImageName(clientNumber);
+            const clientConditionAsset = helperGetConditionAssetName(clientNumber);
 
             const lstRole = isLst || isLstEvaluation ? helperGetListeningSpeakingTestRole(clientSocketId) : null;
-            let conditionImage = null;
+            let conditionAsset = null;
 
             if (isSct) {
-                conditionImage = clientConditionImage;
+                conditionAsset = clientConditionAsset;
             }
             else if (isLst) {
-                conditionImage = lstRole === "speaker" ? clientConditionImage : "listener.png";
+                conditionAsset = lstRole === "speaker" ? clientConditionAsset : "listener.png";
             }
 
             const response = {
                 currentView: viewName,
-                conditionImage: conditionImage
+                conditionAsset: conditionAsset
             };
 
             if (isLst || isLstEvaluation) {

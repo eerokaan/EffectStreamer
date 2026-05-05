@@ -7,8 +7,8 @@ import ComponentHeader from "@/components/header";
 import useStoreRoot from "@/stores/root";
 
 function ViewListeningSpeakingTest() {
-    const { conditionImage, showDialog, setShowDialog } = useStoreRoot();
-    const asset = resolveAsset(conditionLstAssets, conditionImage);
+    const { conditionAsset, showDialog, setShowDialog } = useStoreRoot();
+    const asset = resolveAsset(conditionLstAssets, conditionAsset);
 
     useEffect(() => {
         window.appApi.ipcRenderer.invoke("ipc:coreStartRequest", {

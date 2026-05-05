@@ -7,8 +7,8 @@ import ComponentHeader from "@/components/header";
 import useStoreRoot from "@/stores/root";
 
 function ViewShortConversationTest() {
-    const { conditionImage, showDialog, setShowDialog } = useStoreRoot();
-    const asset = resolveAsset(conditionSctAssets, conditionImage);
+    const { conditionAsset, showDialog, setShowDialog } = useStoreRoot();
+    const asset = resolveAsset(conditionSctAssets, conditionAsset);
 
     useEffect(() => {
         window.appApi.ipcRenderer.invoke("ipc:coreStartRequest", {

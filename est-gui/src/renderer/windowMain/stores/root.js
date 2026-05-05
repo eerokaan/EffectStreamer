@@ -4,7 +4,7 @@ const useStoreRoot = createStore({
     currentView: "viewWaiting",
     showDialog: false,
     conditionScaleOffset: null,
-    conditionImage: null,
+    conditionAsset: null,
     lstRoundIndex: null,
     lstRole: null
 });

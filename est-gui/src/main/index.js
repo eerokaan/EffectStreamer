@@ -121,7 +121,7 @@ async function socketLogic() {
                 currentView: data.currentView,
                 showDialog: data.showDialog ?? false,
                 conditionScaleOffset: data.conditionScaleOffset ?? null,
-                conditionImage: data.conditionImage ?? null,
+                conditionAsset: data.conditionAsset ?? null,
                 lstRoundIndex: data.lstRoundIndex ?? null,
                 lstRole: data.lstRole ?? null
             }
