@@ -29,7 +29,6 @@
 }
 body {
     font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
-    background-color: var(--zinc-100);
     color: var(--zinc-900);
 }
 ul {
@@ -51,9 +50,7 @@ ul {
     border: 1px solid var(--zinc-200);
     border-radius: calc(var(--radius) + 2px);
     box-shadow: var(--shadow);
-    margin: 64px;
     width: 100%;
-    max-width: 680px;
     overflow: hidden;
 }
 .card-header {

@@ -23,7 +23,6 @@ function ViewWelcome() {
                         </li>
                         <li>Nach der Hälfte der Tests legen wir eine kurze Pause zum Verschnaufen ein.</li>
                     </ul>
-                    <p className="mb-4">Danke für Ihre Teilnahme. Wir freuen uns sehr über Ihre Unterstützung!</p>
                 </div>
 
                 <ComponentFooter></ComponentFooter>
