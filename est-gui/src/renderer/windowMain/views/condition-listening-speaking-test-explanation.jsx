@@ -1,17 +1,18 @@
-import { conditionLstExplanationImages, resolveImage } from "@/lib/helper-images";
+import { conditionLstExplanationAssets, resolveAsset } from "@/lib/helper-assets";
 import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
 
 function ViewListeningSpeakingTestExplanation() {
-    const imageSrc = resolveImage(conditionLstExplanationImages, "explanation.png");
+    const asset = resolveAsset(conditionLstExplanationAssets, "explanation.png");
 
     return (
         <>
             <div className="flex flex-1 flex-col justify-center">
                 <ComponentHeader headline="Erklärung des folgenden Gesprächs"></ComponentHeader>
 
-                <div className="max-w-5xl flex-1">
-                    <img src={imageSrc} alt="Explanation Image" className="block w-full" draggable="false" />
+                <div className="flex w-full max-w-5xl flex-1 flex-col">
+                    {asset?.type === "html" && <iframe src={asset.src} className="min-h-[600px] w-full flex-1 border-none" title="Test Document" />}
+                    {asset?.type === "image" && <img src={asset.src} alt="Test Asset" className="block w-full" draggable="false" />}
                 </div>
 
                 <ComponentFooter></ComponentFooter>

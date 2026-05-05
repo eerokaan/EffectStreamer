@@ -1,4 +1,3 @@
-import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
 
 function ViewEnding() {

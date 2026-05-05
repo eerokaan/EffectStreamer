@@ -1,14 +1,14 @@
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { conditionLstImages, resolveImage } from "@/lib/helper-images";
+import { conditionLstAssets, resolveAsset } from "@/lib/helper-assets";
 import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
 import useStoreRoot from "@/stores/root";
 
 function ViewListeningSpeakingTest() {
     const { conditionImage, showDialog, setShowDialog } = useStoreRoot();
-    const imageSrc = resolveImage(conditionLstImages, conditionImage);
+    const asset = resolveAsset(conditionLstAssets, conditionImage);
 
     useEffect(() => {
         window.appApi.ipcRenderer.invoke("ipc:coreStartRequest", {
@@ -26,8 +26,9 @@ function ViewListeningSpeakingTest() {
             <div className="flex flex-1 flex-col justify-center">
                 <ComponentHeader headline="Gesprächsraum"></ComponentHeader>
 
-                <div className="max-w-5xl flex-1">
-                    <img src={imageSrc} alt="Test Image" className="block w-full" draggable="false" />
+                <div className="flex w-full max-w-5xl flex-1 flex-col">
+                    {asset?.type === "html" && <iframe src={asset.src} className="min-h-[600px] w-full flex-1 border-none" title="Test Document" />}
+                    {asset?.type === "image" && <img src={asset.src} alt="Test Asset" className="block w-full" draggable="false" />}
                 </div>
 
                 <ComponentFooter></ComponentFooter>
