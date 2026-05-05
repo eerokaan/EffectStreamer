@@ -1,0 +1,53 @@
+/* ===== Custom Fonts ============================== */
+@font-face {
+    font-family: "Inter";
+    src: url("../fonts/Inter.ttf") format("truetype");
+}
+
+/* ===== Common ============================== */
+:root {
+    --zinc-50: #fafafa;
+    --zinc-100: #f4f4f5;
+    --zinc-200: #e4e4e7;
+    --zinc-300: #d4d4d8;
+    --zinc-400: #a1a1aa;
+    --zinc-500: #71717a;
+    --zinc-600: #52525b;
+    --zinc-700: #3f3f46;
+    --zinc-800: #27272a;
+    --zinc-900: #18181b;
+    --zinc-950: #09090b;
+    --radius: 0.5rem;
+    --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.10), 0 2px 4px -2px rgb(0 0 0 / 0.10);
+}
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+body {
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    background-color: #FFF;
+    width: 100vw;
+    margin: 0;
+}
+
+/* ===== Elements ============================== */
+.container {
+    width: 100vw;
+    height: 40vw;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 3vw;
+    padding: 6vw 12vw;
+    color: var(--zinc-900);
+    background-color: var(--zinc-50);
+}
+.container p {
+    font-size: 3vw;
+    text-align: center;
+}
