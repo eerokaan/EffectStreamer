@@ -12,7 +12,7 @@ Zeigen wie man die Binaries unter Windows und Linux starten kann (Über Scripte,
 
 est-gui: Erklären (Electron app which bundles React app using Vite bundler; Styling via TailwindCSS and shadcn/ui)
 
-# Common Issues and Fixes
+## Common Issues and Fixes
 
 - AppImage Blockade
 - Keine Devices aufgelistet (Linux fehler)
