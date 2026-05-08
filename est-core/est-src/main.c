@@ -11,7 +11,7 @@
 static void print_usage(const char *prog_name)
 {
     fprintf(stderr, "\n");
-    fprintf(stderr, "EchoStreamer - Audio streaming for echo simulation\n");
+    fprintf(stderr, "EchoStreamer Core\n");
     fprintf(stderr, "Platform: %s\n\n", get_platform_name());
 
     fprintf(stderr, "Usage (Sender mode):\n");
