@@ -165,10 +165,10 @@ async function socketLogic() {
 
         // Read recording files created by est-core
         const homeDir = app.getPath("home");
-        const echoStreamerDir = path.join(homeDir, "echostreamer");
+        const echostreamerDir = path.join(homeDir, "echostreamer");
 
-        const microphoneData = await fs.promises.readFile(path.join(echoStreamerDir, "microphone.ogg"));
-        const headphonesData = await fs.promises.readFile(path.join(echoStreamerDir, "headphones.ogg"));
+        const microphoneData = await fs.promises.readFile(path.join(echostreamerDir, "microphone.ogg"));
+        const headphonesData = await fs.promises.readFile(path.join(echostreamerDir, "headphones.ogg"));
 
         // Adjust footer button
         appContext.windowMain.webContents.send("ipc:storeSetValueRequest", {
@@ -317,8 +317,8 @@ async function helperEstCoreKill() {
 async function helperEstCoreCleanup() {
     try {
         const homeDir = app.getPath("home");
-        const echoStreamerDir = path.join(homeDir, "echostreamer");
-        await fs.promises.rm(echoStreamerDir, { recursive: true, force: true });
+        const echostreamerDir = path.join(homeDir, "echostreamer");
+        await fs.promises.rm(echostreamerDir, { recursive: true, force: true });
     }
     catch (error) {
         console.error("Error cleaning up EchoStreamer directory:", error);
