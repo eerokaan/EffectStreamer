@@ -1,6 +1,6 @@
 {
-    "name": "de.tu-berlin.qu.echostreamer.gui",
-    "displayName": "EchoStreamer",
+    "name": "de.tu-berlin.qu.effectstreamer.gui",
+    "displayName": "EffectStreamer",
     "version": "1.0.0",
     "description": "Tool to research the effects of echo in voice calls",
     "main": "./out/main/index.js",

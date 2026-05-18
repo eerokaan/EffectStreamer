@@ -1,11 +1,11 @@
 /*
  * ╔═══════════════════════════════════════╗
  * ║ Quality and Usability Lab / TU Berlin ║
- * ║ EchoStreamer (Receiver)               ║
+ * ║ EffectStreamer (Receiver)               ║
  * ╚═══════════════════════════════════════╝
  */
 
-#include "echostreamer.h"
+#include "effectstreamer.h"
 
 static gboolean bus_call(GstBus *bus, GstMessage *msg, gpointer data)
 {
@@ -56,7 +56,7 @@ static gboolean bus_call(GstBus *bus, GstMessage *msg, gpointer data)
 static char *create_session_directory(void)
 {
     char *session_dir;
-    session_dir = g_build_filename(g_get_home_dir(), "echostreamer", NULL);
+    session_dir = g_build_filename(g_get_home_dir(), "effectstreamer", NULL);
 
     if (g_mkdir_with_parents(session_dir, 0755) != 0)
     {
@@ -97,7 +97,7 @@ int run_receiver(ReceiverParams *params)
     char *record_file_microphone;
     char *record_file_headphones;
 
-    g_print("Starting EchoStreamer in receiver mode\n");
+    g_print("Starting EffectStreamer in receiver mode\n");
     g_print("  Platform: %s\n", get_platform_name());
     g_print("  Device: %s\n", params->device);
     g_print("  Echo Gain: %.2f\n", params->echogain);

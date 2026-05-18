@@ -1,8 +1,8 @@
-# EchoStreamer – GUI
+# EffectStreamer – GUI
 
 ## Introduction
 
-This is the EchoStreamer GUI – the participant-facing interface of EchoStreamer, guiding participants through the experiment and collecting their evaluations and audio.
+This is the EffectStreamer GUI – the participant-facing interface of EffectStreamer, guiding participants through the experiment and collecting their evaluations and audio.
 
 ## Usage
 

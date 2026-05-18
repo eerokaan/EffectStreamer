@@ -154,7 +154,7 @@ async function socketLogic() {
 
         // Stage 2: Receiver component
         else if (data.component === "receiver") {
-            appContext.estCoreReceiver = await helperEstCoreSpawn(["--mode", data.component, ...(data.deviceSink ? ["--device", data.deviceSink] : []), "--echoechogain", data.echoechogain]);
+            appContext.estCoreReceiver = await helperEstCoreSpawn(["--mode", data.component, ...(data.deviceSink ? ["--device", data.deviceSink] : []), "--echogain", data.echogain]);
         }
     });
 
@@ -165,10 +165,10 @@ async function socketLogic() {
 
         // Read recording files created by est-core
         const homeDir = app.getPath("home");
-        const echostreamerDir = path.join(homeDir, "echostreamer");
+        const effectstreamerDir = path.join(homeDir, "effectstreamer");
 
-        const microphoneData = await fs.promises.readFile(path.join(echostreamerDir, "microphone.ogg"));
-        const headphonesData = await fs.promises.readFile(path.join(echostreamerDir, "headphones.ogg"));
+        const microphoneData = await fs.promises.readFile(path.join(effectstreamerDir, "microphone.ogg"));
+        const headphonesData = await fs.promises.readFile(path.join(effectstreamerDir, "headphones.ogg"));
 
         // Adjust footer button
         appContext.windowMain.webContents.send("ipc:storeSetValueRequest", {
@@ -317,10 +317,10 @@ async function helperEstCoreKill() {
 async function helperEstCoreCleanup() {
     try {
         const homeDir = app.getPath("home");
-        const echostreamerDir = path.join(homeDir, "echostreamer");
-        await fs.promises.rm(echostreamerDir, { recursive: true, force: true });
+        const effectstreamerDir = path.join(homeDir, "effectstreamer");
+        await fs.promises.rm(effectstreamerDir, { recursive: true, force: true });
     }
     catch (error) {
-        console.error("Error cleaning up EchoStreamer directory:", error);
+        console.error("Error cleaning up EffectStreamer directory:", error);
     }
 }

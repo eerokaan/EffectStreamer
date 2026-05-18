@@ -292,17 +292,17 @@ else if (process.env.EST_SERVER_TYPE === "server") {
     }
 
     function helperCreateFolderStructure() {
-        const echostreamerDir = path.join(os.homedir(), "echostreamer");
-        fs.mkdirSync(echostreamerDir, { recursive: true });
+        const effectstreamerDir = path.join(os.homedir(), "effectstreamer");
+        fs.mkdirSync(effectstreamerDir, { recursive: true });
 
         // Determine next session number (n+1 from existing directories)
         const existing = fs
-            .readdirSync(echostreamerDir)
+            .readdirSync(effectstreamerDir)
             .filter((name) => /^\d{4}$/.test(name))
             .map(Number);
         const sessionNum = existing.length > 0 ? Math.max(...existing) + 1 : 1;
 
-        appState.sessionDir = path.join(echostreamerDir, String(sessionNum).padStart(4, "0"));
+        appState.sessionDir = path.join(effectstreamerDir, String(sessionNum).padStart(4, "0"));
         fs.mkdirSync(appState.sessionDir);
 
         // Create condition directories

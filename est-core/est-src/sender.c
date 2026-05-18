@@ -1,11 +1,11 @@
 /*
  * ╔═══════════════════════════════════════╗
  * ║ Quality and Usability Lab / TU Berlin ║
- * ║ EchoStreamer (Sender)                 ║
+ * ║ EffectStreamer (Sender)                 ║
  * ╚═══════════════════════════════════════╝
  */
 
-#include "echostreamer.h"
+#include "effectstreamer.h"
 
 static gboolean bus_call(GstBus *bus, GstMessage *msg, gpointer data)
 {
@@ -76,7 +76,7 @@ int run_sender(SenderParams *params)
         threshold_adjusted = (params->echodelay - 20) * 1000000LL; /* Convert to nanoseconds */
     }
 
-    g_print("Starting EchoStreamer in sender mode\n");
+    g_print("Starting EffectStreamer in sender mode\n");
     g_print("  Platform: %s\n", get_platform_name());
     g_print("  Device: %s\n", params->device);
     g_print("  Peer IP: %s\n", params->peerip);

@@ -1,17 +1,17 @@
 /*
  * ╔═══════════════════════════════════════╗
  * ║ Quality and Usability Lab / TU Berlin ║
- * ║ EchoStreamer (Main)                   ║
+ * ║ EffectStreamer (Main)                   ║
  * ╚═══════════════════════════════════════╝
  */
 
-#include "echostreamer.h"
+#include "effectstreamer.h"
 #include <getopt.h>
 
 static void print_usage(const char *prog_name)
 {
     fprintf(stderr, "\n");
-    fprintf(stderr, "EchoStreamer Core\n");
+    fprintf(stderr, "EffectStreamer Core\n");
     fprintf(stderr, "Platform: %s\n\n", get_platform_name());
 
     fprintf(stderr, "Usage (Sender mode):\n");

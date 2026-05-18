@@ -1,16 +1,16 @@
-# EchoStreamer – Core
+# EffectStreamer – Core
 
 ## Introduction
 
-This is the EchoStreamer Core – a standalone application which allows for VoIP conversations to be held under different impairment type conditions.
+This is the EffectStreamer Core – a standalone application which allows for VoIP conversations to be held under different impairment type conditions.
 
 Currently, `echo-delay` and `echo-gain` are supported.
 
-Moreover, the EchoStreamer Core is able to be cross-compiled to Linux and Windows at the same time, while also taking care of audio server differences (ALSA vs. WASAPI2); this allows the EchoStreamer Core to be embedded into other applications, like it is done with EchoStreamer GUI (hence the naming "Core").
+Moreover, the EffectStreamer Core is able to be cross-compiled to Linux and Windows at the same time, while also taking care of audio server differences (ALSA vs. WASAPI2); this allows the EffectStreamer Core to be embedded into other applications, like it is done with EffectStreamer GUI (hence the naming "Core").
 
 ## Usage
 
-To use EchoStreamer Core itself, without the usual wrapping inside EchoStreamer GUI, one has to handle the CLI parameters manually.
+To use EffectStreamer Core itself, without the usual wrapping inside EffectStreamer GUI, one has to handle the CLI parameters manually.
 
 ```
 Sender mode:
@@ -20,17 +20,17 @@ Receiver mode:
 ./est-core --mode receiver [--device <DEVICE-ID>] --echogain <NUMBER-BETWEEN-0-AND-1>
 ```
 
-As you can see, EchoStreamer Core is split up into two modes of operation: `sender` and `receiver`. The sender deals with capturing audio from a source (e.g. a microphone), forking the signal out and then streaming them off to different destinations, while the receiver deals with the receiving of said audio streams and routing them to different sinks again (e.g. headphones, audiofile for recording, etc.). Regarding the impairment types, the sender side is responsible for the echo-delay, while the receiver deals with the echo-gain.
+As you can see, EffectStreamer Core is split up into two modes of operation: `sender` and `receiver`. The sender deals with capturing audio from a source (e.g. a microphone), forking the signal out and then streaming them off to different destinations, while the receiver deals with the receiving of said audio streams and routing them to different sinks again (e.g. headphones, audiofile for recording, etc.). Regarding the impairment types, the sender side is responsible for the echo-delay, while the receiver deals with the echo-gain.
 
 Following this architecture, each peer has to run a sender and receiver instance each. It is important to start the senders on both peers first, before starting the receivers, to ensure established audio streaming to which the receivers can hook into.
 
 On Linux use the ALSA audio server `arecord -l` and `aplay -l` commands to find out the device id of your source (e.g. microphone) and sink devices (e.g. headphones) respectively. For example, the console output of `Karte 0: AudioPCI [Ensoniq AudioPCI], Gerät 1: ES1371/2 [ES1371]` would translate to the device id `hw:0,1`. Here, the device ids are mandatory to specify.
 
-On Windows, EchoStreamer Core supports automatically fetching the source and sink device ids, as WASAPI device ids are much harder to find out compared to ALSA device ids on Linux. Here, the device ids are optional to specify.
+On Windows, EffectStreamer Core supports automatically fetching the source and sink device ids, as WASAPI device ids are much harder to find out compared to ALSA device ids on Linux. Here, the device ids are optional to specify.
 
 ## Compilation
 
-As the EchoStreamer Core uses GStreamer internally, the following paragraphs will lay out how to compile GStreamer and other prerequisites, as well as compiling and running EchoStreamer itself. There are two important factors to consider, before starting:
+As the EffectStreamer Core uses GStreamer internally, the following paragraphs will lay out how to compile GStreamer and other prerequisites, as well as compiling and running EffectStreamer itself. There are two important factors to consider, before starting:
 
 - Please make sure to use Ubuntu 24.04 (or other Debian-based Linux distros) as your compiler host
 - Please also make sure to work on a local filesystem, as compiling on network shares will most likely cause permission errors
@@ -54,13 +54,12 @@ apt-get -y install build-essential gcc-mingw-w64-x86-64-posix
 ### Step 2) Build GStreamer with necessary plugins
 
 ```
-git clone https://git.tu-berlin.de/qu/speech-quality/echostreamer.git EchoStreamer
-cd EchoStreamer
+git clone https://git.tu-berlin.de/qu/speech-quality/effectstreamer.git EffectStreamer
+cd EffectStreamer/est-core
 
-git checkout est-core
 git clone https://gitlab.freedesktop.org/gstreamer/cerbero gst-sdk
-
 cd gst-sdk
+
 git checkout 1.28.0
 ```
 
@@ -84,7 +83,7 @@ git checkout 1.28.0
 ./cerbero-uninstalled -c config/cross-win64.cbc build gst-plugins-bad
 ```
 
-### Step 3) Build EchoStreamer with GStreamer linking
+### Step 3) Build EffectStreamer with GStreamer linking
 
 ```
 cd ..
@@ -134,7 +133,7 @@ x86_64-w64-mingw32-gcc -o est-core.exe \
     $(pkg-config --cflags --libs gstreamer-1.0)
 ```
 
-### Step 4) Run EchoStreamer
+### Step 4) Run EffectStreamer
 
 Notice: Always `tar` the `gst-lib` directory when transferring it between machines. The symbolic link structure inside it can easily become corrupted when moving across different machines or platforms.
 

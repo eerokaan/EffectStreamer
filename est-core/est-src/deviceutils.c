@@ -1,11 +1,11 @@
 /*
  * ╔═══════════════════════════════════════╗
  * ║ Quality and Usability Lab / TU Berlin ║
- * ║ EchoStreamer (Device Utilities)       ║
+ * ║ EffectStreamer (Device Utilities)       ║
  * ╚═══════════════════════════════════════╝
  */
 
-#include "echostreamer.h"
+#include "effectstreamer.h"
 
 #ifdef PLATFORM_WINDOWS
 
