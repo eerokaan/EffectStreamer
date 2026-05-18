@@ -30,14 +30,14 @@ typedef struct
 {
     char *device;
     char *peerip;
-    int latency;
+    int echodelay;
 } SenderParams;
 
 /* Receiver parameters */
 typedef struct
 {
     char *device;
-    double gain;
+    double echogain;
 } ReceiverParams;
 
 /* Platform detection */

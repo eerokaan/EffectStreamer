@@ -210,7 +210,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
                     component: "sender",
                     peerIp: peerClient?.ipAddress,
                     deviceSource: thisClient.deviceSource,
-                    latency: currentCondition.latency
+                    echodelay: currentCondition.echodelay
                 };
                 io.to(socket.id).emit("est-event:coreStartResponse", estCoreSettings);
             }
@@ -221,7 +221,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
                     helperEmitToAll("est-event:coreStartResponse", (clientSocketId, clientData) => ({
                         component: "receiver",
                         deviceSink: clientData.deviceSink,
-                        gain: currentCondition.gain
+                        echogain: currentCondition.echogain
                     }));
                 });
             }

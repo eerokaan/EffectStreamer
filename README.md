@@ -18,7 +18,7 @@ EchoStreamer consists of three parts, which work together to archieve this goal:
 
 All three components are distributed as fully freestanding executables, requiring no additional dependencies to be installed on the host system. This allows all components to be deployed and run out of the box on both Linux and Windows machines.
 
-## Contact info
+## Contact Info
 
 For any further assistance and inquiries, please do not hesitate to contact Eero Kaan at [eerokaan@qu.tu-berlin.de](mailto:eerokaan@qu.tu-berlin.de).
 

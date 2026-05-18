@@ -15,17 +15,17 @@ static void print_usage(const char *prog_name)
     fprintf(stderr, "Platform: %s\n\n", get_platform_name());
 
     fprintf(stderr, "Usage (Sender mode):\n");
-    fprintf(stderr, "  %s --mode sender [--device <DEVICE-ID>] --peerip <IP-ADDRESS> --latency <MS>\n\n", prog_name);
+    fprintf(stderr, "  %s --mode sender [--device <DEVICE-ID>] --peerip <IP-ADDRESS> --echodelay <MS>\n\n", prog_name);
 
     fprintf(stderr, "Usage (Receiver mode):\n");
-    fprintf(stderr, "  %s --mode receiver [--device <DEVICE-ID>] --gain <GAIN>\n\n", prog_name);
+    fprintf(stderr, "  %s --mode receiver [--device <DEVICE-ID>] --echogain <GAIN>\n\n", prog_name);
 
     fprintf(stderr, "Options:\n");
     fprintf(stderr, "  --mode       Mode of operation: 'sender' or 'receiver'\n");
     fprintf(stderr, "  --device     Audio device ID (optional, auto-detects if not provided)\n");
     fprintf(stderr, "  --peerip     IP address of the peer receiver (sender mode only)\n");
-    fprintf(stderr, "  --latency    Latency in milliseconds (sender mode only)\n");
-    fprintf(stderr, "  --gain       Echo volume gain, e.g., 0.5 (receiver mode only)\n");
+    fprintf(stderr, "  --echodelay  The echo delay in milliseconds (sender mode only)\n");
+    fprintf(stderr, "  --echogain   The echo gain, e.g., 0.5 (receiver mode only)\n");
     fprintf(stderr, "  --help       Show this help message\n");
     fprintf(stderr, "\n");
 }
@@ -36,46 +36,56 @@ int main(int argc, char *argv[])
     char *mode = NULL;
     char *device = NULL;
     char *peerip = NULL;
-    int latency = -1;
-    double gain = -1.0;
+    int echodelay = -1;
+    double echogain = -1.0;
     int ret = 0;
 
+    enum
+    {
+        OPT_MODE = 1,
+        OPT_DEVICE,
+        OPT_PEERIP,
+        OPT_ECHODELAY,
+        OPT_ECHOGAIN,
+        OPT_HELP
+    };
+
     static struct option long_options[] = {
-        {"mode", required_argument, 0, 'm'},
-        {"device", required_argument, 0, 'd'},
-        {"peerip", required_argument, 0, 'p'},
-        {"latency", required_argument, 0, 'l'},
-        {"gain", required_argument, 0, 'g'},
-        {"help", no_argument, 0, 'h'},
+        {"mode", required_argument, 0, OPT_MODE},
+        {"device", required_argument, 0, OPT_DEVICE},
+        {"peerip", required_argument, 0, OPT_PEERIP},
+        {"echodelay", required_argument, 0, OPT_ECHODELAY},
+        {"echogain", required_argument, 0, OPT_ECHOGAIN},
+        {"help", no_argument, 0, OPT_HELP},
         {0, 0, 0, 0}};
 
     /* Parse command-line arguments */
     while (1)
     {
         int option_index = 0;
-        opt = getopt_long(argc, argv, "m:d:p:l:g:h", long_options, &option_index);
+        opt = getopt_long(argc, argv, "", long_options, &option_index);
 
         if (opt == -1)
             break;
 
         switch (opt)
         {
-        case 'm':
+        case OPT_MODE:
             mode = optarg;
             break;
-        case 'd':
+        case OPT_DEVICE:
             device = optarg;
             break;
-        case 'p':
+        case OPT_PEERIP:
             peerip = optarg;
             break;
-        case 'l':
-            latency = atoi(optarg);
+        case OPT_ECHODELAY:
+            echodelay = atoi(optarg);
             break;
-        case 'g':
-            gain = atof(optarg);
+        case OPT_ECHOGAIN:
+            echogain = atof(optarg);
             break;
-        case 'h':
+        case OPT_HELP:
             print_usage(argv[0]);
             return 0;
         default:
@@ -99,9 +109,9 @@ int main(int argc, char *argv[])
     if (strcmp(mode, "sender") == 0)
     {
         /* Validate sender parameters */
-        if (!peerip || latency < 0)
+        if (!peerip || echodelay < 0)
         {
-            fprintf(stderr, "Error: Missing required parameters for sender mode (--peerip and --latency)\n");
+            fprintf(stderr, "Error: Missing required parameters for sender mode (--peerip and --echodelay)\n");
             print_usage(argv[0]);
             return 1;
         }
@@ -123,7 +133,7 @@ int main(int argc, char *argv[])
         SenderParams params = {
             .device = device,
             .peerip = peerip,
-            .latency = latency};
+            .echodelay = echodelay};
 
         ret = run_sender(&params);
 
@@ -135,9 +145,9 @@ int main(int argc, char *argv[])
     else if (strcmp(mode, "receiver") == 0)
     {
         /* Validate receiver parameters */
-        if (gain < 0.0)
+        if (echogain < 0.0)
         {
-            fprintf(stderr, "Error: Missing required parameter for receiver mode (--gain)\n");
+            fprintf(stderr, "Error: Missing required parameter for receiver mode (--echogain)\n");
             print_usage(argv[0]);
             return 1;
         }
@@ -158,7 +168,7 @@ int main(int argc, char *argv[])
 
         ReceiverParams params = {
             .device = device,
-            .gain = gain};
+            .echogain = echogain};
 
         ret = run_receiver(&params);
 

@@ -100,7 +100,7 @@ int run_receiver(ReceiverParams *params)
     g_print("Starting EchoStreamer in receiver mode\n");
     g_print("  Platform: %s\n", get_platform_name());
     g_print("  Device: %s\n", params->device);
-    g_print("  Gain: %.2f\n", params->gain);
+    g_print("  Echo Gain: %.2f\n", params->echogain);
 
     /* Create session directory */
     session_dir = create_session_directory();
@@ -193,7 +193,7 @@ int run_receiver(ReceiverParams *params)
     g_object_set(G_OBJECT(udpsrc2), "port", 9005, "caps", caps_rtp, NULL);
     g_object_set(G_OBJECT(rtpjitterbuffer2), "latency", 5, "drop-on-latency", TRUE, NULL);
     g_object_set(G_OBJECT(capsfilter2), "caps", caps_audio, NULL);
-    g_object_set(G_OBJECT(volume2), "volume", params->gain, NULL);
+    g_object_set(G_OBJECT(volume2), "volume", params->echogain, NULL);
 
     /* Configure source 3 (microphone recording) */
     g_object_set(G_OBJECT(udpsrc3), "port", 9006, "caps", caps_rtp, NULL);

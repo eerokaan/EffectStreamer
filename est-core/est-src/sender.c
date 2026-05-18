@@ -67,20 +67,20 @@ int run_sender(SenderParams *params)
     gint64 threshold_adjusted;
 
     /* Calculate adjusted threshold (matching bash script logic) */
-    if (params->latency <= 20)
+    if (params->echodelay <= 20)
     {
         threshold_adjusted = 0;
     }
     else
     {
-        threshold_adjusted = (params->latency - 20) * 1000000LL; /* Convert to nanoseconds */
+        threshold_adjusted = (params->echodelay - 20) * 1000000LL; /* Convert to nanoseconds */
     }
 
     g_print("Starting EchoStreamer in sender mode\n");
     g_print("  Platform: %s\n", get_platform_name());
     g_print("  Device: %s\n", params->device);
     g_print("  Peer IP: %s\n", params->peerip);
-    g_print("  Latency: %d ms\n", params->latency);
+    g_print("  Echo Delay: %d ms\n", params->echodelay);
 
     /* Create GStreamer elements */
     context.pipeline = gst_pipeline_new("sender-pipeline");

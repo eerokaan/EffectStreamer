@@ -1,8 +1,8 @@
-# EchoStreamer Server
+# EchoStreamer – Server
 
 ## Introduction
 
-Allgemeine Erklärung wieso/weshalb est-server
+This is the EchoStreamer Server – it orchestrates the entire experiment; managing state, coordinating all connected components, collecting evaluation data, and serving as the single source of truth via a central configuration file.
 
 ## Usage
 

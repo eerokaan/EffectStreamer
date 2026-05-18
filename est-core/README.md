@@ -1,8 +1,10 @@
-# EchoStreamer Core
+# EchoStreamer – Core
 
 ## Introduction
 
-This is the EchoStreamer Core – a standalone application which allows for VoIP conversations to be held under different impairment type conditions. Currently, **echo-delay** and **echo-gain** are supported.
+This is the EchoStreamer Core – a standalone application which allows for VoIP conversations to be held under different impairment type conditions.
+
+Currently, `echo-delay` and `echo-gain` are supported.
 
 Moreover, the EchoStreamer Core is able to be cross-compiled to Linux and Windows at the same time, while also taking care of audio server differences (ALSA vs. WASAPI2); this allows the EchoStreamer Core to be embedded into other applications, like it is done with EchoStreamer GUI (hence the naming "Core").
 
@@ -12,13 +14,13 @@ To use EchoStreamer Core itself, without the usual wrapping inside EchoStreamer 
 
 ```
 Sender mode:
-est-core --mode sender [--device <DEVICE-ID>] --peerip <IP-ADDRESS> --latency <MS>
+./est-core --mode sender [--device <DEVICE-ID>] --peerip <IP-ADDRESS> --echodelay <MS>
 
 Receiver mode:
-est-core --mode receiver [--device <DEVICE-ID>] --gain <GAIN>
+./est-core --mode receiver [--device <DEVICE-ID>] --echogain <NUMBER-BETWEEN-0-AND-1>
 ```
 
-As you can see, EchoStreamer Core is split up into two modes of operation: `sender` and `receiver`. The sender deals with capturing audio from a source (e.g. a microphone), forking the signal out and then streaming them off to different destinations, while the receiver deals with the receiving of said audio streams and routing them to different sinks again (e.g. headphones, audiofile for recording, etc.). Regarding the impairment types, the sender side is responsible for the echo-delay latency, while the receiver deals with the echo-gain.
+As you can see, EchoStreamer Core is split up into two modes of operation: `sender` and `receiver`. The sender deals with capturing audio from a source (e.g. a microphone), forking the signal out and then streaming them off to different destinations, while the receiver deals with the receiving of said audio streams and routing them to different sinks again (e.g. headphones, audiofile for recording, etc.). Regarding the impairment types, the sender side is responsible for the echo-delay, while the receiver deals with the echo-gain.
 
 Following this architecture, each peer has to run a sender and receiver instance each. It is important to start the senders on both peers first, before starting the receivers, to ensure established audio streaming to which the receivers can hook into.
 

@@ -4,20 +4,20 @@
         "port": "3000"
     },
     "conditions": {
-        "baseline": [{ "latency": "20", "gain": "0.002" }],
+        "baseline": [{ "echodelay": "20", "echogain": "0.002" }],
         "random": [
-            { "latency": "50", "gain": "0.03" },
-            { "latency": "50", "gain": "0.1" },
-            { "latency": "50", "gain": "0.35" },
-            { "latency": "100", "gain": "0.03" },
-            { "latency": "100", "gain": "0.1" },
-            { "latency": "100", "gain": "0.35" },
-            { "latency": "200", "gain": "0.03" },
-            { "latency": "200", "gain": "0.1" },
-            { "latency": "200", "gain": "0.35" },
-            { "latency": "400", "gain": "0.03" },
-            { "latency": "400", "gain": "0.1" },
-            { "latency": "400", "gain": "0.35" }
+            { "echodelay": "50", "echogain": "0.03" },
+            { "echodelay": "50", "echogain": "0.1" },
+            { "echodelay": "50", "echogain": "0.35" },
+            { "echodelay": "100", "echogain": "0.03" },
+            { "echodelay": "100", "echogain": "0.1" },
+            { "echodelay": "100", "echogain": "0.35" },
+            { "echodelay": "200", "echogain": "0.03" },
+            { "echodelay": "200", "echogain": "0.1" },
+            { "echodelay": "200", "echogain": "0.35" },
+            { "echodelay": "400", "echogain": "0.03" },
+            { "echodelay": "400", "echogain": "0.1" },
+            { "echodelay": "400", "echogain": "0.35" }
         ]
     }
 }
