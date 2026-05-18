@@ -4,7 +4,16 @@
 
 This is the EffectStreamer Core – a standalone application which allows for VoIP conversations to be held under different impairment type conditions.
 
-Currently, `echo-delay` and `echo-gain` are supported.
+Currently these impairments are supported:
+
+```
+native-delay (TBD)
+native-gain (TBD)
+echo-delay
+echo-gain
+packetloss-type (TBD)
+packetloss-amount (TBD)
+```
 
 Moreover, the EffectStreamer Core is able to be cross-compiled to Linux and Windows at the same time, while also taking care of audio server differences (ALSA vs. WASAPI2); this allows the EffectStreamer Core to be embedded into other applications, like it is done with EffectStreamer GUI (hence the naming "Core").
 

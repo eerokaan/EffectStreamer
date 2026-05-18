@@ -6,8 +6,66 @@ This is the EffectStreamer Server – it orchestrates the entire experiment; man
 
 ## Usage
 
-Zeigen wie man die Binaries unter Windows und Linux starten kann (Über Scripte, aber auch die Env Variablen erklären)
+EffectStreamer Server is distributed as a standalone Node.js executable and should be started before the GUI clients connect.
+
+Before starting the server, place an `est-config.json` file next to the server executable and adjust it for the experiment machine:
+
+```
+{
+    "server": {
+        "ipAddress": "0.0.0.0",
+        "port": "3000"
+    },
+    "conditions": {
+        "baseline": [{ "echodelay": "20", "echogain": "0.002" }],
+        "random": [
+            { "echodelay": "50", "echogain": "0.03" },
+            { "echodelay": "100", "echogain": "0.1" }
+        ]
+    }
+}
+```
+
+The `server.ipAddress` and `server.port` values define where the server listens for GUI clients. The `conditions.baseline` entry is used first, while the entries under `conditions.random` are shuffled for the remaining experiment rounds.
+
+The server writes session data to `~/effectstreamer`. Each experiment run receives a new numbered session directory containing submitted forms, scale results, condition settings, and transferred audio recordings.
+
+### Linux
+
+Make the server executable and start it with:
+
+```
+chmod +x est-server
+EST_SERVER_TYPE=harness ./est-server
+```
+
+### Windows
+
+Start the server from a command prompt with:
+
+```
+set "EST_SERVER_TYPE=harness"
+est-server.exe
+```
 
 ## Compilation
 
-est-server: Erklären (NodeJS bundled in SEA application)
+EffectStreamer Server is packaged as a Node.js SEA executable. The build first bundles the JavaScript application with `ncc`, then injects the generated SEA blob into a Node.js executable with `postject`.
+
+To create the Linux executable:
+
+```
+npm install
+npm run build:linux
+```
+
+The Linux executable and a copy of `est-config.json` will be written to `est-server/dist`.
+
+To create the Windows executable:
+
+```
+npm install
+npm run build:win
+```
+
+The Windows executable and a copy of `est-config.json` will be written to `est-server/dist`.
