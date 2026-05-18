@@ -1,7 +1,7 @@
 /*
  * ╔═══════════════════════════════════════╗
  * ║ Quality and Usability Lab / TU Berlin ║
- * ║ EffectStreamer (Receiver)               ║
+ * ║ EffectStreamer (Receiver)             ║
  * ╚═══════════════════════════════════════╝
  */
 

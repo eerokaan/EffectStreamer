@@ -17,10 +17,10 @@ Before starting the server, place an `est-config.json` file next to the server e
         "port": "3000"
     },
     "conditions": {
-        "baseline": [{ "echodelay": "20", "echogain": "0.002" }],
+        "baseline": [{ "echoDelay": "20", "echoGain": "0.002" }],
         "random": [
-            { "echodelay": "50", "echogain": "0.03" },
-            { "echodelay": "100", "echogain": "0.1" }
+            { "echoDelay": "50", "echoGain": "0.03" },
+            { "echoDelay": "100", "echoGain": "0.1" }
         ]
     }
 }

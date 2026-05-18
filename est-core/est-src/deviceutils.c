@@ -1,7 +1,7 @@
 /*
  * ╔═══════════════════════════════════════╗
  * ║ Quality and Usability Lab / TU Berlin ║
- * ║ EffectStreamer (Device Utilities)       ║
+ * ║ EffectStreamer (Device Utilities)     ║
  * ╚═══════════════════════════════════════╝
  */
 

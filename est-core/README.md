@@ -23,10 +23,10 @@ To use EffectStreamer Core itself, without the usual wrapping inside EffectStrea
 
 ```
 Sender mode:
-./est-core --mode sender [--device <DEVICE-ID>] --peerip <IP-ADDRESS> --echodelay <MS>
+./est-core --mode sender [--device <DEVICE-ID>] --peerip <IP-ADDRESS> --echo-delay <MS>
 
 Receiver mode:
-./est-core --mode receiver [--device <DEVICE-ID>] --echogain <NUMBER-BETWEEN-0-AND-1>
+./est-core --mode receiver [--device <DEVICE-ID>] --echo-gain <NUMBER-BETWEEN-0-AND-1>
 ```
 
 As you can see, EffectStreamer Core is split up into two modes of operation: `sender` and `receiver`. The sender deals with capturing audio from a source (e.g. a microphone), forking the signal out and then streaming them off to different destinations, while the receiver deals with the receiving of said audio streams and routing them to different sinks again (e.g. headphones, audiofile for recording, etc.). Regarding the impairment types, the sender side is responsible for the echo-delay, while the receiver deals with the echo-gain.

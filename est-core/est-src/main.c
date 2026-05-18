@@ -1,7 +1,7 @@
 /*
  * ╔═══════════════════════════════════════╗
  * ║ Quality and Usability Lab / TU Berlin ║
- * ║ EffectStreamer (Main)                   ║
+ * ║ EffectStreamer (Main)                 ║
  * ╚═══════════════════════════════════════╝
  */
 
@@ -15,18 +15,18 @@ static void print_usage(const char *prog_name)
     fprintf(stderr, "Platform: %s\n\n", get_platform_name());
 
     fprintf(stderr, "Usage (Sender mode):\n");
-    fprintf(stderr, "  %s --mode sender [--device <DEVICE-ID>] --peerip <IP-ADDRESS> --echodelay <MS>\n\n", prog_name);
+    fprintf(stderr, "  %s --mode sender [--device <DEVICE-ID>] --peerip <IP-ADDRESS> --echo-delay <MS>\n\n", prog_name);
 
     fprintf(stderr, "Usage (Receiver mode):\n");
-    fprintf(stderr, "  %s --mode receiver [--device <DEVICE-ID>] --echogain <GAIN>\n\n", prog_name);
+    fprintf(stderr, "  %s --mode receiver [--device <DEVICE-ID>] --echo-gain <GAIN>\n\n", prog_name);
 
     fprintf(stderr, "Options:\n");
-    fprintf(stderr, "  --mode       Mode of operation: 'sender' or 'receiver'\n");
-    fprintf(stderr, "  --device     Audio device ID (optional, auto-detects if not provided)\n");
-    fprintf(stderr, "  --peerip     IP address of the peer receiver (sender mode only)\n");
-    fprintf(stderr, "  --echodelay  The echo delay in milliseconds (sender mode only)\n");
-    fprintf(stderr, "  --echogain   The echo gain, e.g., 0.5 (receiver mode only)\n");
-    fprintf(stderr, "  --help       Show this help message\n");
+    fprintf(stderr, "  --mode        Mode of operation: 'sender' or 'receiver'\n");
+    fprintf(stderr, "  --device      Audio device ID (optional, auto-detects if not provided)\n");
+    fprintf(stderr, "  --peerip      IP address of the peer receiver (sender mode only)\n");
+    fprintf(stderr, "  --echo-delay  The echo delay in milliseconds (sender mode only)\n");
+    fprintf(stderr, "  --echo-gain   The echo gain, e.g., 0.5 (receiver mode only)\n");
+    fprintf(stderr, "  --help        Show this help message\n");
     fprintf(stderr, "\n");
 }
 
@@ -54,8 +54,8 @@ int main(int argc, char *argv[])
         {"mode", required_argument, 0, OPT_MODE},
         {"device", required_argument, 0, OPT_DEVICE},
         {"peerip", required_argument, 0, OPT_PEERIP},
-        {"echodelay", required_argument, 0, OPT_ECHODELAY},
-        {"echogain", required_argument, 0, OPT_ECHOGAIN},
+        {"echo-delay", required_argument, 0, OPT_ECHODELAY},
+        {"echo-gain", required_argument, 0, OPT_ECHOGAIN},
         {"help", no_argument, 0, OPT_HELP},
         {0, 0, 0, 0}};
 
@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
         /* Validate sender parameters */
         if (!peerip || echodelay < 0)
         {
-            fprintf(stderr, "Error: Missing required parameters for sender mode (--peerip and --echodelay)\n");
+            fprintf(stderr, "Error: Missing required parameters for sender mode (--peerip and --echo-delay)\n");
             print_usage(argv[0]);
             return 1;
         }
@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
         /* Validate receiver parameters */
         if (echogain < 0.0)
         {
-            fprintf(stderr, "Error: Missing required parameter for receiver mode (--echogain)\n");
+            fprintf(stderr, "Error: Missing required parameter for receiver mode (--echo-gain)\n");
             print_usage(argv[0]);
             return 1;
         }

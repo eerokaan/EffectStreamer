@@ -1,5 +1,5 @@
-#ifndef ECHOSTREAMER_H
-#define ECHOSTREAMER_H
+#ifndef EFFECTSTREAMER_H
+#define EFFECTSTREAMER_H
 
 #include <gst/gst.h>
 #include <stdio.h>
@@ -59,4 +59,4 @@ int run_receiver(ReceiverParams *params);
 void configure_audio_source(GstElement *src, const char *device);
 void configure_audio_sink(GstElement *sink, const char *device);
 
-#endif /* ECHOSTREAMER_H */
+#endif /* EFFECTSTREAMER_H */
