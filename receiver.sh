@@ -34,15 +34,18 @@ if [[ -z "$DEVICE" || -z "$ECHOGAIN" ]]; then
 fi
 
 # Create session directory
-SESSION_DIR="session-$(date +%s)"
+SESSION_DIR="${HOME}/effectstreamer"
 mkdir -p "${SESSION_DIR}"
 
-# Prepend session directory to record file path
-RECORD_FILE="${SESSION_DIR}/${SESSION_DIR}.ogg"
+# Recording paths
+RECORD_FILE_MICROPHONE="${SESSION_DIR}/microphone.ogg"
+RECORD_FILE_HEADPHONES="${SESSION_DIR}/headphones.ogg"
 
 # Run GStreamer receivers
 chrt -f 99 gst-launch-1.0 -e -v \
-    adder name=add ! audioconvert ! audioresample ! alsasink device=${DEVICE} buffer-time=5000 latency-time=1000 sync=false \
+    adder name=add ! tee name=t ! \
+        queue ! audioconvert ! audioresample ! alsasink device="${DEVICE}" buffer-time=5000 latency-time=1000 sync=false t. ! \
+        queue ! audioconvert ! audioresample ! opusenc bitrate=128000 ! oggmux ! filesink location="${RECORD_FILE_HEADPHONES}" sync=false async=false \
     udpsrc port=9004 caps="application/x-rtp,media=audio,encoding-name=L16,clock-rate=48000,channels=1,payload=96" ! \
         rtpjitterbuffer latency=5 drop-on-latency=true ! rtpL16depay ! audioconvert ! \
         audio/x-raw,channels=1,rate=48000 ! volume volume=1.0 ! add. \
@@ -51,4 +54,4 @@ chrt -f 99 gst-launch-1.0 -e -v \
         audio/x-raw,channels=1,rate=48000 ! volume volume=${ECHOGAIN} ! add. \
     udpsrc port=9006 caps="application/x-rtp,media=audio,encoding-name=L16,clock-rate=48000,channels=1,payload=96" ! \
         rtpjitterbuffer latency=5 drop-on-latency=true ! rtpL16depay ! audioconvert ! \
-        audio/x-raw,channels=1,rate=48000 ! volume volume=1.0 ! opusenc bitrate=128000 ! oggmux ! filesink location=${RECORD_FILE}
+        opusenc bitrate=128000 ! oggmux ! filesink location="${RECORD_FILE_MICROPHONE}" sync=false async=false
