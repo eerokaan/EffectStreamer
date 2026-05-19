@@ -1,14 +1,14 @@
 const conditionSctAssets = {
-    ...import.meta.glob("@/assets/html/condition-short-conversation-test/**/*.html", { eager: true, query: "?url", import: "default" }),
-    ...import.meta.glob("@/assets/img/condition-short-conversation-test/**/*.png", { eager: true, import: "default" })
+    ...import.meta.glob("@/assets/html/short-conversation-test/**/*.html", { eager: true, query: "?url", import: "default" }),
+    ...import.meta.glob("@/assets/img/short-conversation-test/**/*.png", { eager: true, import: "default" })
 };
-const conditionSctExplanationAssets = import.meta.glob("@/assets/img/condition-short-conversation-test/*.png", { eager: true, import: "default" });
+const conditionSctExplanationAssets = import.meta.glob("@/assets/img/short-conversation-test/*.png", { eager: true, import: "default" });
 
 const conditionLstAssets = {
-    ...import.meta.glob("@/assets/html/condition-listening-speaking-test/**/*.html", { eager: true, query: "?url", import: "default" }),
-    ...import.meta.glob("@/assets/img/condition-listening-speaking-test/**/*.png", { eager: true, import: "default" })
+    ...import.meta.glob("@/assets/html/listening-speaking-test/**/*.html", { eager: true, query: "?url", import: "default" }),
+    ...import.meta.glob("@/assets/img/listening-speaking-test/**/*.png", { eager: true, import: "default" })
 };
-const conditionLstExplanationAssets = import.meta.glob("@/assets/img/condition-listening-speaking-test/*.png", { eager: true, import: "default" });
+const conditionLstExplanationAssets = import.meta.glob("@/assets/img/listening-speaking-test/*.png", { eager: true, import: "default" });
 
 const resolveAsset = (assets, assetName) => {
     if (!assetName) return null;

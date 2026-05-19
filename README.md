@@ -6,7 +6,7 @@ Welcome to the EffectStreamer repository.
 
 EffectStreamer (abbreviated to `est`) is a research tool for systematically testing VoIP conversations under varying impairment conditions, where two peers converse with each other across a series of these conditions and rate their experience after each one, enabling structured and reproducible data collection from real-world conversations.
 
-The test procedure supported by EffectStreamer follows the ITU-T Recommendation P.804, providing structured conversation tests for evaluating transmitted speech quality under repeatable impairment conditions.
+The test procedure implemented in EffectStreamer follows the ITU-T Recommendation P.804, providing structured conversation tests for evaluating transmitted speech quality under repeatable impairment conditions.
 
 ## Architecture
 
