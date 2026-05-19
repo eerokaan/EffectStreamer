@@ -41,7 +41,7 @@ const PretestForm = forwardRef(({ onSubmit }, ref) => {
                     name="input-age"
                     control={form.control}
                     render={({ field, fieldState }) => (
-                        <Field data-invalid={fieldState.invalid} className="gap-1 md:col-span-3">
+                        <Field data-invalid={fieldState.invalid} className="col-span-3 gap-1">
                             <FieldLabel htmlFor="input-age">Alter</FieldLabel>
                             <Input
                                 {...field}
@@ -71,7 +71,7 @@ const PretestForm = forwardRef(({ onSubmit }, ref) => {
                             { value: "no-choice", label: "Keine Angabe" }
                         ];
                         return (
-                            <Field data-invalid={fieldState.invalid} className="gap-1 md:col-span-3">
+                            <Field data-invalid={fieldState.invalid} className="col-span-3 gap-1">
                                 <FieldLabel htmlFor="select-gender">Gender</FieldLabel>
                                 <Select value={field.value} onValueChange={field.onChange}>
                                     <SelectTrigger className="w-full" aria-invalid={fieldState.invalid}>
@@ -141,7 +141,7 @@ const PretestForm = forwardRef(({ onSubmit }, ref) => {
                             { value: "more-than-60h", label: "> 60 h/Woche (~ 8 h/Tag)" }
                         ];
                         return (
-                            <Field data-invalid={fieldState.invalid} className="gap-1 md:col-span-3">
+                            <Field data-invalid={fieldState.invalid} className="col-span-3 gap-1">
                                 <FieldLabel htmlFor="select-hours-internet">Stunden im Internet / Woche</FieldLabel>
                                 <Select value={field.value} onValueChange={field.onChange}>
                                     <SelectTrigger className="w-full" aria-invalid={fieldState.invalid}>
@@ -178,7 +178,7 @@ const PretestForm = forwardRef(({ onSubmit }, ref) => {
                             { value: "more-than-60h", label: "> 60 h/Woche (~ 8 h/Tag)" }
                         ];
                         return (
-                            <Field data-invalid={fieldState.invalid} className="gap-1 md:col-span-3">
+                            <Field data-invalid={fieldState.invalid} className="col-span-3 gap-1">
                                 <FieldLabel htmlFor="select-hours-calls">Stunden in (Video)Calls / Woche</FieldLabel>
                                 <Select value={field.value} onValueChange={field.onChange}>
                                     <SelectTrigger className="w-full" aria-invalid={fieldState.invalid}>
@@ -224,7 +224,7 @@ const PretestForm = forwardRef(({ onSubmit }, ref) => {
                     name="switch-gaming"
                     control={form.control}
                     render={({ field, fieldState }) => (
-                        <Field orientation="horizontal" data-invalid={fieldState.invalid} className="md:col-span-3">
+                        <Field orientation="horizontal" data-invalid={fieldState.invalid} className="col-span-3">
                             <FieldContent>
                                 <FieldLabel htmlFor="switch-gaming">Spielen Sie Videospiele mit Voicechat?</FieldLabel>
                                 <FieldDescription>z.B. über Discord, TeamSpeak, etc.</FieldDescription>
@@ -239,7 +239,7 @@ const PretestForm = forwardRef(({ onSubmit }, ref) => {
                     name="switch-streaming"
                     control={form.control}
                     render={({ field, fieldState }) => (
-                        <Field orientation="horizontal" data-invalid={fieldState.invalid} className="md:col-span-3">
+                        <Field orientation="horizontal" data-invalid={fieldState.invalid} className="col-span-3">
                             <FieldContent>
                                 <FieldLabel htmlFor="switch-streaming">Streamen Sie Ihr Gameplay live?</FieldLabel>
                                 <FieldDescription>z.B. über Twitch, YouTube, etc.</FieldDescription>
@@ -254,7 +254,7 @@ const PretestForm = forwardRef(({ onSubmit }, ref) => {
                     name="switch-first-time"
                     control={form.control}
                     render={({ field, fieldState }) => (
-                        <Field orientation="horizontal" data-invalid={fieldState.invalid} className="md:col-span-3">
+                        <Field orientation="horizontal" data-invalid={fieldState.invalid} className="col-span-3">
                             <FieldContent>
                                 <FieldLabel htmlFor="switch-first-time">Erstes Mal dabei?</FieldLabel>
                                 <FieldDescription>Haben Sie schon einmal an einem Hörtest/-experiment teilgenommen?</FieldDescription>
@@ -269,7 +269,7 @@ const PretestForm = forwardRef(({ onSubmit }, ref) => {
                     name="switch-audio-tech-familiarity"
                     control={form.control}
                     render={({ field, fieldState }) => (
-                        <Field orientation="horizontal" data-invalid={fieldState.invalid} className="md:col-span-3">
+                        <Field orientation="horizontal" data-invalid={fieldState.invalid} className="col-span-3">
                             <FieldContent>
                                 <FieldLabel htmlFor="switch-audio-tech-familiarity">Kontakt mit Audiotechnik?</FieldLabel>
                                 <FieldDescription>Haben Sie regelmäßig (z.B. über Ihre Arbeit) mit Audiotechnikverfahren/-forschung zu tun?</FieldDescription>

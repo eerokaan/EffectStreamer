@@ -5,7 +5,7 @@ const useStoreRoot = createStore({
     showDialog: false,
     conditionScaleOffset: null,
     conditionAsset: null,
-    lstRoundIndex: null,
+    conditionListeningSpeakingTestIndex: null,
     lstRole: null
 });
 

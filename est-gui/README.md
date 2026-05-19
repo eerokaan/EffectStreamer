@@ -1,4 +1,4 @@
-# EffectStreamer – GUI
+# EffectStreamer GUI
 
 ## Introduction
 

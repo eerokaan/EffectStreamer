@@ -1,4 +1,4 @@
-# EffectStreamer – Core
+# EffectStreamer Core
 
 ## Introduction
 
@@ -12,7 +12,7 @@ native-gain
 echo-delay
 echo-gain
 packetloss-type (TBD)
-packetloss-amount (TBD)
+packetloss-ratio (TBD)
 ```
 
 Moreover, the EffectStreamer Core is able to be cross-compiled to Linux and Windows at the same time, while also taking care of audio server differences (ALSA vs. WASAPI2); this allows the EffectStreamer Core to be embedded into other applications, like it is done with EffectStreamer GUI (hence the naming "Core").

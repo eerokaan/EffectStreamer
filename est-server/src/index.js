@@ -16,11 +16,11 @@ if (process.env.EST_SERVER_TYPE === "harness") {
 
         childProcess.on("exit", (code, signal) => {
             if (signal === "SIGINT" || signal === "SIGTERM") {
-                console.log(`[Harness] Server instance killed by ${signal}. Exiting harness`);
+                console.log("[Harness] Server instance killed by " + signal + ". Exiting harness");
                 process.exit(0);
             }
 
-            console.log(`[Harness] Server instance exited (code: ${code}). Restarting in 500ms`);
+            console.log("[Harness] Server instance exited (code: " + code + "). Restarting in 500ms");
             setTimeout(spawnServer, 500);
         });
     };
@@ -84,17 +84,16 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         break: "viewBreak",
         ending: "viewEnding"
     };
-
     const viewFlow = helperBuildViewFlow();
 
     let appState = {
         sessionDir: null,
+        clients: new Map(),
         conditionIndex: 0,
         conditionOrder: [],
-        lstRoundIndex: 0,
-        evaluationLoopTransfersCompleted: 0,
-        evaluationLoopPendingViewName: null,
-        clients: new Map(),
+        conditionListeningSpeakingTestIndex: 0,
+        fileTransferCompletedKeys: new Set(),
+        fileTransferPendingViewName: null,
         gates: {
             viewChange: new Set(),
             coreStart: new Set(),
@@ -147,7 +146,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
             // Optional: Write scale data file if provided (for evaluation views)
             if (data.scaleValues) {
                 const roundSuffix = helperGetRoundSuffix(view.metadata.testType);
-                const serverFilename = `client-${client.clientLabel}-${view.metadata.testType}${roundSuffix}-scales.json`;
+                const serverFilename = "client-" + client.clientLabel + "-" + view.metadata.testType + roundSuffix + "-scales.json";
                 helperSaveSessionFile(serverFilename, JSON.stringify(data.scaleValues, null, 4), true);
             }
 
@@ -178,7 +177,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         // ===== pretestSubmitRequest ==============================
         socket.on("est-event:pretestSubmitRequest", (data) => {
             const client = appState.clients.get(socket.id);
-            const serverFilename = `client-${client.clientLabel}-pretest-form.json`;
+            const serverFilename = "client-" + client.clientLabel + "-pretest-form.json";
             helperSaveSessionFile(serverFilename, JSON.stringify(data.formData, null, 4), false);
 
             io.to(socket.id).emit("est-event:pretestSubmitResponse");
@@ -231,20 +230,21 @@ else if (process.env.EST_SERVER_TYPE === "server") {
             // Construct filename: client-{a|b}-{sct|lst}-{microphone|headphones}.ogg
             const originalName = data.filename.replace(".ogg", "");
             const roundSuffix = helperGetRoundSuffix(data.testType);
-            const serverFilename = `client-${client.clientLabel}-${data.testType}${roundSuffix}-${originalName}.ogg`;
+            const serverFilename = "client-" + client.clientLabel + "-" + data.testType + roundSuffix + "-" + originalName + ".ogg";
 
             // Write file to current condition directory
             helperSaveSessionFile(serverFilename, Buffer.from(data.fileData), true);
 
             // Gate: Track received files (2 files from 2 clients = 4 total)
-            const transferStageKey = `${data.testType}${roundSuffix}`;
-            helperGateResolve(appState.gates.fileTransfer, `${transferStageKey}:${socket.id}:${data.filename}`, 4, () => {
-                appState.evaluationLoopTransfersCompleted++;
+            const transferKey = helperGetTransferKeyForTestType(data.testType);
+
+            helperGateResolve(appState.gates.fileTransfer, transferKey + ":" + socket.id + ":" + data.filename, 4, () => {
+                appState.fileTransferCompletedKeys.add(transferKey);
                 io.emit("est-event:fileTransferResponse");
 
                 // Try to resolve any pending double-gated view change
-                if (appState.evaluationLoopPendingViewName && appState.gates.viewChange.size === 2) {
-                    helperResolveGatedViewChange(appState.evaluationLoopPendingViewName);
+                if (appState.fileTransferPendingViewName && helperGetTransferKeyForEvaluationView(appState.fileTransferPendingViewName) === transferKey && appState.gates.viewChange.size === 2) {
+                    helperResolveGatedViewChange(appState.fileTransferPendingViewName);
                 }
             });
         });
@@ -273,11 +273,9 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         if (enabledTests.sct) {
             testViews.push({ name: views.sctExp, passing: "gated", metadata: {} }, { name: views.sct, passing: "direct", metadata: {} }, { name: views.sctEval, passing: "gated", metadata: { testType: "sct" } });
         }
-
         if (enabledTests.lst) {
             testViews.push({ name: views.lstExp, passing: "gated", metadata: {} }, { name: views.lst, passing: "direct", metadata: {} }, { name: views.lstEval, passing: "gated", metadata: { testType: "lst" } });
         }
-
         if (testViews.length > 0) {
             testViews[0].metadata = { ...testViews[0].metadata, loopBehaviour: "start" };
 
@@ -294,7 +292,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
 
     function helperGetConditionAssetName(clientNumber) {
         const conditionPadded = String(appState.conditionIndex + 1).padStart(2, "0");
-        return `client_${clientNumber}/${conditionPadded}.png`;
+        return "client_" + clientNumber + "/" + conditionPadded + ".png";
     }
 
     function helperSaveSessionFile(filename, data, useConditionSubdir = false) {
@@ -353,25 +351,24 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         }
     }
 
+    function helperGetTransferKeyForTestType(testType) {
+        return helperGetConditionDirName() + ":" + testType + helperGetRoundSuffix(testType);
+    }
+
+    function helperGetTransferKeyForEvaluationView(currentViewName) {
+        const view = viewFlow.find((v) => v.name === currentViewName);
+        const testType = view?.metadata?.testType;
+        return testType ? helperGetTransferKeyForTestType(testType) : null;
+    }
+
     function helperIsWaitingForFileTransfers(currentViewName) {
-        const requiresFileTransfers = currentViewName === views.sctEval || currentViewName === views.lstEval;
-        if (!requiresFileTransfers) return false;
-
-        let requiredTransferBatches = 0;
-        if (currentViewName === views.sctEval) {
-            requiredTransferBatches = 1; // SCT finishes -> 1 batch
-        }
-        else if (currentViewName === views.lstEval) {
-            // LST evaluation waits for prior SCT uploads only when SCT is enabled.
-            requiredTransferBatches = (enabledTests.sct ? 1 : 0) + appState.lstRoundIndex + 1;
-        }
-
-        return appState.evaluationLoopTransfersCompleted < requiredTransferBatches;
+        const transferKey = helperGetTransferKeyForEvaluationView(currentViewName);
+        return transferKey !== null && !appState.fileTransferCompletedKeys.has(transferKey);
     }
 
     function helperAdvanceConditionIfNeeded(currentViewName, viewNext) {
         const view = viewFlow.find((v) => v.name === currentViewName);
-        const isFirstLstEval = currentViewName === views.lstEval && appState.lstRoundIndex === 0;
+        const isFirstLstEval = currentViewName === views.lstEval && appState.conditionListeningSpeakingTestIndex === 0;
         const isLoopEndView = view.metadata?.loopBehaviour === "end" && !isFirstLstEval;
 
         // When current view indicates a loop end: Increment conditionIndex
@@ -388,24 +385,23 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         }
 
         const currentCondition = helperGetCurrentCondition();
-        console.log(`[Server] Round ${appState.conditionIndex}: Using condition ${JSON.stringify(currentCondition)}`);
+        console.log("[Server] Round " + appState.conditionIndex + ": Using condition " + JSON.stringify(currentCondition));
         helperSaveSessionFile("condition-settings.json", JSON.stringify(currentCondition, null, 4), true);
 
         return isLoopEndView;
     }
 
     function helperUpdateLstState(currentViewName, viewNext, isLoopEndView) {
-        const isFirstLstEval = currentViewName === views.lstEval && appState.lstRoundIndex === 0;
+        const isFirstLstEval = currentViewName === views.lstEval && appState.conditionListeningSpeakingTestIndex === 0;
 
         if (viewNext === views.lstExp) {
-            appState.lstRoundIndex = 0;
+            appState.conditionListeningSpeakingTestIndex = 0;
         }
         if (isFirstLstEval) {
-            appState.lstRoundIndex = 1;
+            appState.conditionListeningSpeakingTestIndex = 1;
         }
         if (isLoopEndView) {
-            appState.evaluationLoopTransfersCompleted = 0;
-            appState.lstRoundIndex = 0;
+            appState.conditionListeningSpeakingTestIndex = 0;
         }
     }
 
@@ -413,7 +409,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         const viewNext = helperGetNextView(currentViewName);
 
         if (helperIsWaitingForFileTransfers(currentViewName)) {
-            appState.evaluationLoopPendingViewName = currentViewName;
+            appState.fileTransferPendingViewName = currentViewName;
             return;
         }
 
@@ -422,7 +418,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
 
         helperEmitToAll("est-event:viewChangeResponse", (clientSocketId) => helperGetViewData(viewNext, clientSocketId));
         appState.gates.viewChange.clear();
-        appState.evaluationLoopPendingViewName = null;
+        appState.fileTransferPendingViewName = null;
 
         if (viewNext === views.ending) {
             setTimeout(() => {
@@ -436,7 +432,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         const viewIndex = viewFlow.findIndex((view) => view.name === currentView);
         const view = viewFlow[viewIndex];
 
-        if (currentView === views.lstEval && appState.lstRoundIndex === 0) {
+        if (currentView === views.lstEval && appState.conditionListeningSpeakingTestIndex === 0) {
             return views.lst;
         }
 
@@ -482,13 +478,13 @@ else if (process.env.EST_SERVER_TYPE === "server") {
 
     function helperGetRoundSuffix(testType) {
         if (testType !== "lst") return "";
-        return "-r" + (appState.lstRoundIndex + 1);
+        return "-r" + (appState.conditionListeningSpeakingTestIndex + 1);
     }
 
     function helperGetListeningSpeakingTestRole(clientSocketId) {
         const client = appState.clients.get(clientSocketId);
 
-        if (appState.lstRoundIndex === 0) {
+        if (appState.conditionListeningSpeakingTestIndex === 0) {
             return client.clientIndex === 0 ? "speaker" : "listener";
         }
 
@@ -521,7 +517,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
             };
 
             if (isLst || isLstEvaluation) {
-                response.lstRoundIndex = appState.lstRoundIndex;
+                response.conditionListeningSpeakingTestIndex = appState.conditionListeningSpeakingTestIndex;
                 response.lstRole = lstRole;
             }
 
@@ -536,7 +532,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
     // ===========================================
     server.listen(estConfig.server.port, estConfig.server.ipAddress, () => {
         helperCreateFolderStructure();
-        console.log(`[Server] Server started (PID: ${process.pid}). Running on port ${estConfig.server.port}.`);
+        console.log("[Server] Server started (PID: " + process.pid + "). Running on port " + estConfig.server.port + ".");
     });
 }
 // ######################################################################################
