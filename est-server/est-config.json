@@ -3,6 +3,10 @@
         "ipAddress": "0.0.0.0",
         "port": "3000"
     },
+    "tests": {
+        "short-conversation-test": true,
+        "listening-speaking-test": true
+    },
     "conditions": {
         "baseline": [{ "echoDelay": "20", "echoGain": "0.002" }],
         "random": [

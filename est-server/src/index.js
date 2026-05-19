@@ -51,6 +51,14 @@ else if (process.env.EST_SERVER_TYPE === "server") {
     const fs = require("fs");
 
     const estConfig = JSON.parse(fs.readFileSync(helperResolveConfigPath(), "UTF-8"));
+    const testConfigKeys = {
+        sct: "short-conversation-test",
+        lst: "listening-speaking-test"
+    };
+    const enabledTests = {
+        sct: estConfig.tests?.[testConfigKeys.sct] !== false,
+        lst: estConfig.tests?.[testConfigKeys.lst] !== false
+    };
 
     const app = express();
     const server = http.createServer(app);
@@ -77,27 +85,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         ending: "viewEnding"
     };
 
-    const viewFlow = [
-        { name: views.waiting, passing: "direct", metadata: {} },
-        { name: views.welcome, passing: "direct", metadata: {} },
-        { name: views.pretest, passing: "gated", metadata: {} },
-        {
-            name: views.sctExp,
-            passing: "gated",
-            metadata: { loopBehaviour: "start" }
-        },
-        { name: views.sct, passing: "direct", metadata: {} },
-        { name: views.sctEval, passing: "gated", metadata: { testType: "sct" } },
-        { name: views.lstExp, passing: "gated", metadata: {} },
-        { name: views.lst, passing: "direct", metadata: {} },
-        {
-            name: views.lstEval,
-            passing: "gated",
-            metadata: { loopBehaviour: "end", testType: "lst" }
-        },
-        { name: views.break, passing: "gated", metadata: { loopBehaviour: "break" } },
-        { name: views.ending, passing: "direct", metadata: {} }
-    ];
+    const viewFlow = helperBuildViewFlow();
 
     let appState = {
         sessionDir: null,
@@ -279,6 +267,27 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         }
     }
 
+    function helperBuildViewFlow() {
+        const testViews = [];
+
+        if (enabledTests.sct) {
+            testViews.push({ name: views.sctExp, passing: "gated", metadata: {} }, { name: views.sct, passing: "direct", metadata: {} }, { name: views.sctEval, passing: "gated", metadata: { testType: "sct" } });
+        }
+
+        if (enabledTests.lst) {
+            testViews.push({ name: views.lstExp, passing: "gated", metadata: {} }, { name: views.lst, passing: "direct", metadata: {} }, { name: views.lstEval, passing: "gated", metadata: { testType: "lst" } });
+        }
+
+        if (testViews.length > 0) {
+            testViews[0].metadata = { ...testViews[0].metadata, loopBehaviour: "start" };
+
+            const loopEndView = [...testViews].reverse().find((view) => view.metadata?.testType);
+            loopEndView.metadata = { ...loopEndView.metadata, loopBehaviour: "end" };
+        }
+
+        return [{ name: views.waiting, passing: "direct", metadata: {} }, { name: views.welcome, passing: "direct", metadata: {} }, { name: views.pretest, passing: "gated", metadata: {} }, ...testViews, ...(testViews.length > 0 ? [{ name: views.break, passing: "gated", metadata: { loopBehaviour: "break" } }] : []), { name: views.ending, passing: "direct", metadata: {} }];
+    }
+
     function helperGetConditionDirName() {
         return String(appState.conditionIndex + 1).padStart(4, "0");
     }
@@ -353,9 +362,8 @@ else if (process.env.EST_SERVER_TYPE === "server") {
             requiredTransferBatches = 1; // SCT finishes -> 1 batch
         }
         else if (currentViewName === views.lstEval) {
-            // LST evaluation 1 finishes -> 2 batches (SCT + LST1)
-            // LST evaluation 2 finishes -> 3 batches (SCT + LST1 + LST2)
-            requiredTransferBatches = appState.lstRoundIndex === 0 ? 2 : 3;
+            // LST evaluation waits for prior SCT uploads only when SCT is enabled.
+            requiredTransferBatches = (enabledTests.sct ? 1 : 0) + appState.lstRoundIndex + 1;
         }
 
         return appState.evaluationLoopTransfersCompleted < requiredTransferBatches;
@@ -382,7 +390,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         const currentCondition = helperGetCurrentCondition();
         console.log(`[Server] Round ${appState.conditionIndex}: Using condition ${JSON.stringify(currentCondition)}`);
         helperSaveSessionFile("condition-settings.json", JSON.stringify(currentCondition, null, 4), true);
-        
+
         return isLoopEndView;
     }
 
