@@ -146,7 +146,15 @@ async function socketLogic() {
     appContext.socket.on("est-event:coreStartResponse", async (data) => {
         // Stage 1: Sender component
         if (data.component === "sender") {
-            appContext.estCoreSender = await helperEstCoreSpawn(["--mode", data.component, ...(data.deviceSource ? ["--device", data.deviceSource] : []), "--peerip", data.peerIp, "--echo-delay", data.echoDelay]);
+            const args = [
+                "--mode", data.component,
+                ...(data.deviceSource ? ["--device", data.deviceSource] : []),
+                "--peerip", data.peerIp,
+                ...(data.nativeDelay != null ? ["--native-delay", data.nativeDelay] : []),
+                ...(data.echoDelay != null ? ["--echo-delay", data.echoDelay] : [])
+            ];
+
+            appContext.estCoreSender = await helperEstCoreSpawn(args);
             appContext.socket.emit("est-event:coreStartRequest", {
                 component: "receiver"
             });
@@ -154,7 +162,14 @@ async function socketLogic() {
 
         // Stage 2: Receiver component
         else if (data.component === "receiver") {
-            appContext.estCoreReceiver = await helperEstCoreSpawn(["--mode", data.component, ...(data.deviceSink ? ["--device", data.deviceSink] : []), "--echo-gain", data.echoGain]);
+            const args = [
+                "--mode", data.component,
+                ...(data.deviceSink ? ["--device", data.deviceSink] : []),
+                ...(data.nativeGain != null ? ["--native-gain", data.nativeGain] : []),
+                ...(data.echoGain != null ? ["--echo-gain", data.echoGain] : [])
+            ];
+
+            appContext.estCoreReceiver = await helperEstCoreSpawn(args);
         }
     });
 

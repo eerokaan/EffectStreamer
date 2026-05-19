@@ -17,9 +17,9 @@ Before starting the server, place an `est-config.json` file next to the server e
         "port": "3000"
     },
     "conditions": {
-        "baseline": [{ "echoDelay": "20", "echoGain": "0.002" }],
+        "baseline": [{ "nativeDelay": "0", "nativeGain": "1.0", "echoDelay": "20", "echoGain": "0.002" }],
         "random": [
-            { "echoDelay": "50", "echoGain": "0.03" },
+            { "nativeDelay": "0", "nativeGain": "1.0", "echoDelay": "50", "echoGain": "0.03" },
             { "echoDelay": "100", "echoGain": "0.1" }
         ]
     }
@@ -27,6 +27,8 @@ Before starting the server, place an `est-config.json` file next to the server e
 ```
 
 The `server.ipAddress` and `server.port` values define where the server listens for GUI clients. The `conditions.baseline` entry is used first, while the entries under `conditions.random` are shuffled for the remaining experiment rounds.
+
+The condition parameters `nativeDelay`, `nativeGain`, `echoDelay`, and `echoGain` are optional. If a parameter is omitted, est-core applies its default value; see the [est-core README](../est-core/README.md) for the defaults. In the example above, the second random condition omits `nativeDelay` and `nativeGain`, so their defaults are used instead.
 
 The server writes session data to `~/effectstreamer`. Each experiment run receives a new numbered session directory containing submitted forms, scale results, condition settings, and transferred audio recordings.
 
