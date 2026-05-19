@@ -100,6 +100,7 @@ int run_receiver(ReceiverParams *params)
     g_print("Starting EffectStreamer in receiver mode\n");
     g_print("  Platform: %s\n", get_platform_name());
     g_print("  Device: %s\n", params->device);
+    g_print("  Native Gain: %.2f\n", params->nativegain);
     g_print("  Echo Gain: %.2f\n", params->echogain);
 
     /* Create session directory */
@@ -187,7 +188,7 @@ int run_receiver(ReceiverParams *params)
     g_object_set(G_OBJECT(udpsrc1), "port", 9004, "caps", caps_rtp, NULL);
     g_object_set(G_OBJECT(rtpjitterbuffer1), "latency", 5, "drop-on-latency", TRUE, NULL);
     g_object_set(G_OBJECT(capsfilter1), "caps", caps_audio, NULL);
-    g_object_set(G_OBJECT(volume1), "volume", 1.0, NULL);
+    g_object_set(G_OBJECT(volume1), "volume", params->nativegain, NULL);
 
     /* Configure source 2 (echo) */
     g_object_set(G_OBJECT(udpsrc2), "port", 9005, "caps", caps_rtp, NULL);

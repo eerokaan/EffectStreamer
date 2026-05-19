@@ -30,6 +30,7 @@ typedef struct
 {
     char *device;
     char *peerip;
+    int nativedelay;
     int echodelay;
 } SenderParams;
 
@@ -37,6 +38,7 @@ typedef struct
 typedef struct
 {
     char *device;
+    double nativegain;
     double echogain;
 } ReceiverParams;
 

@@ -61,25 +61,36 @@ int run_sender(SenderParams *params)
     GstElement *alsasrc, *audioconvert, *audioresample, *capsfilter;
     GstElement *rtpL16pay, *tee;
     GstElement *queue1, *udpsink1; /* To peer */
-    GstElement *queue2, *udpsink2; /* To localhost with threshold */
+    GstElement *queue2, *udpsink2; /* To localhost for echo */
     GstElement *queue3, *udpsink3; /* To localhost for recording */
     GstCaps *caps;
-    gint64 threshold_adjusted;
+    gint64 nativedelay_adjusted;
+    gint64 echodelay_adjusted;
 
-    /* Calculate adjusted threshold (matching bash script logic) */
-    if (params->echodelay <= 20)
+    /* Calculate adjusted thresholds */
+    if (params->nativedelay <= 20)
     {
-        threshold_adjusted = 0;
+        nativedelay_adjusted = 0;
     }
     else
     {
-        threshold_adjusted = (params->echodelay - 20) * 1000000LL; /* Convert to nanoseconds */
+        nativedelay_adjusted = (params->nativedelay - 20) * 1000000LL;
+    }
+
+    if (params->echodelay <= 20)
+    {
+        echodelay_adjusted = 0;
+    }
+    else
+    {
+        echodelay_adjusted = (params->echodelay - 20) * 1000000LL;
     }
 
     g_print("Starting EffectStreamer in sender mode\n");
     g_print("  Platform: %s\n", get_platform_name());
     g_print("  Device: %s\n", params->device);
     g_print("  Peer IP: %s\n", params->peerip);
+    g_print("  Native Delay: %d ms\n", params->nativedelay);
     g_print("  Echo Delay: %d ms\n", params->echodelay);
 
     /* Create GStreamer elements */
@@ -120,7 +131,7 @@ int run_sender(SenderParams *params)
         "max-size-buffers", (guint64)0,
         "max-size-bytes", (guint64)0,
         "max-size-time", (guint64)0,
-        "min-threshold-time", (guint64)0,
+        "min-threshold-time", (guint64)nativedelay_adjusted,
         NULL);
 
     /* Queue 2: Define buffer limits */
@@ -128,7 +139,7 @@ int run_sender(SenderParams *params)
         "max-size-buffers", (guint64)0,
         "max-size-bytes", (guint64)0,
         "max-size-time", (guint64)0,
-        "min-threshold-time", (guint64)threshold_adjusted,
+        "min-threshold-time", (guint64)echodelay_adjusted,
         NULL);
 
     /* Queue 3: Define buffer limits */
