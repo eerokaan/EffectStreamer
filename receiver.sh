@@ -7,13 +7,18 @@
 
 # Initialize variables
 DEVICE=""
-ECHOGAIN=""
+NATIVEGAIN="1.0"
+ECHOGAIN="1.0"
 
 # Parse command-line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
         --device)
             DEVICE="$2"
+            shift 2
+            ;;
+        --native-gain)
+            NATIVEGAIN="$2"
             shift 2
             ;;
         --echo-gain)
@@ -28,8 +33,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Check that required parameters are provided
-if [[ -z "$DEVICE" || -z "$ECHOGAIN" ]]; then
-    echo "Usage: $0 --device <DEVICE-ID> --echo-gain <GAIN>"
+if [[ -z "$DEVICE" ]]; then
+    echo "Usage: $0 --device <DEVICE-ID> [--native-gain <GAIN>] [--echo-gain <GAIN>]"
     exit 1
 fi
 
@@ -48,7 +53,7 @@ chrt -f 99 gst-launch-1.0 -e -v \
         queue ! audioconvert ! audioresample ! opusenc bitrate=128000 ! oggmux ! filesink location="${RECORD_FILE_HEADPHONES}" sync=false async=false \
     udpsrc port=9004 caps="application/x-rtp,media=audio,encoding-name=L16,clock-rate=48000,channels=1,payload=96" ! \
         rtpjitterbuffer latency=5 drop-on-latency=true ! rtpL16depay ! audioconvert ! \
-        audio/x-raw,channels=1,rate=48000 ! volume volume=1.0 ! add. \
+        audio/x-raw,channels=1,rate=48000 ! volume volume=${NATIVEGAIN} ! add. \
     udpsrc port=9005 caps="application/x-rtp,media=audio,encoding-name=L16,clock-rate=48000,channels=1,payload=96" ! \
         rtpjitterbuffer latency=5 drop-on-latency=true ! rtpL16depay ! audioconvert ! \
         audio/x-raw,channels=1,rate=48000 ! volume volume=${ECHOGAIN} ! add. \

@@ -1,4 +1,4 @@
-# EffectStreamer – Script
+# EffectStreamer Script
 
 This is the EffectStreamer Script branch. Pipeline implementations for `est-core` are tested here via the GStreamer `gst-launch-1.0` binary before being ported to C code. This allows for faster testing and development.
 
