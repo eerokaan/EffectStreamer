@@ -6,73 +6,64 @@
 
 #include "effectstreamer.h"
 
-static gboolean bus_call(GstBus *bus, GstMessage *msg, gpointer data)
-{
-    AppContext *context = (AppContext *)data;
+static gboolean bus_call(GstBus* bus, GstMessage* msg, gpointer data) {
+    AppContext* context = (AppContext*)data;
 
-    switch (GST_MESSAGE_TYPE(msg))
-    {
-    case GST_MESSAGE_EOS:
-        g_print("End of stream\n");
-        g_main_loop_quit(context->loop);
-        break;
+    switch (GST_MESSAGE_TYPE(msg)) {
+        case GST_MESSAGE_EOS:
+            g_print("End of stream\n");
+            g_main_loop_quit(context->loop);
+            break;
 
-    case GST_MESSAGE_ERROR:
-    {
-        gchar *debug;
-        GError *error;
+        case GST_MESSAGE_ERROR: {
+            gchar* debug;
+            GError* error;
 
-        gst_message_parse_error(msg, &error, &debug);
-        g_free(debug);
+            gst_message_parse_error(msg, &error, &debug);
+            g_free(debug);
 
-        g_printerr("Error: %s\n", error->message);
-        g_error_free(error);
+            g_printerr("Error: %s\n", error->message);
+            g_error_free(error);
 
-        g_main_loop_quit(context->loop);
-        break;
-    }
+            g_main_loop_quit(context->loop);
+            break;
+        }
 
-    case GST_MESSAGE_WARNING:
-    {
-        gchar *debug;
-        GError *warning;
+        case GST_MESSAGE_WARNING: {
+            gchar* debug;
+            GError* warning;
 
-        gst_message_parse_warning(msg, &warning, &debug);
-        g_free(debug);
+            gst_message_parse_warning(msg, &warning, &debug);
+            g_free(debug);
 
-        g_warning("Warning: %s\n", warning->message);
-        g_error_free(warning);
-        break;
-    }
+            g_warning("Warning: %s\n", warning->message);
+            g_error_free(warning);
+            break;
+        }
 
-    default:
-        break;
+        default:
+            break;
     }
 
     return TRUE;
 }
 
-static char *create_session_directory(void)
-{
-    char *session_dir;
+static char* create_session_directory(void) {
+    char* session_dir;
     session_dir = g_build_filename(g_get_home_dir(), "effectstreamer", NULL);
 
-    if (g_mkdir_with_parents(session_dir, 0755) != 0)
-    {
+    if (g_mkdir_with_parents(session_dir, 0755) != 0) {
         g_printerr("Warning: Could not create session directory %s\n", session_dir);
-    }
-    else
-    {
+    } else {
         g_print("Created session directory: %s\n", session_dir);
     }
 
     return session_dir;
 }
 
-int run_receiver(ReceiverParams *params)
-{
+int run_receiver(ReceiverParams* params) {
     AppContext context;
-    GstBus *bus;
+    GstBus* bus;
     guint bus_watch_id;
 
     /* Elements for source 1 (peer audio) */
@@ -92,9 +83,9 @@ int run_receiver(ReceiverParams *params)
 
     GstCaps *caps_rtp, *caps_audio;
     GstPad *adder_sink1, *adder_sink2, *src_pad1, *src_pad2;
-    char *session_dir;
-    char *record_file_microphone;
-    char *record_file_headphones;
+    char* session_dir;
+    char* record_file_microphone;
+    char* record_file_headphones;
 
     g_print("Starting EffectStreamer in receiver mode\n");
     g_print("  Platform: %s\n", get_platform_name());
@@ -151,16 +142,10 @@ int run_receiver(ReceiverParams *params)
     oggmux_hp = gst_element_factory_make("oggmux", "ogg-muxer-hp");
     filesink_hp = gst_element_factory_make("filesink", "file-sink-hp");
 
-    if (!context.pipeline || !udpsrc1 || !rtpjitterbuffer1 || !rtpL16depay1 ||
-        !audioconvert1 || !capsfilter1 || !volume1 ||
-        !udpsrc2 || !rtpjitterbuffer2 || !rtpL16depay2 ||
-        !audioconvert2 || !capsfilter2 || !volume2 ||
-        !udpsrc3 || !rtpjitterbuffer3 || !rtpL16depay3 || !audioconvert3 ||
-        !opusenc_mic || !oggmux_mic || !filesink_mic ||
-        !adder || !tee || !queue_speaker || !queue_record ||
-        !audioconvert_speaker || !audioresample_speaker || !alsasink ||
-        !audioconvert_record || !audioresample_record || !opusenc_hp || !oggmux_hp || !filesink_hp)
-    {
+    if (!context.pipeline || !udpsrc1 || !rtpjitterbuffer1 || !rtpL16depay1 || !audioconvert1 || !capsfilter1 || !volume1 || !udpsrc2 || !rtpjitterbuffer2 ||
+        !rtpL16depay2 || !audioconvert2 || !capsfilter2 || !volume2 || !udpsrc3 || !rtpjitterbuffer3 || !rtpL16depay3 || !audioconvert3 || !opusenc_mic ||
+        !oggmux_mic || !filesink_mic || !adder || !tee || !queue_speaker || !queue_record || !audioconvert_speaker || !audioresample_speaker || !alsasink ||
+        !audioconvert_record || !audioresample_record || !opusenc_hp || !oggmux_hp || !filesink_hp) {
         g_printerr("Not all elements could be created.\n");
         g_free(session_dir);
         g_free(record_file_microphone);
@@ -169,19 +154,11 @@ int run_receiver(ReceiverParams *params)
     }
 
     /* Set RTP caps for UDP sources */
-    caps_rtp = gst_caps_new_simple("application/x-rtp",
-                                   "media", G_TYPE_STRING, "audio",
-                                   "encoding-name", G_TYPE_STRING, "L16",
-                                   "clock-rate", G_TYPE_INT, 48000,
-                                   "channels", G_TYPE_INT, 1,
-                                   "payload", G_TYPE_INT, 96,
-                                   NULL);
+    caps_rtp = gst_caps_new_simple("application/x-rtp", "media", G_TYPE_STRING, "audio", "encoding-name", G_TYPE_STRING, "L16", "clock-rate", G_TYPE_INT, 48000,
+                                   "channels", G_TYPE_INT, 1, "payload", G_TYPE_INT, 96, NULL);
 
     /* Set audio caps for after depayloading */
-    caps_audio = gst_caps_new_simple("audio/x-raw",
-                                     "channels", G_TYPE_INT, 1,
-                                     "rate", G_TYPE_INT, 48000,
-                                     NULL);
+    caps_audio = gst_caps_new_simple("audio/x-raw", "channels", G_TYPE_INT, 1, "rate", G_TYPE_INT, 48000, NULL);
 
     /* Configure source 1 (peer) */
     g_object_set(G_OBJECT(udpsrc1), "port", 9004, "caps", caps_rtp, NULL);
@@ -201,44 +178,26 @@ int run_receiver(ReceiverParams *params)
 
     /* Configure opus encoders and file sinks */
     g_object_set(G_OBJECT(opusenc_mic), "bitrate", 128000, NULL);
-    g_object_set(G_OBJECT(filesink_mic),
-                 "location", record_file_microphone,
-                 "sync", FALSE,
-                 "async", FALSE,
-                 NULL);
+    g_object_set(G_OBJECT(filesink_mic), "location", record_file_microphone, "sync", FALSE, "async", FALSE, NULL);
 
     g_object_set(G_OBJECT(opusenc_hp), "bitrate", 128000, NULL);
-    g_object_set(G_OBJECT(filesink_hp),
-                 "location", record_file_headphones,
-                 "sync", FALSE,
-                 "async", FALSE,
-                 NULL);
+    g_object_set(G_OBJECT(filesink_hp), "location", record_file_headphones, "sync", FALSE, "async", FALSE, NULL);
 
     /* Configure audio sink */
-    g_object_set(G_OBJECT(alsasink),
-                 "sync", FALSE,
-                 "async", FALSE,
-                 NULL);
+    g_object_set(G_OBJECT(alsasink), "sync", FALSE, "async", FALSE, NULL);
     configure_audio_sink(alsasink, params->device);
 
     gst_caps_unref(caps_rtp);
     gst_caps_unref(caps_audio);
 
     /* Add all elements to pipeline */
-    gst_bin_add_many(GST_BIN(context.pipeline),
-                     udpsrc1, rtpjitterbuffer1, rtpL16depay1, audioconvert1, capsfilter1, volume1,
-                     udpsrc2, rtpjitterbuffer2, rtpL16depay2, audioconvert2, capsfilter2, volume2,
-                     udpsrc3, rtpjitterbuffer3, rtpL16depay3, audioconvert3,
-                     opusenc_mic, oggmux_mic, filesink_mic,
-                     adder, tee, queue_speaker, queue_record,
-                     audioconvert_speaker, audioresample_speaker, alsasink,
-                     audioconvert_record, audioresample_record, opusenc_hp, oggmux_hp, filesink_hp,
-                     NULL);
+    gst_bin_add_many(GST_BIN(context.pipeline), udpsrc1, rtpjitterbuffer1, rtpL16depay1, audioconvert1, capsfilter1, volume1, udpsrc2, rtpjitterbuffer2,
+                     rtpL16depay2, audioconvert2, capsfilter2, volume2, udpsrc3, rtpjitterbuffer3, rtpL16depay3, audioconvert3, opusenc_mic, oggmux_mic,
+                     filesink_mic, adder, tee, queue_speaker, queue_record, audioconvert_speaker, audioresample_speaker, alsasink, audioconvert_record,
+                     audioresample_record, opusenc_hp, oggmux_hp, filesink_hp, NULL);
 
     /* Link source 1 (peer) to adder */
-    if (!gst_element_link_many(udpsrc1, rtpjitterbuffer1, rtpL16depay1,
-                               audioconvert1, capsfilter1, volume1, NULL))
-    {
+    if (!gst_element_link_many(udpsrc1, rtpjitterbuffer1, rtpL16depay1, audioconvert1, capsfilter1, volume1, NULL)) {
         g_printerr("Failed to link source 1 pipeline.\n");
         gst_object_unref(context.pipeline);
         g_free(session_dir);
@@ -248,9 +207,7 @@ int run_receiver(ReceiverParams *params)
     }
 
     /* Link source 2 (echo) to adder */
-    if (!gst_element_link_many(udpsrc2, rtpjitterbuffer2, rtpL16depay2,
-                               audioconvert2, capsfilter2, volume2, NULL))
-    {
+    if (!gst_element_link_many(udpsrc2, rtpjitterbuffer2, rtpL16depay2, audioconvert2, capsfilter2, volume2, NULL)) {
         g_printerr("Failed to link source 2 pipeline.\n");
         gst_object_unref(context.pipeline);
         g_free(session_dir);
@@ -260,9 +217,7 @@ int run_receiver(ReceiverParams *params)
     }
 
     /* Link source 3 (microphone recording) to file */
-    if (!gst_element_link_many(udpsrc3, rtpjitterbuffer3, rtpL16depay3,
-                               audioconvert3, opusenc_mic, oggmux_mic, filesink_mic, NULL))
-    {
+    if (!gst_element_link_many(udpsrc3, rtpjitterbuffer3, rtpL16depay3, audioconvert3, opusenc_mic, oggmux_mic, filesink_mic, NULL)) {
         g_printerr("Failed to link source 3 (microphone) pipeline.\n");
         gst_object_unref(context.pipeline);
         g_free(session_dir);
@@ -272,8 +227,7 @@ int run_receiver(ReceiverParams *params)
     }
 
     /* Link adder to tee */
-    if (!gst_element_link(adder, tee))
-    {
+    if (!gst_element_link(adder, tee)) {
         g_printerr("Failed to link adder to tee.\n");
         gst_object_unref(context.pipeline);
         g_free(session_dir);
@@ -283,9 +237,7 @@ int run_receiver(ReceiverParams *params)
     }
 
     /* Link tee branch 1 (to speaker) */
-    if (!gst_element_link_many(tee, queue_speaker, audioconvert_speaker,
-                               audioresample_speaker, alsasink, NULL))
-    {
+    if (!gst_element_link_many(tee, queue_speaker, audioconvert_speaker, audioresample_speaker, alsasink, NULL)) {
         g_printerr("Failed to link tee to speaker output.\n");
         gst_object_unref(context.pipeline);
         g_free(session_dir);
@@ -295,9 +247,7 @@ int run_receiver(ReceiverParams *params)
     }
 
     /* Link tee branch 2 (to headphones recording) */
-    if (!gst_element_link_many(tee, queue_record, audioconvert_record,
-                               audioresample_record, opusenc_hp, oggmux_hp, filesink_hp, NULL))
-    {
+    if (!gst_element_link_many(tee, queue_record, audioconvert_record, audioresample_record, opusenc_hp, oggmux_hp, filesink_hp, NULL)) {
         g_printerr("Failed to link tee to headphones recording.\n");
         gst_object_unref(context.pipeline);
         g_free(session_dir);
@@ -309,8 +259,7 @@ int run_receiver(ReceiverParams *params)
     /* Manually link volume1 and volume2 to adder (they need sink pads) */
     src_pad1 = gst_element_get_static_pad(volume1, "src");
     adder_sink1 = gst_element_request_pad_simple(adder, "sink_%u");
-    if (gst_pad_link(src_pad1, adder_sink1) != GST_PAD_LINK_OK)
-    {
+    if (gst_pad_link(src_pad1, adder_sink1) != GST_PAD_LINK_OK) {
         g_printerr("Failed to link volume1 to adder.\n");
         gst_object_unref(context.pipeline);
         g_free(session_dir);
@@ -322,8 +271,7 @@ int run_receiver(ReceiverParams *params)
 
     src_pad2 = gst_element_get_static_pad(volume2, "src");
     adder_sink2 = gst_element_request_pad_simple(adder, "sink_%u");
-    if (gst_pad_link(src_pad2, adder_sink2) != GST_PAD_LINK_OK)
-    {
+    if (gst_pad_link(src_pad2, adder_sink2) != GST_PAD_LINK_OK) {
         g_printerr("Failed to link volume2 to adder.\n");
         gst_object_unref(context.pipeline);
         g_free(session_dir);
@@ -341,8 +289,7 @@ int run_receiver(ReceiverParams *params)
     /* Set the pipeline to playing state */
     g_print("Starting receiver pipeline...\n");
     GstStateChangeReturn ret = gst_element_set_state(context.pipeline, GST_STATE_PLAYING);
-    if (ret == GST_STATE_CHANGE_FAILURE)
-    {
+    if (ret == GST_STATE_CHANGE_FAILURE) {
         g_printerr("Unable to set the pipeline to the playing state.\n");
         gst_object_unref(context.pipeline);
         g_free(session_dir);

@@ -8,36 +8,33 @@
 
 /* Platform-specific includes */
 #ifdef _WIN32
-#include <windows.h>
 #include <direct.h>
+#include <windows.h>
 #define mkdir(path, mode) _mkdir(path)
 #define sleep(x) Sleep((x) * 1000)
 #else
-#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 #endif
 
 /* Common structures */
-typedef struct
-{
-    GMainLoop *loop;
-    GstElement *pipeline;
+typedef struct {
+    GMainLoop* loop;
+    GstElement* pipeline;
 } AppContext;
 
 /* Sender parameters */
-typedef struct
-{
-    char *device;
-    char *peerip;
+typedef struct {
+    char* device;
+    char* peerip;
     int nativedelay;
     int echodelay;
 } SenderParams;
 
 /* Receiver parameters */
-typedef struct
-{
-    char *device;
+typedef struct {
+    char* device;
     double nativegain;
     double echogain;
 } ReceiverParams;
@@ -54,11 +51,11 @@ typedef struct
 #endif
 
 /* Function declarations */
-const char *get_platform_name(void);
-char *get_first_audio_device(gboolean is_source);
-int run_sender(SenderParams *params);
-int run_receiver(ReceiverParams *params);
-void configure_audio_source(GstElement *src, const char *device);
-void configure_audio_sink(GstElement *sink, const char *device);
+const char* get_platform_name(void);
+char* get_first_audio_device(gboolean is_source);
+int run_sender(SenderParams* params);
+int run_receiver(ReceiverParams* params);
+void configure_audio_source(GstElement* src, const char* device);
+void configure_audio_sink(GstElement* sink, const char* device);
 
 #endif /* EFFECTSTREAMER_H */
