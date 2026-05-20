@@ -1,8 +1,7 @@
 /*
- * ╔════════════════════════════════════════╗
- * ║ EffectStreamer NetSim GStreamer Plugin ║
- * ║ Quality and Usability Lab / TU Berlin  ║
- * ╚════════════════════════════════════════╝
+ * EffectStreamer NetSim GStreamer Plugin
+ * @company Quality and Usability Lab | TU Berlin
+ * @author  Eero Kaan <eerokaan@qu.tu-berlin.de>
  */
 
 #ifndef __GST_EST_NET_SIM_H__

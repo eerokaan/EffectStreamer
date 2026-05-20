@@ -1,8 +1,7 @@
 /*
- * ╔════════════════════════════════════════╗
- * ║ EffectStreamer NetSim GStreamer Plugin ║
- * ║ Quality and Usability Lab / TU Berlin  ║
- * ╚════════════════════════════════════════╝
+ * EffectStreamer NetSim GStreamer Plugin
+ * @company Quality and Usability Lab | TU Berlin
+ * @author  Eero Kaan <eerokaan@qu.tu-berlin.de>
  */
 
 #ifdef HAVE_CONFIG_H
@@ -234,7 +233,7 @@ gst_est_net_sim_class_init(GstEstNetSimClass *klass)
                                           "EffectStreamer Network Simulator",
                                           "Filter/Network",
                                           "Drops buffers to simulate random or G.107 Markov packet loss",
-                                          "EffectStreamer contributors");
+                                          "Eero Kaan | Quality and Usability Lab | TU Berlin");
 
     gst_element_class_add_static_pad_template(element_class, &src_template);
     gst_element_class_add_static_pad_template(element_class, &sink_template);
