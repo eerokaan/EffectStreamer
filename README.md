@@ -24,4 +24,4 @@ All three components are distributed as fully freestanding executables, requirin
 
 For any further assistance and inquiries, please do not hesitate to contact Eero Kaan at [eerokaan@qu.tu-berlin.de](mailto:eerokaan@qu.tu-berlin.de).
 
-EffectStreamer was build at the Quality and Usability Lab / TU Berlin.
+EffectStreamer was developed at the Quality and Usability Lab at TU Berlin.

@@ -1,6 +1,6 @@
 appId: de.tu-berlin.qu.effectstreamer.gui
 productName: EffectStreamer
-copyright: Quality and Usability Lab / TU Berlin / Eero Kaan
+copyright: Eero Kaan | Quality and Usability Lab | TU Berlin
 
 directories:
     buildResources: build

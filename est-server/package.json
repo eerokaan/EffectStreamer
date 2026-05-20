@@ -5,7 +5,7 @@
     "description": "Tool to research the effects of echo in voice calls",
     "main": "./src/index.js",
     "author": "Eero Kaan",
-    "company": "Quality and Usability Lab / TU Berlin",
+    "company": "Quality and Usability Lab | TU Berlin",
     "scripts": {
         "dev:format": "prettier --write .",
         "dev:lint": "eslint --cache --fix .",

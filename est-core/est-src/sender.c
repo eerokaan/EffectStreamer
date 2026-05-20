@@ -1,8 +1,7 @@
 /*
- * ╔═══════════════════════════════════════╗
- * ║ Quality and Usability Lab / TU Berlin ║
- * ║ EffectStreamer (Sender)               ║
- * ╚═══════════════════════════════════════╝
+ * EffectStreamer Core
+ * @company Quality and Usability Lab | TU Berlin
+ * @author  Eero Kaan <eerokaan@qu.tu-berlin.de>
  */
 
 #include "effectstreamer.h"
