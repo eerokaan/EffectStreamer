@@ -8,7 +8,7 @@
 #include "config.h"
 #endif
 
-#include "gstestnetsim.h"
+#include "estnetsim.h"
 
 GST_DEBUG_CATEGORY_STATIC(gst_est_net_sim_debug);
 #define GST_CAT_DEFAULT gst_est_net_sim_debug
@@ -68,7 +68,8 @@ static GType gst_est_net_sim_packetloss_type_get_type(void) {
         static const GEnumValue values[] = {
             {GST_EST_NET_SIM_PACKETLOSS_NONE, "No packet loss", "none"},
             {GST_EST_NET_SIM_PACKETLOSS_RANDOM,
-             "Independent random packet loss", "random"},
+             "Independent random packet loss",
+             "random"},
             {GST_EST_NET_SIM_PACKETLOSS_BURSTY, "Bursty packet loss", "bursty"},
             {0, NULL, NULL}};
         GType id = g_enum_register_static("GstEstNetSimPacketLossType", values);
@@ -84,7 +85,8 @@ static GType gst_est_net_sim_burst_model_get_type(void) {
     if (g_once_init_enter(&type_id)) {
         static const GEnumValue values[] = {
             {GST_EST_NET_SIM_BURST_MODEL_G107_MARKOV,
-             "ITU-T G.107 two-state Markov model", "g107-markov"},
+             "ITU-T G.107 two-state Markov model",
+             "g107-markov"},
             {0, NULL, NULL}};
         GType id = g_enum_register_static("GstEstNetSimBurstModel", values);
         g_once_init_leave(&type_id, id);
@@ -95,43 +97,59 @@ static GType gst_est_net_sim_burst_model_get_type(void) {
 
 static void gst_est_net_sim_install_properties(GObjectClass* gobject_class) {
     g_object_class_install_property(
-        gobject_class, PROP_PACKETLOSS_TYPE,
-        g_param_spec_enum("packetloss-type", "Packet loss type",
+        gobject_class,
+        PROP_PACKETLOSS_TYPE,
+        g_param_spec_enum("packetloss-type",
+                          "Packet loss type",
                           "Packet loss generation type",
                           GST_TYPE_EST_NET_SIM_PACKETLOSS_TYPE,
                           DEFAULT_PACKETLOSS_TYPE,
                           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property(
-        gobject_class, PROP_PACKETLOSS_RATIO,
+        gobject_class,
+        PROP_PACKETLOSS_RATIO,
         g_param_spec_double(
-            "packetloss-ratio", "Packet loss ratio",
-            "Packet loss ratio as a fraction between 0.0 and 1.0", 0.0, 1.0,
+            "packetloss-ratio",
+            "Packet loss ratio",
+            "Packet loss ratio as a fraction between 0.0 and 1.0",
+            0.0,
+            1.0,
             DEFAULT_PACKETLOSS_RATIO,
             G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property(
-        gobject_class, PROP_PACKETLOSS_SEED,
-        g_param_spec_uint("packetloss-seed", "Packet loss seed",
+        gobject_class,
+        PROP_PACKETLOSS_SEED,
+        g_param_spec_uint("packetloss-seed",
+                          "Packet loss seed",
                           "Seed for reproducible packet loss; 0 chooses a "
                           "random seed per stream",
-                          0, G_MAXUINT, DEFAULT_PACKETLOSS_SEED,
+                          0,
+                          G_MAXUINT,
+                          DEFAULT_PACKETLOSS_SEED,
                           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property(
-        gobject_class, PROP_PACKETLOSS_BURST_MODEL,
-        g_param_spec_enum("packetloss-burst-model", "Packet loss burst model",
+        gobject_class,
+        PROP_PACKETLOSS_BURST_MODEL,
+        g_param_spec_enum("packetloss-burst-model",
+                          "Packet loss burst model",
                           "Model used to generate bursty packet loss",
                           GST_TYPE_EST_NET_SIM_BURST_MODEL,
                           DEFAULT_PACKETLOSS_BURST_MODEL,
                           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property(
-        gobject_class, PROP_PACKETLOSS_BURST_RATIO,
+        gobject_class,
+        PROP_PACKETLOSS_BURST_RATIO,
         g_param_spec_double(
-            "packetloss-burst-ratio", "Packet loss burst ratio",
-            "ITU-T G.107 BurstR value used by bursty packet loss", 1.0,
-            G_MAXDOUBLE, DEFAULT_PACKETLOSS_BURST_RATIO,
+            "packetloss-burst-ratio",
+            "Packet loss burst ratio",
+            "ITU-T G.107 BurstR value used by bursty packet loss",
+            1.0,
+            8.0,
+            DEFAULT_PACKETLOSS_BURST_RATIO,
             G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 }
 
@@ -149,14 +167,18 @@ static void gst_est_net_sim_class_init(GstEstNetSimClass* klass) {
     gst_est_net_sim_install_properties(gobject_class);
 
     gst_element_class_set_static_metadata(
-        element_class, "EffectStreamer Network Simulator", "Filter/Network",
+        element_class,
+        "EffectStreamer Network Simulator",
+        "Filter/Network",
         "Drops buffers to simulate random or bursty packet loss",
         "Eero Kaan | Quality and Usability Lab | TU Berlin");
 
     gst_element_class_add_static_pad_template(element_class, &src_template);
     gst_element_class_add_static_pad_template(element_class, &sink_template);
 
-    GST_DEBUG_CATEGORY_INIT(gst_est_net_sim_debug, "estnetsim", 0,
+    GST_DEBUG_CATEGORY_INIT(gst_est_net_sim_debug,
+                            "estnetsim",
+                            0,
                             "EffectStreamer Network Simulator");
 }
 
@@ -274,7 +296,8 @@ static void gst_est_net_sim_reset_stream_locked(GstEstNetSim* self) {
     self->active_seed = seed;
     self->loss_state = FALSE;
 
-    GST_DEBUG_OBJECT(self, "Reset packet-loss stream with active seed %u",
+    GST_DEBUG_OBJECT(self,
+                     "Reset packet-loss stream with active seed %u",
                      self->active_seed);
 }
 
@@ -399,7 +422,8 @@ static GstFlowReturn gst_est_net_sim_chain(GstPad* pad, GstObject* parent,
     g_mutex_unlock(&self->lock);
 
     if (drop) {
-        GST_LOG_OBJECT(self, "Dropping buffer of size %" G_GSIZE_FORMAT,
+        GST_LOG_OBJECT(self,
+                       "Dropping buffer of size %" G_GSIZE_FORMAT,
                        gst_buffer_get_size(buf));
         gst_buffer_unref(buf);
         return GST_FLOW_OK;
@@ -409,8 +433,8 @@ static GstFlowReturn gst_est_net_sim_chain(GstPad* pad, GstObject* parent,
 }
 
 static gboolean plugin_init(GstPlugin* plugin) {
-    return gst_element_register(plugin, "estnetsim", GST_RANK_NONE,
-                                GST_TYPE_EST_NET_SIM);
+    return gst_element_register(
+        plugin, "estnetsim", GST_RANK_NONE, GST_TYPE_EST_NET_SIM);
 }
 
 #ifndef PACKAGE
