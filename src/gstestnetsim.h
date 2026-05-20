@@ -1,5 +1,5 @@
 /*
- * EffectStreamer NetSim GStreamer Plugin
+ * EffectStreamer NetSim
  * @company Quality and Usability Lab | TU Berlin
  * @author  Eero Kaan <eerokaan@qu.tu-berlin.de>
  */
@@ -11,15 +11,13 @@
 
 G_BEGIN_DECLS
 
-typedef enum
-{
+typedef enum {
     GST_EST_NET_SIM_PACKETLOSS_NONE,
     GST_EST_NET_SIM_PACKETLOSS_RANDOM,
     GST_EST_NET_SIM_PACKETLOSS_BURSTY,
 } GstEstNetSimPacketLossType;
 
-typedef enum
-{
+typedef enum {
     GST_EST_NET_SIM_BURST_MODEL_G107_MARKOV,
 } GstEstNetSimBurstModel;
 
@@ -27,12 +25,11 @@ typedef enum
 G_DECLARE_FINAL_TYPE(GstEstNetSim, gst_est_net_sim, GST, EST_NET_SIM,
                      GstElement)
 
-struct _GstEstNetSim
-{
+struct _GstEstNetSim {
     GstElement element;
 
-    GstPad *sinkpad;
-    GstPad *srcpad;
+    GstPad* sinkpad;
+    GstPad* srcpad;
 
     GMutex lock;
     GstEstNetSimPacketLossType packetloss_type;
@@ -41,7 +38,7 @@ struct _GstEstNetSim
     GstEstNetSimBurstModel packetloss_burst_model;
     gdouble packetloss_burst_ratio;
 
-    GRand *rng;
+    GRand* rng;
     guint active_seed;
     gboolean loss_state;
 };
