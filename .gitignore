@@ -1,0 +1,19 @@
+# OS level files
+.DS_Store
+
+# Meson build directories
+build/
+builddir/
+_build/
+
+# Native build outputs
+*.o
+*.so
+*.dylib
+*.dll
+*.a
+*.lib
+
+# GStreamer cache/log artifacts
+registry.*.bin
+*.log
