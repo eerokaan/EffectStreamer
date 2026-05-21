@@ -9,7 +9,7 @@ function ViewWelcome() {
 
                 <div className="max-w-5xl flex-1">
                     <p className="mb-4">Herzlich willkommen zu unserem Experiment zur Qualität von Voicechat-Verbindungen!</p>
-                    <p className="mb-4">In den kommenden Minuten werden Sie gemeinsam mit einem Chatpartner verschiedene Sprachsituationen testen. Dabei wird die Audioqualität – insbesondere in Bezug auf die Lautstärke und mögliche Echos – variieren. Ihre Aufgabe ist es, diese Eindrücke ehrlich zu bewerten.</p>
+                    <p className="mb-4">In den kommenden Minuten werden Sie gemeinsam mit einem Chatpartner verschiedene Sprachsituationen testen. Dabei wird die Audioqualität je nach Sprachsituation variieren. Ihre Aufgabe ist es, diese Eindrücke ehrlich zu bewerten.</p>
                     <p className="mb-4">Der Ablauf gestaltet sich wie folgt:</p>
                     <ul className="mb-4 inline-block list-inside list-disc">
                         <li>Zunächst erfassen wir einige allgemeine Basisinformationen.</li>

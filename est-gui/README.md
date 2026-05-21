@@ -47,7 +47,7 @@ For packaged Windows builds, the GUI reads `est-config.json` from the same direc
 
 ## Compilation
 
-EffectStreamer GUI is packaged with `electron-builder`. Before packaging, make sure the EffectStreamer Core build artifacts are available in `est-gui/build/linux` or `est-gui/build/win` respectively.
+EffectStreamer GUI is packaged with `electron-builder`. Before packaging, make sure the EffectStreamer Core build artifacts are available in `est-gui/build/linux` or `est-gui/build/win` respectively. EffectStreamer GUI was build using Node.js v22.22.3 and NPM v10.9.8. As of May 2026, Node v24/NPM v11 is producing errors when trying to fetch Electron.
 
 To create the Linux AppImage:
 
@@ -61,6 +61,9 @@ The AppImage will be written to `est-gui/dist`.
 To create the Windows NSIS installer:
 
 ```
+apt-get install wine
+ln -s /usr/bin/wine /usr/local/bin/wine64
+
 npm install
 npm run build:win
 ```

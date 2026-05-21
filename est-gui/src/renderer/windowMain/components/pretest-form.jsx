@@ -10,7 +10,7 @@ import { formSchema } from "@/lib/helper-form-schema";
 import useStoreComponentPretestForm from "@/stores/component-pretest-form";
 
 const PretestForm = forwardRef(({ onSubmit }, ref) => {
-    const form = useForm({ resolver: zodResolver(formSchema), defaultValues: { "switch-gaming": false, "switch-streaming": false, "switch-first-time": false, "switch-audio-tech-familiarity": false } });
+    const form = useForm({ resolver: zodResolver(formSchema), defaultValues: { "switch-gaming": false, "switch-streaming": false, "switch-prior-experience": false, "switch-audio-tech-familiarity": false } });
     const { setFormData } = useStoreComponentPretestForm();
 
     const handleValidSubmit = async (data) => {
@@ -251,16 +251,16 @@ const PretestForm = forwardRef(({ onSubmit }, ref) => {
                 />
 
                 <Controller
-                    name="switch-first-time"
+                    name="switch-prior-experience"
                     control={form.control}
                     render={({ field, fieldState }) => (
                         <Field orientation="horizontal" data-invalid={fieldState.invalid} className="col-span-3">
                             <FieldContent>
-                                <FieldLabel htmlFor="switch-first-time">Erstes Mal dabei?</FieldLabel>
+                                <FieldLabel htmlFor="switch-prior-experience">Schon Erfahrung gesammelt?</FieldLabel>
                                 <FieldDescription>Haben Sie schon einmal an einem Hörtest/-experiment teilgenommen?</FieldDescription>
                                 {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                             </FieldContent>
-                            <Switch {...field} aria-invalid={fieldState.invalid} id="switch-first-time" checked={field.value} onCheckedChange={field.onChange} />
+                            <Switch {...field} aria-invalid={fieldState.invalid} id="switch-prior-experience" checked={field.value} onCheckedChange={field.onChange} />
                         </Field>
                     )}
                 />

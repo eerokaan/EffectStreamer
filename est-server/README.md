@@ -28,13 +28,25 @@ EffectStreamer Server is distributed as a standalone Node.js executable and shou
 }
 ```
 
-You can use the following impairment parameters: `nativeDelay`, `nativeGain`, `echoDelay`, `echoGain`, `packetlossType`, `packetlossRatio`, `packetlossSeed`, `packetlossBurstModel`, `packetlossBurstRatio`.
-
 The `server.ipAddress` and `server.port` values define where the server listens for GUI clients.
 
 The `tests` values define which test types are included in the experiment flow; set `short-conversation-test` or `listening-speaking-test` to `false` to skip that test type for every condition.
 
-The `conditions.baseline` runs as a first condition to establish a baseline for the participants. Afterwards, the server continues from a random condition within `conditions.random` and sequentially proceeds from there in the following rounds (ITU-T P.804: "The order of the dimension scales is permuted for each participant"). Currently the impairment parameters `nativeDelay`, `nativeGain`, `echoDelay`, and `echoGain` are supported. If a parameter is omitted, est-core applies its default value; see the [est-core README](../est-core/README.md) for details. In the configuration example above, the second random condition omits `nativeDelay` and `nativeGain`, so their defaults are used instead.
+The `conditions.baseline` runs as a first condition to establish a baseline for the participants. Afterwards, the server continues from a random condition within `conditions.random` and sequentially proceeds from there in the following rounds (ITU-T P.804: "The order of the dimension scales is permuted for each participant").
+
+You can use the following impairment parameters in the config file:
+
+- `nativeDelay`
+- `nativeGain`
+- `echoDelay`
+- `echoGain`
+- `packetlossType`
+- `packetlossRatio`
+- `packetlossSeed`
+- `packetlossBurstModel`
+- `packetlossBurstRatio`
+
+If a parameter is omitted, est-core applies its default value; see the [est-core README](../est-core/README.md) for details.
 
 The server writes session data to `~/effectstreamer`. Each experiment run receives a new numbered session directory containing submitted forms, scale results, condition settings, and transferred audio recordings.
 

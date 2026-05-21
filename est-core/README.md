@@ -4,20 +4,19 @@
 
 This is the EffectStreamer Core – a standalone application which allows for VoIP conversations to be held under different impairment type conditions.
 
-Currently these impairments are supported:
+Currently these impairment arguments are supported:
 
-- **Native (End-to-End)**
-    - `native-delay`
-    - `native-gain`
-- **Echo**
-    - `echo-delay`
-    - `echo-gain`
-- **Packet Loss**
-    - `packetloss-type`
-    - `packetloss-ratio`
-    - `packetloss-seed`
-    - `packetloss-burst-model`
-    - `packetloss-burst-ratio`
+| Impairment          | CLI Option                 | Mode     | Default Value | Valid Values                 | Notes |
+| ------------------- | -------------------------- | -------- | ------------- | ---------------------------- | ----- |
+| Native (End-to-End) | `--native-delay`           | Sender   | `0`           | `0` to `INT_MAX`             | Native branch delay. Values up to `20` ms result in no additional queue threshold; above `20` ms, the queue threshold is set to `value - 20` ms. |
+| Native (End-to-End) | `--native-gain`            | Receiver | `1.0`         | `0.0` to `1.0`               | Applied to native audio with GStreamer's `volume` element. For example, `0.5` is 50% and `1.0` is 100%. |
+| Echo                | `--echo-delay`             | Sender   | `0`           | `0` to `INT_MAX`             | Echo branch delay. Values up to `20` ms result in no additional queue threshold; above `20` ms, the queue threshold is set to `value - 20` ms. |
+| Echo                | `--echo-gain`              | Receiver | `1.0`         | `0.0` to `1.0`               | Applied to echo audio with GStreamer's `volume` element. For example, `0.5` is 50% and `1.0` is 100%. |
+| Packet Loss         | `--packetloss-type`        | Sender   | `none`        | `none`, `random`, `bursty`   | Enables no loss, independent random loss, or bursty loss. |
+| Packet Loss         | `--packetloss-ratio`       | Sender   | `0.0`         | `0.0` to `1.0`               | Loss fraction. `0.0` drops no packets and `1.0` drops all packets. Values above `0.0` require `--packetloss-type random` or `--packetloss-type bursty`. |
+| Packet Loss         | `--packetloss-seed`        | Sender   | `0`           | `0` to `G_MAXUINT`           | Seed for reproducible packet loss; `0` chooses a random seed per stream. |
+| Packet Loss         | `--packetloss-burst-model` | Sender   | `g107-markov` | `g107-markov`                | ITU-T G.107 two-state Markov model for bursty packet loss. |
+| Packet Loss         | `--packetloss-burst-ratio` | Sender   | `1.0`         | `1.0` to `8.0`               | ITU-T G.107 `BurstR` value; used by bursty packet loss. |
 
 Moreover, the EffectStreamer Core is able to be cross-compiled to Linux and Windows at the same time, while also taking care of audio server differences (ALSA vs. WASAPI2); this allows the EffectStreamer Core to be embedded into other applications, like it is done with EffectStreamer GUI (hence the naming "Core").
 
@@ -28,13 +27,13 @@ To use EffectStreamer Core itself, without the usual wrapping inside EffectStrea
 ```
 Sender mode:
 ./est-core
-    --mode sender [--device <DEVICE-ID>] --peerip <IP-ADDRESS> [--native-delay <INT>] [--echo-delay <INT>]
+    --mode sender [--device <DEVICE-ID>] --peerip <IP-ADDRESS> [--native-delay <MS>] [--echo-delay <MS>]
     [--packetloss-type <none|random|bursty>] [--packetloss-ratio <0.0-1.0>] [--packetloss-seed <INT>]
     [--packetloss-burst-model <g107-markov>] [--packetloss-burst-ratio <1.0-8.0>] [--help]
 
 Receiver mode:
 ./est-core
-    --mode receiver [--device <DEVICE-ID>] [--native-gain <0.0-1.0>] [--echo-gain <0.0-1.0>] [--help]
+    --mode receiver [--device <DEVICE-ID>] [--native-gain <GAIN>] [--echo-gain <GAIN>] [--help]
 ```
 
 EffectStreamer Core is split up into two modes of operation: `sender` and `receiver`. The sender deals with capturing audio from a source (e.g. a microphone), forking the signal out and then streaming them off to different destinations, while the receiver deals with the receiving of said audio streams and routing them to different sinks again (e.g. headphones, audiofile for recording, etc.).
@@ -64,7 +63,6 @@ cd ~
 
 dpkg --add-architecture i386
 echo "check_certificate=off" >> ~/.wgetrc
-ln -s /usr/bin/wine /usr/local/bin/wine64
 
 apt-get -y update
 apt-get -y upgrade
