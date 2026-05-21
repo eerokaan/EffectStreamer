@@ -297,7 +297,7 @@ static void gst_est_net_sim_reset_stream_locked(GstEstNetSim* self) {
     self->loss_state = FALSE;
 
     GST_DEBUG_OBJECT(self,
-                     "Reset packet-loss stream with active seed %u",
+                     "Reset packet loss stream with active seed %u",
                      self->active_seed);
 }
 
@@ -310,7 +310,7 @@ static void gst_est_net_sim_forget_stream_locked(GstEstNetSim* self) {
     self->active_seed = 0;
     self->loss_state = FALSE;
 
-    GST_DEBUG_OBJECT(self, "Forgot packet-loss stream state");
+    GST_DEBUG_OBJECT(self, "Forgot packet loss stream state");
 }
 
 static gboolean gst_est_net_sim_should_drop_locked(GstEstNetSim* self) {

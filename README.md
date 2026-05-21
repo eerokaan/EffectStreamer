@@ -1,6 +1,6 @@
 # EffectStreamer NetSim
 
-EffectStreamer NetSim (abbreviated to `estnetsim`) is a custom GStreamer plugin for simulating different packet-loss scenarios within EffectStreamer Core. It is a transparent one-sink/one-source filter that drops incoming buffers according to random or bursty (Markov / ITU-T G.107) packet-loss settings.
+EffectStreamer NetSim (abbreviated to `estnetsim`) is a custom GStreamer plugin for simulating different packet loss scenarios within EffectStreamer Core. It is a transparent one-sink/one-source filter that drops incoming buffers according to random or bursty (Markov / ITU-T G.107) packet loss settings.
 
 When simulating RTP packet loss, place `estnetsim` after the RTP payloader and before the network sink so each input buffer corresponds to one packet.
 
@@ -35,7 +35,6 @@ cd ~
 
 dpkg --add-architecture i386
 echo "check_certificate=off" >> ~/.wgetrc
-ln -s /usr/bin/wine /usr/local/bin/wine64
 
 apt-get -y update
 apt-get -y upgrade
@@ -161,7 +160,7 @@ gst-inspect-1.0 estnetsim
 Run an example pipeline with random packet loss:
 
 ```
-gst-launch-1.0 -q \
+gst-launch-1.0 \
     fakesrc num-buffers=100 ! \
     estnetsim packetloss-type=random packetloss-ratio=0.1 packetloss-seed=1234 ! \
     fakesink
@@ -170,7 +169,7 @@ gst-launch-1.0 -q \
 Run an example pipeline with bursty packet loss:
 
 ```
-gst-launch-1.0 -q \
+gst-launch-1.0 \
     fakesrc num-buffers=100 ! \
     estnetsim packetloss-type=bursty packetloss-ratio=0.1 packetloss-seed=1234 packetloss-burst-model=g107-markov packetloss-burst-ratio=2.0 ! \
     fakesink
