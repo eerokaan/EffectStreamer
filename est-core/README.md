@@ -6,14 +6,18 @@ This is the EffectStreamer Core – a standalone application which allows for Vo
 
 Currently these impairments are supported:
 
-```
-native-delay
-native-gain
-echo-delay
-echo-gain
-packetloss-type (TBD)
-packetloss-ratio (TBD)
-```
+- **Native (End-to-End)**
+    - `native-delay`
+    - `native-gain`
+- **Echo**
+    - `echo-delay`
+    - `echo-gain`
+- **Packet Loss**
+    - `packetloss-type` (TBD)
+    - `packetloss-ratio` (TBD)
+    - `packetloss-seed` (TBD)
+    - `packetloss-burst-model` (TBD)
+    - `packetloss-burst-ratio` (TBD)
 
 Moreover, the EffectStreamer Core is able to be cross-compiled to Linux and Windows at the same time, while also taking care of audio server differences (ALSA vs. WASAPI2); this allows the EffectStreamer Core to be embedded into other applications, like it is done with EffectStreamer GUI (hence the naming "Core").
 
@@ -39,9 +43,11 @@ On Windows, EffectStreamer Core supports automatically fetching the source and s
 
 ## Compilation
 
-As the EffectStreamer Core uses GStreamer internally, the following paragraphs will lay out how to compile GStreamer and other prerequisites, as well as compiling and running EffectStreamer itself. There are two important factors to consider, before starting:
+As the EffectStreamer Core uses GStreamer internally, the following paragraphs will lay out how to compile GStreamer and other prerequisites, as well as compiling and running EffectStreamer Core itself.
 
-- Please make sure to use Ubuntu 24.04 (or other Debian-based Linux distros) as your compiler host
+There are two important factors to consider, before starting:
+
+- Please make sure to use Ubuntu 24.04 (or other Debian-based Linux distros) as your compiler host; We will cross-compile for Linux and Windows
 - Please also make sure to work on a local filesystem, as compiling on network shares will most likely cause permission errors
 
 ### Step 1) Prepare Ubuntu
@@ -57,10 +63,10 @@ ln -s /usr/bin/wine /usr/local/bin/wine64
 apt-get -y update
 apt-get -y upgrade
 apt-get -y install python3 python3-venv git
-apt-get -y install build-essential gcc-mingw-w64-x86-64-posix
+apt-get -y install build-essential meson gcc-mingw-w64-x86-64-posix
 ```
 
-### Step 2) Build GStreamer with necessary plugins
+### Step 2) Build GStreamer SDK
 
 ```
 git clone https://git.tu-berlin.de/qu/speech-quality/effectstreamer.git EffectStreamer
@@ -92,7 +98,7 @@ git checkout 1.28.0
 ./cerbero-uninstalled -c config/cross-win64.cbc build gst-plugins-bad
 ```
 
-### Step 3) Build EffectStreamer with GStreamer linking
+### Step 3) Build EffectStreamer Core with GStreamer linking
 
 ```
 cd ..
@@ -142,7 +148,25 @@ x86_64-w64-mingw32-gcc -o est-core.exe \
     $(pkg-config --cflags --libs gstreamer-1.0)
 ```
 
-### Step 4) Run EffectStreamer
+### Step 4) Bundle EffectStreamer NetSim Plugin
+
+The EffectStreamer NetSim plugin is being discovered and loaded in by GStreamer at runtime. It does not need to be linked into `est-core`, but the matching plugin artifact must be copied into the bundled GStreamer plugin directory.
+
+However, make sure the `estnetsim` plugin `.so` and `.dll` artifacts were built against the same GStreamer SDK version and target architecture as `est-core`.
+
+#### Linux
+
+```
+cp -a libestnetsim.so gst-lib/x86_64-linux-gnu/lib/gstreamer-1.0/
+```
+
+#### Windows
+
+```
+cp -a libestnetsim.dll gst-lib/x86_64-windows/lib/gstreamer-1.0/
+```
+
+### Step 5) Run EffectStreamer Core
 
 Notice: Always `tar` the `gst-lib` directory when transferring it between machines. The symbolic link structure inside it can easily become corrupted when moving across different machines or platforms.
 

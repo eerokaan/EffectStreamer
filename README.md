@@ -10,7 +10,7 @@ The test procedure implemented in EffectStreamer follows the ITU-T Recommendatio
 
 ## Architecture
 
-**EffectStreamer consists of three parts, which are explained in detail in these README files:** The [**est-core**](./est-core/README.md), [**est-gui**](./est-gui/README.md) and [**est-server**](./est-server/README.md).
+**EffectStreamer consists of three main parts, which are explained in detail in these README files:** The [**est-core**](./est-core/README.md), [**est-gui**](./est-gui/README.md) and [**est-server**](./est-server/README.md).
 
 `est-core` is the heart of EffectStreamer - a self-contained executable available for both Linux and Windows machines that houses all of the streaming logic. This includes capturing audio from source devices, sending and receiving audio streams across peers, and playing back audio to sink devices, all while dealing with the respective audio drivers on the host system.
 
