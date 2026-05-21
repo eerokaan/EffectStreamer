@@ -24,7 +24,7 @@ EffectStreamer NetSim is built as a GStreamer plugin, not as a standalone applic
 
 There are two important factors to consider, before starting:
 
-- Please make sure to use Ubuntu 24.04 (or other Debian-based Linux distros) as your compiler host
+- Please make sure to use Ubuntu 24.04 (or other Debian-based Linux distros) as your compiler host; We will cross-compile for Linux and Windows
 - Please also make sure to work on a local filesystem, as compiling on network shares will most likely cause permission errors
 
 ### Step 1) Prepare Ubuntu
@@ -40,8 +40,7 @@ ln -s /usr/bin/wine /usr/local/bin/wine64
 apt-get -y update
 apt-get -y upgrade
 apt-get -y install python3 python3-venv git
-apt-get -y install build-essential gcc-mingw-w64-x86-64-posix
-apt-get -y install meson ninja-build pkg-config wine
+apt-get -y install build-essential meson gcc-mingw-w64-x86-64-posix
 ```
 
 ### Step 2) Build GStreamer SDK
@@ -49,7 +48,9 @@ apt-get -y install meson ninja-build pkg-config wine
 EffectStreamer NetSim only links against the GStreamer core library. If your test pipeline needs elements from `gst-plugins-base`, `gst-plugins-good` or `gst-plugins-bad`, build those Cerbero recipes as well.
 
 ```
-cd /path/to/estnetsim
+git clone https://git.tu-berlin.de/qu/speech-quality/effectstreamer.git EffectStreamer
+cd EffectStreamer
+git checkout est-netsim
 
 git clone https://gitlab.freedesktop.org/gstreamer/cerbero gst-sdk
 cd gst-sdk
@@ -71,7 +72,7 @@ git checkout 1.28.0
 ./cerbero-uninstalled -c config/cross-win64.cbc build gstreamer-1.0
 ```
 
-### Step 3) Build and install the plugin
+### Step 3) Build EffectStreamer NetSim
 
 ```
 cd ..

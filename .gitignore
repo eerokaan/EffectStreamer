@@ -1,4 +1,6 @@
-# OS level files
+# Basic exclusions
+gst-sdk/
+gst-lib/
 .DS_Store
 
 # Meson build directories
