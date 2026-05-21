@@ -28,6 +28,8 @@ EffectStreamer Server is distributed as a standalone Node.js executable and shou
 }
 ```
 
+You can use the following impairment parameters: `nativeDelay`, `nativeGain`, `echoDelay`, `echoGain`, `packetlossType`, `packetlossRatio`, `packetlossSeed`, `packetlossBurstModel`, `packetlossBurstRatio`.
+
 The `server.ipAddress` and `server.port` values define where the server listens for GUI clients.
 
 The `tests` values define which test types are included in the experiment flow; set `short-conversation-test` or `listening-speaking-test` to `false` to skip that test type for every condition.

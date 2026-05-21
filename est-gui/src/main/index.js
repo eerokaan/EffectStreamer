@@ -146,7 +146,18 @@ async function socketLogic() {
     appContext.socket.on("est-event:coreStartResponse", async (data) => {
         // Stage 1: Sender component
         if (data.component === "sender") {
-            const args = ["--mode", data.component, ...(data.deviceSource ? ["--device", data.deviceSource] : []), "--peerip", data.peerIp, ...(data.nativeDelay != null ? ["--native-delay", data.nativeDelay] : []), ...(data.echoDelay != null ? ["--echo-delay", data.echoDelay] : [])];
+            const args = [
+                "--mode", data.component,
+                ...(data.deviceSource ? ["--device", data.deviceSource] : []),
+                "--peerip", data.peerIp,
+                ...(data.nativeDelay != null ? ["--native-delay", data.nativeDelay] : []),
+                ...(data.echoDelay != null ? ["--echo-delay", data.echoDelay] : []),
+                ...(data.packetlossType != null ? ["--packetloss-type", data.packetlossType] : []),
+                ...(data.packetlossRatio != null ? ["--packetloss-ratio", data.packetlossRatio] : []),
+                ...(data.packetlossSeed != null ? ["--packetloss-seed", data.packetlossSeed] : []),
+                ...(data.packetlossBurstModel != null ? ["--packetloss-burst-model", data.packetlossBurstModel] : []),
+                ...(data.packetlossBurstRatio != null ? ["--packetloss-burst-ratio", data.packetlossBurstRatio] : [])
+            ];
 
             appContext.estCoreSender = await helperEstCoreSpawn(args);
             appContext.socket.emit("est-event:coreStartRequest", {
@@ -156,7 +167,12 @@ async function socketLogic() {
 
         // Stage 2: Receiver component
         else if (data.component === "receiver") {
-            const args = ["--mode", data.component, ...(data.deviceSink ? ["--device", data.deviceSink] : []), ...(data.nativeGain != null ? ["--native-gain", data.nativeGain] : []), ...(data.echoGain != null ? ["--echo-gain", data.echoGain] : [])];
+            const args = [
+                "--mode", data.component,
+                ...(data.deviceSink ? ["--device", data.deviceSink] : []),
+                ...(data.nativeGain != null ? ["--native-gain", data.nativeGain] : []),
+                ...(data.echoGain != null ? ["--echo-gain", data.echoGain] : [])
+            ];
 
             appContext.estCoreReceiver = await helperEstCoreSpawn(args);
         }

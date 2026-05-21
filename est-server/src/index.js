@@ -198,7 +198,12 @@ else if (process.env.EST_SERVER_TYPE === "server") {
                     peerIp: peerClient?.ipAddress,
                     deviceSource: thisClient.deviceSource,
                     nativeDelay: currentCondition.nativeDelay,
-                    echoDelay: currentCondition.echoDelay
+                    echoDelay: currentCondition.echoDelay,
+                    packetlossType: currentCondition.packetlossType,
+                    packetlossRatio: currentCondition.packetlossRatio,
+                    packetlossSeed: currentCondition.packetlossSeed,
+                    packetlossBurstModel: currentCondition.packetlossBurstModel,
+                    packetlossBurstRatio: currentCondition.packetlossBurstRatio
                 };
                 io.to(socket.id).emit("est-event:coreStartResponse", estCoreSettings);
             }
