@@ -30,6 +30,11 @@ typedef struct {
     char* peerip;
     int nativedelay;
     int echodelay;
+    const char* packetloss_type;
+    double packetloss_ratio;
+    guint packetloss_seed;
+    const char* packetloss_burst_model;
+    double packetloss_burst_ratio;
 } SenderParams;
 
 /* Receiver parameters */

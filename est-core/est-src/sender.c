@@ -54,12 +54,19 @@ int run_sender(SenderParams* params) {
     guint bus_watch_id;
     GstElement *alsasrc, *audioconvert, *audioresample, *capsfilter;
     GstElement *rtpL16pay, *tee;
-    GstElement *queue1, *udpsink1; /* To peer */
-    GstElement *queue2, *udpsink2; /* To localhost for echo */
-    GstElement *queue3, *udpsink3; /* To localhost for recording */
+    GstElement *queue1, *estnetsim1, *udpsink1;
+    GstElement *queue2, *udpsink2;
+    GstElement *queue3, *udpsink3;
     GstCaps* caps;
     gint64 nativedelay_adjusted;
     gint64 echodelay_adjusted;
+    const char* packetloss_type;
+    const char* packetloss_burst_model;
+    gboolean packetloss_enabled;
+
+    packetloss_type = params->packetloss_type != NULL ? params->packetloss_type : "none";
+    packetloss_burst_model = params->packetloss_burst_model != NULL ? params->packetloss_burst_model : "g107-markov";
+    packetloss_enabled = strcmp(packetloss_type, "none") != 0;
 
     /* Calculate adjusted thresholds */
     if (params->nativedelay <= 20) {
@@ -80,6 +87,17 @@ int run_sender(SenderParams* params) {
     g_print("  Peer IP: %s\n", params->peerip);
     g_print("  Native Delay: %d ms\n", params->nativedelay);
     g_print("  Echo Delay: %d ms\n", params->echodelay);
+    g_print("  Packet Loss Type: %s\n", packetloss_type);
+
+    if (packetloss_enabled) {
+        g_print("  Packet Loss Ratio: %.3f\n", params->packetloss_ratio);
+        g_print("  Packet Loss Seed: %u\n", params->packetloss_seed);
+
+        if (strcmp(packetloss_type, "bursty") == 0) {
+            g_print("  Packet Loss Burst Model: %s\n", packetloss_burst_model);
+            g_print("  Packet Loss Burst Ratio: %.3f\n", params->packetloss_burst_ratio);
+        }
+    }
 
     /* Create GStreamer elements */
     context.pipeline = gst_pipeline_new("sender-pipeline");
@@ -92,6 +110,7 @@ int run_sender(SenderParams* params) {
 
     /* Branch 1: To peer */
     queue1 = gst_element_factory_make("queue", "queue-peer");
+    estnetsim1 = packetloss_enabled ? gst_element_factory_make("estnetsim", "netsim-peer") : NULL;
     udpsink1 = gst_element_factory_make("udpsink", "udpsink-peer");
 
     /* Branch 2: To localhost with adjusted threshold */
@@ -101,6 +120,11 @@ int run_sender(SenderParams* params) {
     /* Branch 3: To localhost for recording */
     queue3 = gst_element_factory_make("queue", "queue-record");
     udpsink3 = gst_element_factory_make("udpsink", "udpsink-record");
+
+    if (packetloss_enabled && !estnetsim1) {
+        g_printerr("Packet loss requested, but the estnetsim element could not be created. Check GST_PLUGIN_PATH.\n");
+        return 1;
+    }
 
     if (!context.pipeline || !alsasrc || !audioconvert || !audioresample || !capsfilter || !rtpL16pay || !tee || !queue1 || !udpsink1 || !queue2 || !udpsink2 ||
         !queue3 || !udpsink3) {
@@ -127,6 +151,13 @@ int run_sender(SenderParams* params) {
     /* UDP Sink 1: To peer */
     g_object_set(G_OBJECT(udpsink1), "host", params->peerip, "port", 9004, "sync", FALSE, NULL);
 
+    if (packetloss_enabled) {
+        gst_util_set_object_arg(G_OBJECT(estnetsim1), "packetloss-type", packetloss_type);
+        gst_util_set_object_arg(G_OBJECT(estnetsim1), "packetloss-burst-model", packetloss_burst_model);
+        g_object_set(G_OBJECT(estnetsim1), "packetloss-ratio", params->packetloss_ratio, "packetloss-seed", params->packetloss_seed, "packetloss-burst-ratio",
+                     params->packetloss_burst_ratio, NULL);
+    }
+
     /* UDP Sink 2: To localhost port 9005 (echo with delay) */
     g_object_set(G_OBJECT(udpsink2), "host", "127.0.0.1", "port", 9005, "sync", FALSE, NULL);
 
@@ -142,6 +173,10 @@ int run_sender(SenderParams* params) {
     gst_bin_add_many(GST_BIN(context.pipeline), alsasrc, audioconvert, audioresample, capsfilter, rtpL16pay, tee, queue1, udpsink1, queue2, udpsink2, queue3,
                      udpsink3, NULL);
 
+    if (packetloss_enabled) {
+        gst_bin_add(GST_BIN(context.pipeline), estnetsim1);
+    }
+
     /* Link main pipeline */
     if (!gst_element_link_many(alsasrc, audioconvert, audioresample, capsfilter, rtpL16pay, tee, NULL)) {
         g_printerr("Failed to link main pipeline elements.\n");
@@ -150,10 +185,18 @@ int run_sender(SenderParams* params) {
     }
 
     /* Link branch 1 (to peer) */
-    if (!gst_element_link_many(tee, queue1, udpsink1, NULL)) {
-        g_printerr("Failed to link branch 1 (peer).\n");
-        gst_object_unref(context.pipeline);
-        return 1;
+    if (packetloss_enabled) {
+        if (!gst_element_link_many(tee, queue1, estnetsim1, udpsink1, NULL)) {
+            g_printerr("Failed to link branch 1 (peer with packet loss).\n");
+            gst_object_unref(context.pipeline);
+            return 1;
+        }
+    } else {
+        if (!gst_element_link_many(tee, queue1, udpsink1, NULL)) {
+            g_printerr("Failed to link branch 1 (peer).\n");
+            gst_object_unref(context.pipeline);
+            return 1;
+        }
     }
 
     /* Link branch 2 (echo with delay) */
