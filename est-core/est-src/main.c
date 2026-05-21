@@ -20,7 +20,7 @@ static void print_usage(const char* prog_name) {
     fprintf(stderr,
             "  %s --mode sender [--device <DEVICE-ID>] --peerip <IP-ADDRESS> [--native-delay <MS>] [--echo-delay <MS>] "
             "[--packetloss-type <none|random|bursty>] [--packetloss-ratio <0.0-1.0>] [--packetloss-seed <INT>] "
-            "[--packetloss-burst-model <g107-markov>] [--packetloss-burst-ratio <1.0-8.0>]\n\n",
+            "[--packetloss-burst-model <g107-markov>] [--packetloss-burst-ratio <1.0-8.0>] [--help]\n\n",
             prog_name);
 
     fprintf(stderr, "Usage (Receiver mode):\n");
@@ -31,8 +31,8 @@ static void print_usage(const char* prog_name) {
     fprintf(stderr, "  --device                  Audio device ID (optional, auto-detects if not provided)\n");
     fprintf(stderr, "  --peerip                  IP address of the peer receiver (sender mode only)\n");
     fprintf(stderr, "  --native-delay            The native delay in milliseconds (sender mode only, default: 0)\n");
-    fprintf(stderr, "  --echo-delay              The echo delay in milliseconds (sender mode only, default: 0)\n");
     fprintf(stderr, "  --native-gain             The native gain, e.g., 0.5 (receiver mode only, default: 1.0)\n");
+    fprintf(stderr, "  --echo-delay              The echo delay in milliseconds (sender mode only, default: 0)\n");
     fprintf(stderr, "  --echo-gain               The echo gain, e.g., 0.5 (receiver mode only, default: 1.0)\n");
     fprintf(stderr, "  --packetloss-type         Packet loss type: 'none', 'random', or 'bursty' (sender mode only, default: none)\n");
     fprintf(stderr, "  --packetloss-ratio        Packet loss ratio from 0.0 to 1.0 (sender mode only, default: 0.0)\n");
@@ -263,7 +263,7 @@ int main(int argc, char* argv[]) {
         }
     } else if (strcmp(mode, "receiver") == 0) {
         if (packetloss_option_provided) {
-            fprintf(stderr, "Error: Packet-loss options are only supported in sender mode\n");
+            fprintf(stderr, "Error: Packet loss options are only supported in sender mode\n");
             print_usage(argv[0]);
             return 1;
         }

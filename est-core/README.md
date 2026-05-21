@@ -27,15 +27,19 @@ To use EffectStreamer Core itself, without the usual wrapping inside EffectStrea
 
 ```
 Sender mode:
-./est-core --mode sender [--device <DEVICE-ID>] --peerip <IP-ADDRESS> [--native-delay <INT>] [--echo-delay <INT>] [--packetloss-type <none|random|bursty>] [--packetloss-ratio <0.0-1.0>] [--packetloss-seed <INT>] [--packetloss-burst-model <g107-markov>] [--packetloss-burst-ratio <1.0-8.0>]
+./est-core
+    --mode sender [--device <DEVICE-ID>] --peerip <IP-ADDRESS> [--native-delay <INT>] [--echo-delay <INT>]
+    [--packetloss-type <none|random|bursty>] [--packetloss-ratio <0.0-1.0>] [--packetloss-seed <INT>]
+    [--packetloss-burst-model <g107-markov>] [--packetloss-burst-ratio <1.0-8.0>] [--help]
 
 Receiver mode:
-./est-core --mode receiver [--device <DEVICE-ID>] [--native-gain <0.0-1.0>] [--echo-gain <0.0-1.0>]
+./est-core
+    --mode receiver [--device <DEVICE-ID>] [--native-gain <0.0-1.0>] [--echo-gain <0.0-1.0>] [--help]
 ```
 
 EffectStreamer Core is split up into two modes of operation: `sender` and `receiver`. The sender deals with capturing audio from a source (e.g. a microphone), forking the signal out and then streaming them off to different destinations, while the receiver deals with the receiving of said audio streams and routing them to different sinks again (e.g. headphones, audiofile for recording, etc.).
 
-Regarding the impairment types, the sender side is responsible for native-delay, echo-delay and packet loss on the peer network branch, while the receiver deals with native-gain and echo-gain. If not specified, the delay parameters default to `0` (0ms), the gain parameters default to `1.0` (100%) and packet loss defaults to `none`. Packet-loss options are sender-mode options and use the EffectStreamer NetSim GStreamer plugin at runtime.
+Regarding the impairment types, the sender side is responsible for native-delay, echo-delay and packet loss on the peer network branch, while the receiver deals with native-gain and echo-gain. If not specified, the delay parameters default to `0` (0ms), the gain parameters default to `1.0` (100%) and packet loss defaults to `none`. Packet loss options are sender-mode options and use the EffectStreamer NetSim GStreamer plugin at runtime.
 
 Following this architecture, each peer has to run a sender and receiver instance each. It is important to start the senders on both peers first, before starting the receivers, to ensure established audio streaming to which the receivers can hook into.
 
