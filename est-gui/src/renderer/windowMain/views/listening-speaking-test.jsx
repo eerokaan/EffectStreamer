@@ -27,8 +27,8 @@ function ViewListeningSpeakingTest() {
                 <ComponentHeader headline="Gesprächsraum"></ComponentHeader>
 
                 <div className="flex w-full max-w-5xl flex-1 flex-col">
-                    {asset?.type === "html" && <iframe src={asset.src} className="w-full flex-1 border-none" title="Test Document" />}
-                    {asset?.type === "image" && <img src={asset.src} alt="Test Asset" className="block w-full" draggable="false" />}
+                    {asset?.type === "html" && <iframe srcDoc={asset.srcDoc} className="w-full flex-1 border-none" title="Test Document" />}
+                    {asset?.type === "image" && <img src={asset.srcImg} alt="Test Asset" className="block w-full" draggable="false" />}
                 </div>
 
                 <ComponentFooter></ComponentFooter>
