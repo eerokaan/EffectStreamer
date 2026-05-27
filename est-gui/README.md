@@ -41,7 +41,7 @@ For AppImage builds, the GUI reads `est-config.json` from the same directory as 
 
 ### Windows
 
-Run the installer `EffectStreamer_GUI_.exe` and start EffectStreamer from the Start Menu or the installed executable.
+Run the installer `EffectStreamer_GUI.exe` and start EffectStreamer from the Start Menu or the installed executable.
 
 For packaged Windows builds, the GUI reads `est-config.json` from the same directory as the installed `.exe` file. In almost all cases this would be under `C:\Program Files\EffectStreamer`.
 
