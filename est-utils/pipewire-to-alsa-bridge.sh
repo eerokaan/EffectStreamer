@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# EffectStreamer Utilities: PipeWire-to-ALSA Bridge
+# @company Quality and Usability Lab | TU Berlin
+# @author  Eero Kaan <eerokaan@qu.tu-berlin.de>
+
 set -Eeuo pipefail
 
 CONFIG_PATH="${EST_GUI_CONFIG:-${PWD}/est-config.json}"
@@ -17,6 +21,15 @@ ORIGINAL_SOURCE_DEFAULT_ID=""
 ORIGINAL_SINK_DEFAULT_ID=""
 SOURCE_DEFAULT_CHANGED="0"
 SINK_DEFAULT_CHANGED="0"
+CONFIG_UPDATED="0"
+CONFIG_RESTORE_METHOD=""
+CONFIG_RESTORE_PATH=""
+ORIGINAL_CONFIG_SOURCE_PRESENT="0"
+ORIGINAL_CONFIG_SINK_PRESENT="0"
+ORIGINAL_CONFIG_SOURCE_JSON="null"
+ORIGINAL_CONFIG_SINK_JSON="null"
+ORIGINAL_CONFIG_SOURCE_LINE=""
+ORIGINAL_CONFIG_SINK_LINE=""
 
 SOURCE_IDS=()
 SOURCE_NAMES=()
@@ -102,6 +115,7 @@ cleanup() {
 
     stop_process "$SENDER_LOOP_PID"
     stop_process "$RECEIVER_LOOP_PID"
+    restore_est_config
     restore_pipewire_defaults
 }
 
@@ -140,7 +154,7 @@ prompt_device_connected() {
     printf 'Connect the intended audio source and sink devices to this computer now.\n'
     printf 'Press any key to continue...'
     IFS= read -r -n 1 _
-    printf '\n\n'
+    printf '\n'
 }
 
 gui_file_picker_available() {
@@ -189,22 +203,21 @@ prompt_config_path() {
     local answer
     local selected_path
 
-    printf '\nest-gui config file\n'
-    printf 'Select the est-config.json file to update.\n'
+    printf '\nSelect the est-config.json file to update.\n'
     printf 'Default: %s\n' "$default_path"
 
     while true; do
         selected_path=""
 
         if gui_file_picker_available; then
-            printf 'Open a file picker? [Y/n]: '
+            printf 'Open a file picker? [y/N]: '
             IFS= read -r answer || answer=""
 
             case "$answer" in
-                ''|y|Y|yes|YES|Yes)
+                y|Y|yes|YES|Yes)
                     selected_path="$(pick_config_path_with_gui "$default_path" || true)"
                     ;;
-                n|N|no|NO|No)
+                ''|n|N|no|NO|No)
                     selected_path="$(read_config_path_from_terminal "$default_path")"
                     ;;
                 *)
@@ -232,7 +245,7 @@ prompt_config_path() {
 load_loopback_module() {
     local output
 
-    printf 'Loading ALSA loopback module: sudo modprobe snd-aloop\n'
+    printf 'Loading ALSA loopback module...\n'
     if ! output="$(sudo modprobe snd-aloop 2>&1)"; then
         [[ -n "$output" ]] && printf '%s\n' "$output" >&2
         die 'Failed to load snd-aloop.'
@@ -245,12 +258,146 @@ load_loopback_module() {
     fi
 }
 
+create_temp_path_for() {
+    mktemp "${1}.XXXXXX"
+}
+
 create_temp_config_path() {
-    mktemp "${CONFIG_PATH}.XXXXXX"
+    create_temp_path_for "$CONFIG_PATH"
 }
 
 create_bridge_log_dir() {
     mktemp -d "${TMPDIR:-/tmp}/est-audio-bridge.XXXXXX"
+}
+
+capture_est_config_restore_state_with_jq() {
+    ORIGINAL_CONFIG_SOURCE_PRESENT="$(jq -r 'if ((.client.audioDevices? | type) == "object") then (if (.client.audioDevices | has("source")) then "1" else "0" end) else "0" end' "$CONFIG_PATH")"
+    ORIGINAL_CONFIG_SINK_PRESENT="$(jq -r 'if ((.client.audioDevices? | type) == "object") then (if (.client.audioDevices | has("sink")) then "1" else "0" end) else "0" end' "$CONFIG_PATH")"
+    ORIGINAL_CONFIG_SOURCE_JSON="$(jq -c 'if ((.client.audioDevices? | type) == "object" and (.client.audioDevices | has("source"))) then .client.audioDevices.source else null end' "$CONFIG_PATH")"
+    ORIGINAL_CONFIG_SINK_JSON="$(jq -c 'if ((.client.audioDevices? | type) == "object" and (.client.audioDevices | has("sink"))) then .client.audioDevices.sink else null end' "$CONFIG_PATH")"
+}
+
+restore_est_config_with_jq() {
+    local tmp_path
+
+    if ! command_exists jq; then
+        printf 'Could not restore est-gui config values: jq is no longer available.\n' >&2
+        return 0
+    fi
+
+    if [[ ! -f "$CONFIG_RESTORE_PATH" ]]; then
+        printf 'Could not restore est-gui config values: config file not found: %s\n' "$CONFIG_RESTORE_PATH" >&2
+        return 0
+    fi
+
+    if ! tmp_path="$(create_temp_path_for "$CONFIG_RESTORE_PATH" 2>/dev/null)"; then
+        printf 'Could not restore est-gui config values: failed to create temporary file.\n' >&2
+        return 0
+    fi
+
+    if jq --arg source_present "$ORIGINAL_CONFIG_SOURCE_PRESENT" \
+        --arg sink_present "$ORIGINAL_CONFIG_SINK_PRESENT" \
+        --argjson source "$ORIGINAL_CONFIG_SOURCE_JSON" \
+        --argjson sink "$ORIGINAL_CONFIG_SINK_JSON" \
+        'if $source_present == "1" then .client.audioDevices.source = $source else del(.client.audioDevices.source) end | if $sink_present == "1" then .client.audioDevices.sink = $sink else del(.client.audioDevices.sink) end' \
+        "$CONFIG_RESTORE_PATH" > "$tmp_path" && mv "$tmp_path" "$CONFIG_RESTORE_PATH"; then
+        printf 'Restored est-gui config values: %s\n' "$CONFIG_RESTORE_PATH"
+    else
+        rm -f "$tmp_path"
+        printf 'Could not restore est-gui config values. Check the config file manually: %s\n' "$CONFIG_RESTORE_PATH" >&2
+    fi
+
+    return 0
+}
+
+restore_est_config_with_saved_lines() {
+    local tmp_path
+    local line
+    local in_client=0
+    local in_audio_devices=0
+    local brace_depth=0
+    local source_restored=0
+    local sink_restored=0
+
+    if [[ ! -f "$CONFIG_RESTORE_PATH" ]]; then
+        printf 'Could not restore est-gui config values: config file not found: %s\n' "$CONFIG_RESTORE_PATH" >&2
+        return 0
+    fi
+
+    if [[ -z "$ORIGINAL_CONFIG_SOURCE_LINE" || -z "$ORIGINAL_CONFIG_SINK_LINE" ]]; then
+        printf 'Could not restore est-gui config values: original config lines were not captured.\n' >&2
+        return 0
+    fi
+
+    if ! tmp_path="$(create_temp_path_for "$CONFIG_RESTORE_PATH" 2>/dev/null)"; then
+        printf 'Could not restore est-gui config values: failed to create temporary file.\n' >&2
+        return 0
+    fi
+
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        if [[ "$line" =~ ^([[:space:]]*)\"client\"[[:space:]]*:[[:space:]]*\{ ]]; then
+            in_client=1
+            brace_depth=1
+        elif [[ "$in_client" == "1" ]]; then
+            if [[ "$line" == *"{"* ]]; then
+                brace_depth="$((brace_depth + 1))"
+            fi
+
+            if [[ "$line" =~ ^[[:space:]]*\"audioDevices\"[[:space:]]*:[[:space:]]*\{ ]]; then
+                in_audio_devices=1
+            elif [[ "$in_audio_devices" == "1" && "$line" =~ ^[[:space:]]*\"source\"[[:space:]]*: ]]; then
+                printf '%s\n' "$ORIGINAL_CONFIG_SOURCE_LINE" >> "$tmp_path"
+                source_restored=1
+                continue
+            elif [[ "$in_audio_devices" == "1" && "$line" =~ ^[[:space:]]*\"sink\"[[:space:]]*: ]]; then
+                printf '%s\n' "$ORIGINAL_CONFIG_SINK_LINE" >> "$tmp_path"
+                sink_restored=1
+                continue
+            fi
+        fi
+
+        printf '%s\n' "$line" >> "$tmp_path"
+
+        if [[ "$in_client" == "1" && "$line" == *"}"* ]]; then
+            brace_depth="$((brace_depth - 1))"
+            if [[ "$in_audio_devices" == "1" && "$brace_depth" -le 1 ]]; then
+                in_audio_devices=0
+            fi
+            if [[ "$brace_depth" -le 0 ]]; then
+                in_client=0
+            fi
+        fi
+    done < "$CONFIG_RESTORE_PATH"
+
+    if [[ "$source_restored" == "1" && "$sink_restored" == "1" ]] && mv "$tmp_path" "$CONFIG_RESTORE_PATH"; then
+        printf 'Restored est-gui config values: %s\n' "$CONFIG_RESTORE_PATH"
+    else
+        rm -f "$tmp_path"
+        printf 'Could not restore est-gui config values. Check the config file manually: %s\n' "$CONFIG_RESTORE_PATH" >&2
+    fi
+
+    return 0
+}
+
+restore_est_config() {
+    if [[ "$CONFIG_UPDATED" != "1" || -z "$CONFIG_RESTORE_PATH" ]]; then
+        return 0
+    fi
+
+    case "$CONFIG_RESTORE_METHOD" in
+        jq)
+            restore_est_config_with_jq
+            ;;
+        lines)
+            restore_est_config_with_saved_lines
+            ;;
+        *)
+            printf 'Could not restore est-gui config values: unknown restore method.\n' >&2
+            ;;
+    esac
+
+    CONFIG_UPDATED="0"
+    return 0
 }
 
 extract_inspect_property() {
@@ -651,12 +798,15 @@ update_est_config() {
     fi
 
     if command_exists jq; then
+        CONFIG_RESTORE_PATH="$CONFIG_PATH"
+        capture_est_config_restore_state_with_jq || die 'Could not capture current est-gui config values with jq.'
         tmp_path="$(create_temp_config_path)"
 
         if jq --arg source "$EST_SOURCE_DEVICE" --arg sink "$EST_SINK_DEVICE" \
             '.client.audioDevices.source = $source | .client.audioDevices.sink = $sink' \
-            "$CONFIG_PATH" > "$tmp_path"; then
-            mv "$tmp_path" "$CONFIG_PATH"
+            "$CONFIG_PATH" > "$tmp_path" && mv "$tmp_path" "$CONFIG_PATH"; then
+            CONFIG_RESTORE_METHOD="jq"
+            CONFIG_UPDATED="1"
             printf 'Updated est-gui config: %s\n' "$CONFIG_PATH"
             printf '  client.audioDevices.source: %s\n' "$EST_SOURCE_DEVICE"
             printf '  client.audioDevices.sink:   %s\n' "$EST_SINK_DEVICE"
@@ -671,6 +821,9 @@ update_est_config() {
     source_value="${source_value//\"/\\\"}"
     sink_value="${EST_SINK_DEVICE//\\/\\\\}"
     sink_value="${sink_value//\"/\\\"}"
+    CONFIG_RESTORE_PATH="$CONFIG_PATH"
+    ORIGINAL_CONFIG_SOURCE_LINE=""
+    ORIGINAL_CONFIG_SINK_LINE=""
     tmp_path="$(create_temp_config_path)"
 
     while IFS= read -r line || [[ -n "$line" ]]; do
@@ -688,6 +841,7 @@ update_est_config() {
                 indent="${BASH_REMATCH[1]}"
                 trailing_comma=""
                 [[ "$line" =~ ,[[:space:]]*$ ]] && trailing_comma=","
+                ORIGINAL_CONFIG_SOURCE_LINE="$line"
                 printf '%s"source": "%s"%s\n' "$indent" "$source_value" "$trailing_comma" >> "$tmp_path"
                 source_updated=1
                 continue
@@ -695,6 +849,7 @@ update_est_config() {
                 indent="${BASH_REMATCH[1]}"
                 trailing_comma=""
                 [[ "$line" =~ ,[[:space:]]*$ ]] && trailing_comma=","
+                ORIGINAL_CONFIG_SINK_LINE="$line"
                 printf '%s"sink": "%s"%s\n' "$indent" "$sink_value" "$trailing_comma" >> "$tmp_path"
                 sink_updated=1
                 continue
@@ -719,7 +874,13 @@ update_est_config() {
         die 'Could not update client.audioDevices.source and client.audioDevices.sink in est-gui config.'
     fi
 
-    mv "$tmp_path" "$CONFIG_PATH"
+    if ! mv "$tmp_path" "$CONFIG_PATH"; then
+        rm -f "$tmp_path"
+        die 'Could not replace est-gui config with updated values.'
+    fi
+
+    CONFIG_RESTORE_METHOD="lines"
+    CONFIG_UPDATED="1"
 
     printf 'Updated est-gui config: %s\n' "$CONFIG_PATH"
     printf '  client.audioDevices.source: %s\n' "$EST_SOURCE_DEVICE"
@@ -796,10 +957,10 @@ monitor_bridge() {
     local receiver_log="${BRIDGE_LOG_DIR}/receiver-alsaloop.log"
 
     printf '\nAudio bridge is running.\n'
-    printf 'Press Ctrl + C to shutdown the audio bridge\n\n'
+    printf 'Press Ctrl + C to shutdown the audio bridge.\n\n'
 
     while process_alive "$SENDER_LOOP_PID" && process_alive "$RECEIVER_LOOP_PID"; do
-        printf '\r%s Bridging audio through ALSA loopback...' "${frames[$frame_index]}"
+        printf '\r%s PipeWire-to-ALSA bridge is running...' "${frames[$frame_index]}"
         frame_index="$(((frame_index + 1) % frame_count))"
         sleep 0.08
     done
