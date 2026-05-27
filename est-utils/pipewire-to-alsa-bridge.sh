@@ -10,7 +10,6 @@ SOURCE_BRIDGE_PLAYBACK="plughw:Loopback,0,1"
 SINK_BRIDGE_CAPTURE="plughw:Loopback,1,0"
 
 WPCTL_STATUS_OUTPUT=""
-SUDO_KEEPALIVE_PID=""
 SENDER_LOOP_PID=""
 RECEIVER_LOOP_PID=""
 BRIDGE_LOG_DIR=""
@@ -104,7 +103,6 @@ cleanup() {
     stop_process "$SENDER_LOOP_PID"
     stop_process "$RECEIVER_LOOP_PID"
     restore_pipewire_defaults
-    stop_process "$SUDO_KEEPALIVE_PID"
 }
 
 handle_signal() {
@@ -229,17 +227,6 @@ prompt_config_path() {
 
         printf 'Config file not found: %s\n' "$selected_path"
     done
-}
-
-prepare_sudo() {
-    printf 'Preparing sudo access for loading snd-aloop...\n'
-    sudo -v
-
-    while true; do
-        sudo -n true >/dev/null 2>&1 || exit
-        sleep 50
-    done &
-    SUDO_KEEPALIVE_PID="$!"
 }
 
 load_loopback_module() {
@@ -663,6 +650,23 @@ update_est_config() {
         die "est-gui config file not found: $CONFIG_PATH"
     fi
 
+    if command_exists jq; then
+        tmp_path="$(create_temp_config_path)"
+
+        if jq --arg source "$EST_SOURCE_DEVICE" --arg sink "$EST_SINK_DEVICE" \
+            '.client.audioDevices.source = $source | .client.audioDevices.sink = $sink' \
+            "$CONFIG_PATH" > "$tmp_path"; then
+            mv "$tmp_path" "$CONFIG_PATH"
+            printf 'Updated est-gui config: %s\n' "$CONFIG_PATH"
+            printf '  client.audioDevices.source: %s\n' "$EST_SOURCE_DEVICE"
+            printf '  client.audioDevices.sink:   %s\n' "$EST_SINK_DEVICE"
+            return 0
+        fi
+
+        rm -f "$tmp_path"
+        die 'jq failed to update est-gui config. Check that the config file contains valid JSON.'
+    fi
+
     source_value="${EST_SOURCE_DEVICE//\\/\\\\}"
     source_value="${source_value//\"/\\\"}"
     sink_value="${EST_SINK_DEVICE//\\/\\\\}"
@@ -775,10 +779,16 @@ start_bridge_processes() {
 
 monitor_bridge() {
     local frames=(
-        '[SOURCE] ====> [EST ALSA LOOPBACK] ----> [SINK]'
-        '[SOURCE] ----> [EST ALSA LOOPBACK] ====> [SINK]'
-        '[SOURCE] --->> [EST ALSA LOOPBACK] --->> [SINK]'
-        '[SOURCE] <---- [EST ALSA LOOPBACK] <==== [SINK]'
+        '⠋'
+        '⠙'
+        '⠚'
+        '⠞'
+        '⠖'
+        '⠦'
+        '⠴'
+        '⠲'
+        '⠳'
+        '⠓'
     )
     local frame_index=0
     local frame_count="${#frames[@]}"
@@ -789,9 +799,9 @@ monitor_bridge() {
     printf 'Press Ctrl + C to shutdown the audio bridge\n\n'
 
     while process_alive "$SENDER_LOOP_PID" && process_alive "$RECEIVER_LOOP_PID"; do
-        printf '\r%s' "${frames[$frame_index]}"
+        printf '\r%s Bridging audio through ALSA loopback...' "${frames[$frame_index]}"
         frame_index="$(((frame_index + 1) % frame_count))"
-        sleep 0.25
+        sleep 0.08
     done
 
     printf '\n\nOne of the bridge processes stopped unexpectedly.\n' >&2
@@ -814,7 +824,6 @@ main() {
     assert_non_root
     prompt_device_connected
     require_commands
-    prepare_sudo
     load_loopback_module
     parse_wpctl_status
     select_source_device
