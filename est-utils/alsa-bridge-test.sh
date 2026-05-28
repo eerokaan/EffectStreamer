@@ -19,6 +19,7 @@ ORIGINAL_SOURCE_DEFAULT_ID=""
 ORIGINAL_SINK_DEFAULT_ID=""
 SOURCE_DEFAULT_CHANGED="0"
 SINK_DEFAULT_CHANGED="0"
+USE_CURRENT_PIPEWIRE_DEFAULTS="1"
 
 SOURCE_IDS=()
 SOURCE_NAMES=()
@@ -134,10 +135,122 @@ require_commands() {
 prompt_device_connected() {
     printf '\n'
     printf 'PipeWire to ALSA bridge test setup\n'
-    printf 'Connect the Bluetooth earbuds to this computer now.\n'
+    printf 'Connect the intended audio source and sink devices to this computer now.\n'
     printf 'Press any key to continue...'
     IFS= read -r -n 1 _
     printf '\n'
+}
+
+prompt_pipewire_default_mode() {
+    local answer
+
+    printf '\n'
+    printf 'PipeWire profile preservation\n'
+    printf 'Using the current PipeWire defaults preserves the GNOME/WirePlumber-selected profile and codec.\n'
+    printf 'This is recommended for Bluetooth earbuds that need HSP/HFP with a specific codec.\n'
+
+    while true; do
+        printf 'Use current PipeWire defaults without reselecting devices? [Y/n]: '
+        IFS= read -r answer
+
+        case "$answer" in
+            ''|y|Y|yes|YES|Yes)
+                USE_CURRENT_PIPEWIRE_DEFAULTS="1"
+                return 0
+                ;;
+            n|N|no|NO|No)
+                USE_CURRENT_PIPEWIRE_DEFAULTS="0"
+                return 0
+                ;;
+            *)
+                printf 'Please answer yes or no.\n'
+                ;;
+        esac
+    done
+}
+
+capture_current_pipewire_defaults() {
+    local line
+    local section=""
+    local in_audio=0
+    local trimmed_line
+
+    ORIGINAL_SOURCE_DEFAULT_ID=""
+    ORIGINAL_SINK_DEFAULT_ID=""
+
+    if ! WPCTL_STATUS_OUTPUT="$(wpctl status 2>&1)"; then
+        printf '%s\n' "$WPCTL_STATUS_OUTPUT" >&2
+        die 'wpctl status failed. Is PipeWire/WirePlumber running?'
+    fi
+
+    while IFS= read -r line; do
+        trimmed_line="$(trim "$line")"
+
+        case "$trimmed_line" in
+            Audio)
+                in_audio=1
+                section=""
+                continue
+                ;;
+            Video|Settings)
+                in_audio=0
+                section=""
+                continue
+                ;;
+        esac
+
+        if [[ "$in_audio" -ne 1 ]]; then
+            continue
+        fi
+
+        case "$line" in
+            *"Sinks:"*)
+                section="sink"
+                continue
+                ;;
+            *"Sources:"*)
+                section="source"
+                continue
+                ;;
+            *"Devices:"*|*"Sink endpoints:"*|*"Source endpoints:"*|*"Streams:"*)
+                section=""
+                continue
+                ;;
+        esac
+
+        if [[ "$line" =~ \*[[:space:]]*([0-9]+)\. ]]; then
+            if [[ "$section" == "source" ]]; then
+                ORIGINAL_SOURCE_DEFAULT_ID="${BASH_REMATCH[1]}"
+            elif [[ "$section" == "sink" ]]; then
+                ORIGINAL_SINK_DEFAULT_ID="${BASH_REMATCH[1]}"
+            fi
+        fi
+    done <<< "$WPCTL_STATUS_OUTPUT"
+
+    if [[ -z "$ORIGINAL_SOURCE_DEFAULT_ID" ]]; then
+        die 'Could not identify the current PipeWire default source before loading snd-aloop.'
+    fi
+
+    if [[ -z "$ORIGINAL_SINK_DEFAULT_ID" ]]; then
+        die 'Could not identify the current PipeWire default sink before loading snd-aloop.'
+    fi
+
+    printf '\n'
+    printf 'Preserved current PipeWire default source: %s\n' "$ORIGINAL_SOURCE_DEFAULT_ID"
+    printf 'Preserved current PipeWire default sink:   %s\n' "$ORIGINAL_SINK_DEFAULT_ID"
+}
+
+reapply_preserved_pipewire_defaults() {
+    if [[ "$USE_CURRENT_PIPEWIRE_DEFAULTS" != "1" ]]; then
+        return 0
+    fi
+
+    printf '\n'
+    printf 'Reapplying preserved PipeWire defaults after loading snd-aloop...\n'
+    wpctl set-default "$ORIGINAL_SOURCE_DEFAULT_ID"
+    wpctl set-default "$ORIGINAL_SINK_DEFAULT_ID"
+    SOURCE_DEFAULT_CHANGED="1"
+    SINK_DEFAULT_CHANGED="1"
 }
 
 load_loopback_module() {
@@ -403,6 +516,18 @@ print_selected_devices() {
     printf '  Sink:   [PipeWire/%s] %s\n' "$SELECTED_SINK_API" "$SELECTED_SINK_NAME"
 }
 
+use_current_pipewire_defaults() {
+    SELECTED_SOURCE_NAME="current PipeWire default source"
+    SELECTED_SOURCE_API="default"
+    SELECTED_SINK_NAME="current PipeWire default sink"
+    SELECTED_SINK_API="default"
+
+    printf '\n'
+    printf 'Using current PipeWire defaults. No source/sink node IDs will be reselected.\n'
+    printf '  Source backend: pipewire\n'
+    printf '  Sink backend:   pipewire\n'
+}
+
 set_pipewire_defaults() {
     printf '\n'
     printf 'Setting default PipeWire source for test: %s (%s)\n' "$SELECTED_SOURCE_NAME" "$SELECTED_SOURCE_ID"
@@ -456,7 +581,7 @@ start_gstreamer_process() {
 
 start_test_processes() {
     start_gstreamer_process "source-bridge" "pipewire" "$SOURCE_BRIDGE_PLAYBACK"
-    printf 'Waiting for source bridge and Bluetooth profile to settle...\n'
+    printf 'Waiting for source bridge to settle...\n'
     sleep 3
     start_gstreamer_process "sink-bridge" "$SINK_BRIDGE_CAPTURE" "pipewire"
     start_gstreamer_process "loopback-test" "$TEST_SOURCE_DEVICE" "$TEST_SINK_DEVICE"
@@ -485,7 +610,7 @@ monitor_test() {
     printf '\n'
 
     while process_alive "$SOURCE_BRIDGE_PID" && process_alive "$SINK_BRIDGE_PID" && process_alive "$TEST_LOOPBACK_PID"; do
-        printf '\r%s PipeWire-to-ALSA audio test is running...' "${frames[$frame_index]}"
+        printf '\r%s PipeWire-to-ALSA bridge test is running...' "${frames[$frame_index]}"
         frame_index="$(((frame_index + 1) % frame_count))"
         sleep 0.08
     done
@@ -511,12 +636,25 @@ main() {
     assert_non_root
     prompt_device_connected
     require_commands
+    prompt_pipewire_default_mode
+
+    if [[ "$USE_CURRENT_PIPEWIRE_DEFAULTS" == "1" ]]; then
+        capture_current_pipewire_defaults
+    fi
+
     load_loopback_module
-    parse_wpctl_status
-    select_source_device
-    select_sink_device
-    print_selected_devices
-    set_pipewire_defaults
+
+    if [[ "$USE_CURRENT_PIPEWIRE_DEFAULTS" == "1" ]]; then
+        reapply_preserved_pipewire_defaults
+        use_current_pipewire_defaults
+    else
+        parse_wpctl_status
+        select_source_device
+        select_sink_device
+        print_selected_devices
+        set_pipewire_defaults
+    fi
+
     start_test_processes
     monitor_test
 }
