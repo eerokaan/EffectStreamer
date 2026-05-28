@@ -10,8 +10,8 @@ CONFIG_PATH="${EST_GUI_CONFIG:-${PWD}/est-config.json}"
 
 EST_SOURCE_DEVICE="plughw:Loopback,1,1"
 EST_SINK_DEVICE="plughw:Loopback,0,0"
-SOURCE_BRIDGE_PLAYBACK="plughw:Loopback,0,1"
-SINK_BRIDGE_CAPTURE="plughw:Loopback,1,0"
+SOURCE_BRIDGE_PLAYBACK="hw:Loopback,0,1"
+SINK_BRIDGE_CAPTURE="hw:Loopback,1,0"
 
 WPCTL_STATUS_OUTPUT=""
 SENDER_LOOP_PID=""
@@ -138,7 +138,7 @@ require_commands() {
     local missing=0
     local cmd
 
-    for cmd in sudo modprobe wpctl alsaloop mktemp mv rm; do
+    for cmd in sudo modprobe wpctl gst-launch-1.0 mktemp mv rm; do
         if ! command_exists "$cmd"; then
             printf 'Missing required command: %s\n' "$cmd" >&2
             missing=1
@@ -912,7 +912,7 @@ print_file_prefixed() {
     done < "$file_path"
 }
 
-start_alsaloop_process() {
+start_gstreamer_bridge_process() {
     local label="$1"
     local capture_device="$2"
     local playback_device="$3"
@@ -920,8 +920,15 @@ start_alsaloop_process() {
     local pid
 
     printf '\n'
-    printf 'Starting %s bridge: alsaloop -C %s -P %s\n' "$label" "$capture_device" "$playback_device"
-    alsaloop -C "$capture_device" -P "$playback_device" >"$log_file" 2>&1 &
+    printf 'Starting %s bridge: gst-launch-1.0 alsasrc device=%s -> alsasink device=%s\n' "$label" "$capture_device" "$playback_device"
+    gst-launch-1.0 -v \
+        alsasrc "device=${capture_device}" do-timestamp=true provide-clock=false buffer-time=20000 latency-time=5000 \
+        '!' audioconvert \
+        '!' audioresample \
+        '!' audio/x-raw,format=S16LE,rate=48000,channels=1 \
+        '!' queue max-size-time=200000000 leaky=downstream \
+        '!' alsasink "device=${playback_device}" sync=false async=false buffer-time=20000 latency-time=5000 \
+        >"$log_file" 2>&1 &
     pid="$!"
 
     if [[ "$label" == "sender" ]]; then
@@ -934,7 +941,7 @@ start_alsaloop_process() {
     if ! process_alive "$pid"; then
         printf '%s bridge exited immediately. Log output:\n' "$label" >&2
         print_file_prefixed "$log_file" >&2
-        die "Failed to start $label bridge. If a PipeWire device was selected, make sure the ALSA PipeWire PCM plugin is installed."
+        die "Failed to start $label GStreamer bridge. If a PipeWire device was selected, make sure the ALSA PipeWire PCM plugin is installed."
     fi
 }
 
@@ -943,11 +950,13 @@ start_bridge_processes() {
     local receiver_log
 
     BRIDGE_LOG_DIR="$(create_bridge_log_dir)"
-    sender_log="${BRIDGE_LOG_DIR}/sender-alsaloop.log"
-    receiver_log="${BRIDGE_LOG_DIR}/receiver-alsaloop.log"
+    sender_log="${BRIDGE_LOG_DIR}/sender-gstreamer.log"
+    receiver_log="${BRIDGE_LOG_DIR}/receiver-gstreamer.log"
 
-    start_alsaloop_process "sender" "$SELECTED_SOURCE_BACKEND" "$SOURCE_BRIDGE_PLAYBACK" "$sender_log"
-    start_alsaloop_process "receiver" "$SINK_BRIDGE_CAPTURE" "$SELECTED_SINK_BACKEND" "$receiver_log"
+    start_gstreamer_bridge_process "sender" "$SELECTED_SOURCE_BACKEND" "$SOURCE_BRIDGE_PLAYBACK" "$sender_log"
+    printf 'Waiting for source bridge and Bluetooth profile to settle...\n'
+    sleep 3
+    start_gstreamer_bridge_process "receiver" "$SINK_BRIDGE_CAPTURE" "$SELECTED_SINK_BACKEND" "$receiver_log"
 }
 
 monitor_bridge() {
@@ -965,8 +974,8 @@ monitor_bridge() {
     )
     local frame_index=0
     local frame_count="${#frames[@]}"
-    local sender_log="${BRIDGE_LOG_DIR}/sender-alsaloop.log"
-    local receiver_log="${BRIDGE_LOG_DIR}/receiver-alsaloop.log"
+    local sender_log="${BRIDGE_LOG_DIR}/sender-gstreamer.log"
+    local receiver_log="${BRIDGE_LOG_DIR}/receiver-gstreamer.log"
 
     printf '\n'
     printf 'Audio bridge is running.\n'
