@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# EffectStreamer Utilities: PipeWire-to-ALSA Bridge
+# EffectStreamer Utilities: PipeWire-to-ALSA Bridge Main
 # @company Quality and Usability Lab | TU Berlin
 # @author  Eero Kaan <eerokaan@qu.tu-berlin.de>
 
@@ -14,9 +14,8 @@ SOURCE_BRIDGE_PLAYBACK="hw:Loopback,0,1"
 SINK_BRIDGE_CAPTURE="hw:Loopback,1,0"
 
 WPCTL_STATUS_OUTPUT=""
-SENDER_LOOP_PID=""
-RECEIVER_LOOP_PID=""
-BRIDGE_LOG_DIR=""
+SOURCE_BRIDGE_PID=""
+SINK_BRIDGE_PID=""
 ORIGINAL_SOURCE_DEFAULT_ID=""
 ORIGINAL_SINK_DEFAULT_ID=""
 SOURCE_DEFAULT_CHANGED="0"
@@ -113,8 +112,8 @@ restore_pipewire_defaults() {
 cleanup() {
     trap - EXIT INT TERM
 
-    stop_process "$SENDER_LOOP_PID"
-    stop_process "$RECEIVER_LOOP_PID"
+    stop_process "$SOURCE_BRIDGE_PID"
+    stop_process "$SINK_BRIDGE_PID"
     restore_est_config
     restore_pipewire_defaults
 }
@@ -267,10 +266,6 @@ create_temp_path_for() {
 
 create_temp_config_path() {
     create_temp_path_for "$CONFIG_PATH"
-}
-
-create_bridge_log_dir() {
-    mktemp -d "${TMPDIR:-/tmp}/est-audio-bridge.XXXXXX"
 }
 
 capture_est_config_restore_state_with_jq() {
@@ -898,65 +893,41 @@ update_est_config() {
     printf '  client.audioDevices.sink:   %s\n' "$EST_SINK_DEVICE"
 }
 
-print_file_prefixed() {
-    local file_path="$1"
-    local line
-
-    if [[ ! -s "$file_path" ]]; then
-        printf '  (no log output)\n'
-        return 0
-    fi
-
-    while IFS= read -r line; do
-        printf '  %s\n' "$line"
-    done < "$file_path"
-}
-
 start_gstreamer_bridge_process() {
     local label="$1"
     local capture_device="$2"
     local playback_device="$3"
-    local log_file="$4"
     local pid
 
     printf '\n'
     printf 'Starting %s bridge: gst-launch-1.0 alsasrc device=%s -> alsasink device=%s\n' "$label" "$capture_device" "$playback_device"
-    gst-launch-1.0 -v \
+    gst-launch-1.0 \
         alsasrc "device=${capture_device}" do-timestamp=true provide-clock=false buffer-time=20000 latency-time=5000 \
         '!' audioconvert \
         '!' audioresample \
         '!' audio/x-raw,format=S16LE,rate=48000,channels=1 \
         '!' queue max-size-time=200000000 leaky=downstream \
         '!' alsasink "device=${playback_device}" sync=false async=false buffer-time=20000 latency-time=5000 \
-        >"$log_file" 2>&1 &
+        >/dev/null 2>&1 &
     pid="$!"
 
     if [[ "$label" == "sender" ]]; then
-        SENDER_LOOP_PID="$pid"
+        SOURCE_BRIDGE_PID="$pid"
     else
-        RECEIVER_LOOP_PID="$pid"
+        SINK_BRIDGE_PID="$pid"
     fi
 
     sleep 1
     if ! process_alive "$pid"; then
-        printf '%s bridge exited immediately. Log output:\n' "$label" >&2
-        print_file_prefixed "$log_file" >&2
         die "Failed to start $label GStreamer bridge. If a PipeWire device was selected, make sure the ALSA PipeWire PCM plugin is installed."
     fi
 }
 
 start_bridge_processes() {
-    local sender_log
-    local receiver_log
-
-    BRIDGE_LOG_DIR="$(create_bridge_log_dir)"
-    sender_log="${BRIDGE_LOG_DIR}/sender-gstreamer.log"
-    receiver_log="${BRIDGE_LOG_DIR}/receiver-gstreamer.log"
-
-    start_gstreamer_bridge_process "sender" "$SELECTED_SOURCE_BACKEND" "$SOURCE_BRIDGE_PLAYBACK" "$sender_log"
+    start_gstreamer_bridge_process "sender" "$SELECTED_SOURCE_BACKEND" "$SOURCE_BRIDGE_PLAYBACK"
     printf 'Waiting for source bridge and Bluetooth profile to settle...\n'
     sleep 3
-    start_gstreamer_bridge_process "receiver" "$SINK_BRIDGE_CAPTURE" "$SELECTED_SINK_BACKEND" "$receiver_log"
+    start_gstreamer_bridge_process "receiver" "$SINK_BRIDGE_CAPTURE" "$SELECTED_SINK_BACKEND"
 }
 
 monitor_bridge() {
@@ -974,14 +945,12 @@ monitor_bridge() {
     )
     local frame_index=0
     local frame_count="${#frames[@]}"
-    local sender_log="${BRIDGE_LOG_DIR}/sender-gstreamer.log"
-    local receiver_log="${BRIDGE_LOG_DIR}/receiver-gstreamer.log"
 
     printf '\n'
     printf 'Audio bridge is running.\n'
     printf 'Press Ctrl + C to shutdown the audio bridge.\n\n'
 
-    while process_alive "$SENDER_LOOP_PID" && process_alive "$RECEIVER_LOOP_PID"; do
+    while process_alive "$SOURCE_BRIDGE_PID" && process_alive "$SINK_BRIDGE_PID"; do
         printf '\r%s PipeWire-to-ALSA bridge is running...' "${frames[$frame_index]}"
         frame_index="$(((frame_index + 1) % frame_count))"
         sleep 0.08
@@ -991,17 +960,14 @@ monitor_bridge() {
     printf '\n' >&2
     printf 'One of the bridge processes stopped unexpectedly.\n' >&2
 
-    if ! process_alive "$SENDER_LOOP_PID"; then
-        printf 'Sender bridge log:\n' >&2
-        print_file_prefixed "$sender_log" >&2
+    if ! process_alive "$SOURCE_BRIDGE_PID"; then
+        printf 'Sender bridge stopped.\n' >&2
     fi
 
-    if ! process_alive "$RECEIVER_LOOP_PID"; then
-        printf 'Receiver bridge log:\n' >&2
-        print_file_prefixed "$receiver_log" >&2
+    if ! process_alive "$SINK_BRIDGE_PID"; then
+        printf 'Receiver bridge stopped.\n' >&2
     fi
 
-    printf 'Full bridge logs are in: %s\n' "$BRIDGE_LOG_DIR" >&2
     return 1
 }
 
