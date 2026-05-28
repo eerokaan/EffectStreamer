@@ -120,7 +120,8 @@ cleanup() {
 }
 
 handle_signal() {
-    printf '\nShutting down audio bridge...\n'
+    printf '\n'
+    printf 'Shutting down audio bridge...\n'
     exit 130
 }
 
@@ -150,7 +151,8 @@ require_commands() {
 }
 
 prompt_device_connected() {
-    printf '\nPipeWire to ALSA bridge setup\n'
+    printf '\n'
+    printf 'PipeWire to ALSA bridge setup\n'
     printf 'Connect the intended audio source and sink devices to this computer now.\n'
     printf 'Press any key to continue...'
     IFS= read -r -n 1 _
@@ -203,7 +205,8 @@ prompt_config_path() {
     local answer
     local selected_path
 
-    printf '\nSelect the est-config.json file to update.\n'
+    printf '\n'
+    printf 'Select the est-config.json file to update.\n'
     printf 'Default: %s\n' "$default_path"
 
     while true; do
@@ -672,7 +675,8 @@ select_source_device() {
     local count="${#SOURCE_IDS[@]}"
     local index
 
-    printf '\nAudio source devices\n'
+    printf '\n'
+    printf 'Audio source devices\n'
 
     while true; do
         for index in "${!SOURCE_IDS[@]}"; do
@@ -706,7 +710,8 @@ select_sink_device() {
     local count="${#SINK_IDS[@]}"
     local index
 
-    printf '\nAudio sink devices\n'
+    printf '\n'
+    printf 'Audio sink devices\n'
 
     while true; do
         for index in "${!SINK_IDS[@]}"; do
@@ -736,7 +741,8 @@ select_sink_device() {
 }
 
 print_selected_devices() {
-    printf '\nSelected devices\n'
+    printf '\n'
+    printf 'Selected devices\n'
     printf '  Source: [%s] %s -> %s\n' "$SELECTED_SOURCE_KIND" "$SELECTED_SOURCE_NAME" "$SELECTED_SOURCE_BACKEND"
     printf '  Sink:   [%s] %s -> %s\n' "$SELECTED_SINK_KIND" "$SELECTED_SINK_NAME" "$SELECTED_SINK_BACKEND"
 }
@@ -745,7 +751,8 @@ confirm_bridge_start() {
     local answer
 
     while true; do
-        printf '\nEstablish the PipeWire-to-ALSA bridge now? [y/N]: '
+        printf '\n'
+        printf 'Establish the PipeWire-to-ALSA bridge now? [y/N]: '
         IFS= read -r answer
 
         case "$answer" in
@@ -757,17 +764,21 @@ confirm_bridge_start() {
 }
 
 print_names_and_exit() {
-    printf '\nBridge not started. No config changes were made.\n'
-    printf '\nSelected backend device names\n'
+    printf '\n'
+    printf 'Bridge not started. No config changes were made.\n'
+    printf '\n'
+    printf 'Selected backend device names\n'
     printf '  Source: %s\n' "$SELECTED_SOURCE_BACKEND"
     printf '  Sink:   %s\n' "$SELECTED_SINK_BACKEND"
-    printf '\nEffectStreamer bridge device names if started later\n'
+    printf '\n'
+    printf 'EffectStreamer bridge device names if started later\n'
     printf '  client.audioDevices.source: %s\n' "$EST_SOURCE_DEVICE"
     printf '  client.audioDevices.sink:   %s\n' "$EST_SINK_DEVICE"
 }
 
 set_pipewire_defaults() {
     if [[ "$SELECTED_SOURCE_KIND" == "PipeWire" ]]; then
+        printf '\n'
         printf 'Setting default PipeWire source: %s (%s)\n' "$SELECTED_SOURCE_NAME" "$SELECTED_SOURCE_ID"
         wpctl set-default "$SELECTED_SOURCE_ID"
         SOURCE_DEFAULT_CHANGED="1"
@@ -908,6 +919,7 @@ start_alsaloop_process() {
     local log_file="$4"
     local pid
 
+    printf '\n'
     printf 'Starting %s bridge: alsaloop -C %s -P %s\n' "$label" "$capture_device" "$playback_device"
     alsaloop -C "$capture_device" -P "$playback_device" >"$log_file" 2>&1 &
     pid="$!"
@@ -956,7 +968,8 @@ monitor_bridge() {
     local sender_log="${BRIDGE_LOG_DIR}/sender-alsaloop.log"
     local receiver_log="${BRIDGE_LOG_DIR}/receiver-alsaloop.log"
 
-    printf '\nAudio bridge is running.\n'
+    printf '\n'
+    printf 'Audio bridge is running.\n'
     printf 'Press Ctrl + C to shutdown the audio bridge.\n\n'
 
     while process_alive "$SENDER_LOOP_PID" && process_alive "$RECEIVER_LOOP_PID"; do
@@ -965,7 +978,9 @@ monitor_bridge() {
         sleep 0.08
     done
 
-    printf '\n\nOne of the bridge processes stopped unexpectedly.\n' >&2
+    printf '\n' >&2
+    printf '\n' >&2
+    printf 'One of the bridge processes stopped unexpectedly.\n' >&2
 
     if ! process_alive "$SENDER_LOOP_PID"; then
         printf 'Sender bridge log:\n' >&2
