@@ -159,7 +159,9 @@ async function socketLogic() {
                 ...(data.packetlossBurstRatio != null ? ["--packetloss-burst-ratio", data.packetlossBurstRatio] : [])
             ];
 
-            appContext.estCoreSender = await helperEstCoreSpawn(args);
+            await helperEstCoreSpawn(args, (childProcess) => {
+                appContext.estCoreSender = childProcess;
+            });
             appContext.socket.emit("est-event:coreStartRequest", {
                 component: "receiver"
             });
@@ -174,7 +176,9 @@ async function socketLogic() {
                 ...(data.echoGain != null ? ["--echo-gain", data.echoGain] : [])
             ];
 
-            appContext.estCoreReceiver = await helperEstCoreSpawn(args);
+            await helperEstCoreSpawn(args, (childProcess) => {
+                appContext.estCoreReceiver = childProcess;
+            });
         }
     });
 
@@ -274,7 +278,7 @@ function helperGetOperatingSystem() {
     return null;
 }
 
-async function helperEstCoreSpawn(args = []) {
+async function helperEstCoreSpawn(args = [], childProcessRegistry = () => {}) {
     const base = path.join(process.resourcesPath, "est-core");
     const platform = helperGetOperatingSystem();
     let childProcess, gstLib;
@@ -304,9 +308,33 @@ async function helperEstCoreSpawn(args = []) {
     }
 
     return new Promise((resolve, reject) => {
-        childProcess.stdout.once("data", () => resolve(childProcess));
-        childProcess.once("error", reject);
-        childProcess.once("close", (code) => reject(new Error("est-core exited prematurely with code " + code)));
+        function childProcessListenerCleanup() {
+            childProcess.stdout.off("data", onReady);
+            childProcess.off("error", onError);
+            childProcess.off("close", onClose);
+        }
+
+        function onReady() {
+            childProcessListenerCleanup();
+            resolve(childProcess);
+        }
+
+        function onError(error) {
+            childProcessListenerCleanup();
+            childProcessRegistry(null);
+            reject(error);
+        }
+
+        function onClose(code) {
+            childProcessListenerCleanup();
+            childProcessRegistry(null);
+            reject(new Error("est-core exited prematurely with code " + code));
+        }
+
+        childProcess.stdout.once("data", onReady);
+        childProcess.once("error", onError);
+        childProcess.once("close", onClose);
+        childProcessRegistry(childProcess);
     });
 }
 
