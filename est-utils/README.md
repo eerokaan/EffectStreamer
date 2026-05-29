@@ -13,8 +13,8 @@ These scripts are not a replacement for a direct ALSA setup. They require GStrea
 1. Pair and select the intended audio device in Ubuntu/GNOME Settings first.
 2. For Bluetooth earbuds or headsets with microphones, select an HSP/HFP profile. Some models also require selecting a specific codec. For example, Apple AirPods may need HSP/HFP with the mSBC codec for both output and input.
 3. Prefer keeping the current GNOME/PipeWire defaults when the script asks. The script itself also allows for manual device selection, but selecting devices, Bluetooth profiles, and codecs through GNOME/Ubuntu Settings is faster for trying out different audio settings.
-4. Run `./alsa-bridge-test.sh` to confirm that the selected source and sink work through the bridge. Afterwards, Close the script again.
-5. Run `./alsa-bridge-main.sh` to start the bridge for EffectStreamer. Let the script run in the background for as long as `est-gui` should be used.
+4. Run `alsa-bridge-test.sh` to confirm that the selected source and sink work through the bridge. Afterwards, Close the script again.
+5. Run `alsa-bridge-main.sh` to start the bridge for EffectStreamer. Let the script run in the background for as long as `est-gui` should be used.
 6. Start `est-gui` while the bridge is running.
 
 ## Scripts

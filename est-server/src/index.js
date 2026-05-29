@@ -131,10 +131,11 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         // ===== clientUnregister ==============================
         socket.on("est-event:clientUnregister", () => {
             console.log("[Server] Client disconnected: " + socket.id);
+            io.emit("est-event:coreStopResponse", { testType: null, upload: false });
             io.emit("est-event:viewChangeResponse", { currentView: views.waiting });
 
             console.log("[Server] Shutting down current server instance due to client disconnect");
-            process.exit();
+            setTimeout(() => process.exit(), 500);
         });
 
         // ===== viewChangeRequest ==============================
@@ -224,7 +225,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         // ===== coreStopRequest ==============================
         socket.on("est-event:coreStopRequest", (data) => {
             helperGateResolve(appState.gates.coreStop, socket.id, 2, () => {
-                io.emit("est-event:coreStopResponse", { testType: data.testType });
+                io.emit("est-event:coreStopResponse", { testType: data.testType, upload: true });
             });
         });
 

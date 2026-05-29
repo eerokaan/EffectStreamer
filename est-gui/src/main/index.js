@@ -183,6 +183,12 @@ async function socketLogic() {
     appContext.socket.on("est-event:coreStopResponse", async (data) => {
         await helperEstCoreKill();
 
+        // For cases where we simply want to close down (No file upload)
+        if (data.upload === false) {
+            await helperEstCoreCleanup();
+            return;
+        }
+
         // Read recording files created by est-core
         const homeDir = app.getPath("home");
         const effectstreamerDir = path.join(homeDir, "effectstreamer");
