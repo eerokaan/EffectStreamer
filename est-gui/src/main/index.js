@@ -78,6 +78,9 @@ async function windowLogic() {
 async function socketLogic() {
     // ===== Common ==============================
     // Setup socket connection
+    const clientId = helperClientGetId();
+    if (!clientId) return;
+
     const serverUrl = "http://" + estConfig.server.ipAddress + ":" + estConfig.server.port;
     appContext.socket = io(serverUrl, {
         reconnection: true,
@@ -90,6 +93,7 @@ async function socketLogic() {
     // [MAIN] -> [SERVER]
     appContext.socket.on("connect", () => {
         appContext.socket.emit("est-event:clientRegister", {
+            clientId,
             operatingSystem: helperGetOperatingSystem(),
             ipAddress: estConfig.client.ipAddress,
             deviceSource: estConfig.client.audioDevices.source,
@@ -276,6 +280,17 @@ function helperGetOperatingSystem() {
     if (platform === "linux") return "linux";
     if (platform === "win32") return "windows";
     return null;
+}
+
+function helperClientGetId() {
+    const clientId = estConfig.client.identity;
+
+    if (typeof clientId !== "string" || clientId.trim().length === 0) {
+        console.error("Missing or invalid client.identity in est-config.json");
+        return null;
+    }
+
+    return clientId;
 }
 
 async function helperEstCoreSpawn(args = [], childProcessRegistry = () => {}) {

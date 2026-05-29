@@ -17,6 +17,7 @@ Before starting the GUI, place an `est-config.json` file next to the packaged ap
         "port": "3000"
     },
     "client": {
+        "identity": "client-a",
         "ipAddress": "127.0.0.1",
         "audioDevices": {
             "source": "hw:0,0",
@@ -26,7 +27,7 @@ Before starting the GUI, place an `est-config.json` file next to the packaged ap
 }
 ```
 
-The `server` section points to the running EffectStreamer Server. The `client.ipAddress` value is the IP address under which this GUI client should register itself at the server. On Linux, `client.audioDevices.source` and `client.audioDevices.sink` should be ALSA device IDs, for example values from `arecord -l` and `aplay -l`. On Windows, these device values can usually be left empty in the server-side setup because EffectStreamer Core can automatically select WASAPI devices.
+The `server` section points to the running EffectStreamer Server. The `client.identity` value is the stable identity under which this GUI registers at the server. Configure a unique value for each participant machine, for example `client-a` on the first machine and `client-b` on the second machine. The `client.ipAddress` value is the IP address under which this GUI client should register itself at the server. On Linux, `client.audioDevices.source` and `client.audioDevices.sink` should be ALSA device IDs, for example values from `arecord -l` and `aplay -l`. On Windows, these device values can usually be left empty in the server-side setup because EffectStreamer Core can automatically select WASAPI devices.
 
 ### Linux
 

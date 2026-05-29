@@ -20,7 +20,7 @@ if (process.env.EST_SERVER_TYPE === "harness") {
                 process.exit(0);
             }
 
-            console.log("[Harness] Server instance exited (code: " + code + "). Restarting in 500ms");
+            console.log("[Harness] Server instance exited (code: " + code + ") - Restarting in 500ms");
             setTimeout(spawnServer, 500);
         });
     };
@@ -36,6 +36,7 @@ if (process.env.EST_SERVER_TYPE === "harness") {
         process.exit(0);
     });
 }
+
 // ######################################################################################
 // ##### SERVER #########################################################################
 // ######################################################################################
@@ -89,7 +90,8 @@ else if (process.env.EST_SERVER_TYPE === "server") {
     let appState = {
         sessionDir: null,
         shutdownScheduled: false,
-        clients: new Map(),
+        clientsData: new Map(),
+        clientsSocketRegistry: new Map(),
         conditionIndex: 0,
         conditionOrder: [],
         conditionListeningSpeakingTestIndex: 0,
@@ -114,24 +116,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
 
         // ===== clientRegister ==============================
         socket.on("est-event:clientRegister", (data) => {
-            console.log("[Server] Client registered: " + socket.id);
-
-            const clientIndex = appState.clients.size;
-            const clientLabel = clientIndex === 0 ? "a" : "b";
-
-            appState.clients.set(socket.id, {
-                clientIndex,
-                clientLabel,
-                operatingSystem: data.operatingSystem,
-                ipAddress: data.ipAddress,
-                deviceSource: data.deviceSource,
-                deviceSink: data.deviceSink
-            });
-
-            // Check if two clients are connected now
-            if (appState.clients.size === 2) {
-                io.emit("est-event:viewChangeResponse", { currentView: views.welcome });
-            }
+            helperClientRegister(socket, data);
         });
 
         // ===== clientUnregister ==============================
@@ -141,23 +126,35 @@ else if (process.env.EST_SERVER_TYPE === "server") {
 
         // ===== viewChangeRequest ==============================
         socket.on("est-event:viewChangeRequest", (data) => {
-            const view = viewFlow.find((v) => v.name === data.currentView);
-            const viewNext = helperGetNextView(view.name);
-            const client = appState.clients.get(socket.id);
+            const payload = data ?? {};
+
+            const client = helperClientGetBySocketId(socket.id);
+            if (!client) {
+                helperClientLogIgnoredEvent(socket, "viewChangeRequest");
+                return;
+            }
+
+            const view = viewFlow.find((v) => v.name === payload.currentView);
+            if (!view) {
+                helperClientLogIgnoredEvent(socket, "viewChangeRequest", "requested view is unknown");
+                return;
+            }
 
             // Optional: Write scale data file if provided (for evaluation views)
-            if (data.scaleValues) {
+            if (payload.scaleValues) {
                 const roundSuffix = helperGetRoundSuffix(view.metadata.testType);
                 const serverFilename = "client-" + client.clientLabel + "-" + view.metadata.testType + roundSuffix + "-scales.json";
-                helperSaveSessionFile(serverFilename, JSON.stringify(data.scaleValues, null, 4), true);
+                helperSaveSessionFile(serverFilename, JSON.stringify(payload.scaleValues, null, 4), true);
             }
 
             // Views with direct passing
+            const viewNext = helperGetNextView(view.name);
+
             if (view.passing === "direct") {
                 io.to(socket.id).emit("est-event:viewChangeResponse", helperGetViewData(viewNext, socket.id));
 
                 // On SCT and LST testing views: Notify partner that they were left in the room
-                const peerSocketId = helperGetPeerSocketId(socket.id);
+                const peerSocketId = helperClientGetPeerSocketId(socket.id);
                 if (peerSocketId && (view.name === views.sct || view.name === views.lst)) {
                     io.to(peerSocketId).emit("est-event:viewChangeResponse", {
                         showDialog: true
@@ -178,22 +175,41 @@ else if (process.env.EST_SERVER_TYPE === "server") {
 
         // ===== pretestSubmitRequest ==============================
         socket.on("est-event:pretestSubmitRequest", (data) => {
-            const client = appState.clients.get(socket.id);
+            const payload = data ?? {};
+
+            const client = helperClientGetBySocketId(socket.id);
+            if (!client) {
+                helperClientLogIgnoredEvent(socket, "pretestSubmitRequest");
+                return;
+            }
+
             const serverFilename = "client-" + client.clientLabel + "-pretest-form.json";
-            helperSaveSessionFile(serverFilename, JSON.stringify(data.formData, null, 4), false);
+            helperSaveSessionFile(serverFilename, JSON.stringify(payload.formData, null, 4), false);
 
             io.to(socket.id).emit("est-event:pretestSubmitResponse");
         });
 
         // ===== coreStartRequest ==============================
         socket.on("est-event:coreStartRequest", (data) => {
+            const payload = data ?? {};
+
+            const thisClient = helperClientGetBySocketId(socket.id);
+            if (!thisClient) {
+                helperClientLogIgnoredEvent(socket, "coreStartRequest");
+                return;
+            }
+
             const currentCondition = helperGetCurrentCondition();
 
             // Stage 1: Sender component (Direct response)
-            if (data.component === "sender") {
-                const peerSocketId = helperGetPeerSocketId(socket.id);
-                const peerClient = appState.clients.get(peerSocketId);
-                const thisClient = appState.clients.get(socket.id);
+            if (payload.component === "sender") {
+                const peerSocketId = helperClientGetPeerSocketId(socket.id);
+                const peerClient = peerSocketId ? helperClientGetBySocketId(peerSocketId) : null;
+
+                if (!peerClient) {
+                    helperClientLogIgnoredEvent(socket, "coreStartRequest", "no peer is registered yet");
+                    return;
+                }
 
                 const estCoreSettings = {
                     component: "sender",
@@ -211,9 +227,9 @@ else if (process.env.EST_SERVER_TYPE === "server") {
             }
 
             // Stage 2: Receiver component (Gated response)
-            else if (data.component === "receiver") {
+            else if (payload.component === "receiver") {
                 helperGateResolve(appState.gates.coreStart, socket.id, 2, () => {
-                    helperEmitToAll("est-event:coreStartResponse", (clientSocketId, clientData) => ({
+                    helperClientEmitToAll("est-event:coreStartResponse", (clientSocketId, clientData) => ({
                         component: "receiver",
                         deviceSink: clientData.deviceSink,
                         nativeGain: currentCondition.nativeGain,
@@ -225,29 +241,43 @@ else if (process.env.EST_SERVER_TYPE === "server") {
 
         // ===== coreStopRequest ==============================
         socket.on("est-event:coreStopRequest", (data) => {
+            const payload = data ?? {};
+
+            const client = helperClientGetBySocketId(socket.id);
+            if (!client) {
+                helperClientLogIgnoredEvent(socket, "coreStopRequest", "the client is not registered (anymore)");
+                return;
+            }
+
             helperGateResolve(appState.gates.coreStop, socket.id, 2, () => {
-                io.emit("est-event:coreStopResponse", { testType: data.testType, upload: true });
+                helperClientEmitToAll("est-event:coreStopResponse", { testType: payload.testType, upload: true });
             });
         });
 
         // ===== fileTransferRequest ==============================
         socket.on("est-event:fileTransferRequest", (data) => {
-            const client = appState.clients.get(socket.id);
+            const payload = data ?? {};
+
+            const client = helperClientGetBySocketId(socket.id);
+            if (!client) {
+                helperClientLogIgnoredEvent(socket, "fileTransferRequest");
+                return;
+            }
 
             // Construct filename: client-{a|b}-{sct|lst}-{microphone|headphones}.ogg
-            const originalName = data.filename.replace(".ogg", "");
-            const roundSuffix = helperGetRoundSuffix(data.testType);
-            const serverFilename = "client-" + client.clientLabel + "-" + data.testType + roundSuffix + "-" + originalName + ".ogg";
+            const originalName = payload.filename.replace(".ogg", "");
+            const roundSuffix = helperGetRoundSuffix(payload.testType);
+            const serverFilename = "client-" + client.clientLabel + "-" + payload.testType + roundSuffix + "-" + originalName + ".ogg";
 
             // Write file to current condition directory
-            helperSaveSessionFile(serverFilename, Buffer.from(data.fileData), true);
+            helperSaveSessionFile(serverFilename, Buffer.from(payload.fileData), true);
 
             // Gate: Track received files (2 files from 2 clients = 4 total)
-            const transferKey = helperGetTransferKeyForTestType(data.testType);
+            const transferKey = helperGetTransferKeyForTestType(payload.testType);
 
-            helperGateResolve(appState.gates.fileTransfer, transferKey + ":" + socket.id + ":" + data.filename, 4, () => {
+            helperGateResolve(appState.gates.fileTransfer, transferKey + ":" + socket.id + ":" + payload.filename, 4, () => {
                 appState.fileTransferCompletedKeys.add(transferKey);
-                io.emit("est-event:fileTransferResponse");
+                helperClientEmitToAll("est-event:fileTransferResponse");
 
                 // Try to resolve any pending double-gated view change
                 if (appState.fileTransferPendingViewName && helperGetTransferKeyForEvaluationView(appState.fileTransferPendingViewName) === transferKey && appState.gates.viewChange.size === 2) {
@@ -260,19 +290,186 @@ else if (process.env.EST_SERVER_TYPE === "server") {
     // ===========================================
     // ===== HELPER ==============================
     // ===========================================
+    function helperClientRegister(socket, data) {
+        const payload = data ?? {};
+
+        if (appState.shutdownScheduled) {
+            console.log("[Server] Rejecting client registration from socket " + socket.id + " because shutdown is scheduled");
+            socket.disconnect(true);
+            return;
+        }
+
+        const clientId = helperClientNormalizeId(payload.clientId);
+        if (!clientId) {
+            console.log("[Server] Rejecting client registration from socket " + socket.id + " because clientId is missing or invalid");
+            socket.disconnect(true);
+            return;
+        }
+
+        const mappedClientId = appState.clientsSocketRegistry.get(socket.id);
+        if (mappedClientId && mappedClientId !== clientId) {
+            console.log("[Server] Rejecting client registration from socket " + socket.id + " because it is already mapped to client " + mappedClientId);
+            socket.disconnect(true);
+            return;
+        }
+
+        if (!helperClientCanAcceptNewIdentity(clientId)) {
+            console.log("[Server] Rejecting client registration for " + clientId + " because two clients are already registered");
+            socket.disconnect(true);
+            return;
+        }
+
+        const clientsWereReady = helperClientCount() === 2;
+        const existingClient = appState.clientsData.get(clientId);
+        const clientSlot = existingClient ?? helperClientGetNextSlot();
+
+        if (!clientSlot) {
+            console.log("[Server] Rejecting client registration for " + clientId + " because no client slot is available");
+            socket.disconnect(true);
+            return;
+        }
+
+        if (existingClient?.socketId && existingClient.socketId !== socket.id) {
+            const oldSocketId = existingClient.socketId;
+            helperClientCleanupSocketState(oldSocketId);
+            appState.clientsSocketRegistry.delete(oldSocketId);
+
+            const oldSocket = io.sockets.sockets.get(oldSocketId);
+            if (oldSocket) oldSocket.disconnect(true);
+
+            console.log("[Server] Client reconnected: " + clientId + " (" + oldSocketId + " -> " + socket.id + ")");
+        }
+        else if (existingClient) {
+            console.log("[Server] Client registration refreshed: " + clientId + " (" + socket.id + ")");
+        }
+        else {
+            console.log("[Server] Client registered: " + clientId + " (" + socket.id + ")");
+        }
+
+        appState.clientsData.set(clientId, {
+            clientId,
+            socketId: socket.id,
+            clientIndex: clientSlot.clientIndex,
+            clientLabel: clientSlot.clientLabel,
+            operatingSystem: payload.operatingSystem,
+            ipAddress: payload.ipAddress,
+            deviceSource: payload.deviceSource,
+            deviceSink: payload.deviceSink
+        });
+        appState.clientsSocketRegistry.set(socket.id, clientId);
+
+        if (!clientsWereReady && helperClientCount() === 2) {
+            helperClientEmitToAll("est-event:viewChangeResponse", { currentView: views.welcome });
+        }
+    }
+
     function helperClientDisconnect(socket) {
-        if (!appState.clients.has(socket.id)) return;
-        appState.clients.delete(socket.id);
+        const clientId = appState.clientsSocketRegistry.get(socket.id);
+        if (!clientId) return;
+
+        const client = appState.clientsData.get(clientId);
+        helperClientCleanupSocketState(socket.id);
+        appState.clientsSocketRegistry.delete(socket.id);
+
+        if (!client || client.socketId !== socket.id) return;
+
+        appState.clientsData.delete(clientId);
 
         if (appState.shutdownScheduled) return;
         appState.shutdownScheduled = true;
 
-        console.log("[Server] Client disconnected: " + socket.id);
-        io.emit("est-event:coreStopResponse", { testType: null, upload: false });
-        io.emit("est-event:viewChangeResponse", { currentView: views.waiting });
+        console.log("[Server] Client disconnected: " + clientId + " (" + socket.id + ")");
+        helperClientEmitToAll("est-event:coreStopResponse", { testType: null, upload: false });
+        helperClientEmitToAll("est-event:viewChangeResponse", { currentView: views.waiting });
 
         console.log("[Server] Shutting down current server instance due to client disconnect");
         setTimeout(() => process.exit(), 500);
+    }
+
+    function helperClientNormalizeId(clientId) {
+        if (typeof clientId !== "string") return null;
+
+        const normalizedClientId = clientId.trim();
+        return normalizedClientId.length > 0 ? normalizedClientId : null;
+    }
+
+    function helperClientCanAcceptNewIdentity(clientId) {
+        return appState.clientsData.has(clientId) || helperClientCount() < 2;
+    }
+
+    function helperClientCount() {
+        return appState.clientsData.size;
+    }
+
+    function helperClientGetNextSlot() {
+        const usedClientIndexes = new Set();
+
+        appState.clientsData.forEach((client) => {
+            usedClientIndexes.add(client.clientIndex);
+        });
+
+        if (!usedClientIndexes.has(0)) return { clientIndex: 0, clientLabel: "a" };
+        if (!usedClientIndexes.has(1)) return { clientIndex: 1, clientLabel: "b" };
+
+        return null;
+    }
+
+    function helperClientGetBySocketId(socketId) {
+        if (appState.shutdownScheduled) return null;
+
+        const clientId = appState.clientsSocketRegistry.get(socketId);
+        if (!clientId) return null;
+
+        const client = appState.clientsData.get(clientId);
+        if (!client || client.socketId !== socketId) return null;
+
+        return client;
+    }
+
+    function helperClientGetPeerSocketId(socketId) {
+        const thisClient = helperClientGetBySocketId(socketId);
+        if (!thisClient) return null;
+
+        for (const client of appState.clientsData.values()) {
+            if (client.clientId !== thisClient.clientId) return client.socketId;
+        }
+
+        return null;
+    }
+
+    function helperClientCleanupSocketState(socketId) {
+        appState.gates.viewChange.delete(socketId);
+        appState.gates.coreStart.delete(socketId);
+        appState.gates.coreStop.delete(socketId);
+
+        for (const transferEntry of Array.from(appState.gates.fileTransfer)) {
+            if (transferEntry.includes(":" + socketId + ":")) {
+                appState.gates.fileTransfer.delete(transferEntry);
+            }
+        }
+    }
+
+    function helperClientEmitToAll(eventName, dataOrFunction) {
+        appState.clientsData.forEach((clientData) => {
+            const clientSocketId = clientData.socketId;
+
+            if (dataOrFunction === undefined) {
+                io.to(clientSocketId).emit(eventName);
+            }
+            else if (typeof dataOrFunction === "function") {
+                io.to(clientSocketId).emit(eventName, dataOrFunction(clientSocketId, clientData));
+            }
+            else {
+                io.to(clientSocketId).emit(eventName, dataOrFunction);
+            }
+        });
+    }
+
+    function helperClientLogIgnoredEvent(socket, eventName, customReason) {
+        const clientId = appState.clientsSocketRegistry.get(socket.id);
+        const reason = customReason ?? (appState.shutdownScheduled ? "server shutdown is scheduled" : "socket is not an active registered client");
+
+        console.log("[Server] Ignoring " + eventName + " from " + clientId + " (" + socket.id + ") " + "because" + " " + reason);
     }
 
     function helperResolveConfigPath() {
@@ -341,27 +538,6 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         for (let counter = 1; counter <= roundsTotal; counter++) {
             fs.mkdirSync(path.join(appState.sessionDir, String(counter).padStart(4, "0")));
         }
-    }
-
-    function helperEmitToAll(eventName, dataOrFunction) {
-        appState.clients.forEach((clientData, clientSocketId) => {
-            if (dataOrFunction === undefined) {
-                io.to(clientSocketId).emit(eventName);
-            }
-            else if (typeof dataOrFunction === "function") {
-                io.to(clientSocketId).emit(eventName, dataOrFunction(clientSocketId, clientData));
-            }
-            else {
-                io.to(clientSocketId).emit(eventName, dataOrFunction);
-            }
-        });
-    }
-
-    function helperGetPeerSocketId(socketId) {
-        for (const [id] of appState.clients) {
-            if (id !== socketId) return id;
-        }
-        return null;
     }
 
     function helperGateResolve(gateSet, key, threshold, onResolve) {
@@ -438,7 +614,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         const isLoopEndView = helperAdvanceConditionIfNeeded(currentViewName, viewNext);
         helperUpdateLstState(currentViewName, viewNext, isLoopEndView);
 
-        helperEmitToAll("est-event:viewChangeResponse", (clientSocketId) => helperGetViewData(viewNext, clientSocketId));
+        helperClientEmitToAll("est-event:viewChangeResponse", (clientSocketId) => helperGetViewData(viewNext, clientSocketId));
         appState.gates.viewChange.clear();
         appState.fileTransferPendingViewName = null;
 
@@ -504,7 +680,8 @@ else if (process.env.EST_SERVER_TYPE === "server") {
     }
 
     function helperGetListeningSpeakingTestRole(clientSocketId) {
-        const client = appState.clients.get(clientSocketId);
+        const client = helperClientGetBySocketId(clientSocketId);
+        if (!client) return null;
 
         if (appState.conditionListeningSpeakingTestIndex === 0) {
             return client.clientIndex === 0 ? "speaker" : "listener";
@@ -519,7 +696,9 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         const isLstEvaluation = viewName === views.lstEval;
 
         if (isSct || isLst || isLstEvaluation) {
-            const client = appState.clients.get(clientSocketId);
+            const client = helperClientGetBySocketId(clientSocketId);
+            if (!client) return { currentView: viewName };
+
             const clientNumber = client.clientIndex === 0 ? "01" : "02";
             const clientConditionAsset = helperGetConditionAssetName(clientNumber);
 
@@ -554,9 +733,10 @@ else if (process.env.EST_SERVER_TYPE === "server") {
     // ===========================================
     server.listen(estConfig.server.port, estConfig.server.ipAddress, () => {
         helperCreateFolderStructure();
-        console.log("[Server] Server started (PID: " + process.pid + "). Running on port " + estConfig.server.port + ".");
+        console.log("[Server] Server started (PID: " + process.pid + ") - Running on port " + estConfig.server.port);
     });
 }
+
 // ######################################################################################
 // ##### MISSING EST_SERVER_TYPE ENVIRONMENT VAR ########################################
 // ######################################################################################
