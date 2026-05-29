@@ -88,6 +88,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
 
     let appState = {
         sessionDir: null,
+        shutdownScheduled: false,
         clients: new Map(),
         conditionIndex: 0,
         conditionOrder: [],
@@ -106,6 +107,11 @@ else if (process.env.EST_SERVER_TYPE === "server") {
     // ===== WEBSOCKET LOGIC =====================
     // ===========================================
     io.on("connection", (socket) => {
+        // ===== disconnect ==============================
+        socket.on("disconnect", () => {
+            helperClientDisconnect(socket);
+        });
+
         // ===== clientRegister ==============================
         socket.on("est-event:clientRegister", (data) => {
             console.log("[Server] Client registered: " + socket.id);
@@ -130,12 +136,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
 
         // ===== clientUnregister ==============================
         socket.on("est-event:clientUnregister", () => {
-            console.log("[Server] Client disconnected: " + socket.id);
-            io.emit("est-event:coreStopResponse", { testType: null, upload: false });
-            io.emit("est-event:viewChangeResponse", { currentView: views.waiting });
-
-            console.log("[Server] Shutting down current server instance due to client disconnect");
-            setTimeout(() => process.exit(), 500);
+            helperClientDisconnect(socket);
         });
 
         // ===== viewChangeRequest ==============================
@@ -259,6 +260,21 @@ else if (process.env.EST_SERVER_TYPE === "server") {
     // ===========================================
     // ===== HELPER ==============================
     // ===========================================
+    function helperClientDisconnect(socket) {
+        if (!appState.clients.has(socket.id)) return;
+        appState.clients.delete(socket.id);
+
+        if (appState.shutdownScheduled) return;
+        appState.shutdownScheduled = true;
+
+        console.log("[Server] Client disconnected: " + socket.id);
+        io.emit("est-event:coreStopResponse", { testType: null, upload: false });
+        io.emit("est-event:viewChangeResponse", { currentView: views.waiting });
+
+        console.log("[Server] Shutting down current server instance due to client disconnect");
+        setTimeout(() => process.exit(), 500);
+    }
+
     function helperResolveConfigPath() {
         const configName = "est-config.json";
 
