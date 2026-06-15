@@ -56,7 +56,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         sct: "short-conversation-test",
         lst: "listening-speaking-test"
     };
-    const enabledTests = {
+    const testEnabled = {
         sct: estConfig.tests?.[testConfigKeys.sct] !== false,
         lst: estConfig.tests?.[testConfigKeys.lst] !== false
     };
@@ -134,17 +134,17 @@ else if (process.env.EST_SERVER_TYPE === "server") {
                 return;
             }
 
-            const view = viewFlow.find((v) => v.name === payload.currentView);
+            const view = viewFlow.find((view) => view.name === payload.currentView);
             if (!view) {
-                helperClientLogIgnoredEvent(socket, "viewChangeRequest", "requested view is unknown");
+                helperClientLogIgnoredEvent(socket, "viewChangeRequest", "Requested view is unknown");
                 return;
             }
 
             // Optional: Write scale data file if provided (for evaluation views)
             if (payload.scaleValues) {
-                const roundSuffix = helperGetRoundSuffix(view.metadata.testType);
+                const roundSuffix = view.metadata.testType === "lst" ? "-r" + (appState.conditionListeningSpeakingTestIndex + 1) : "";
                 const serverFilename = "client-" + client.clientLabel + "-" + view.metadata.testType + roundSuffix + "-scales.json";
-                helperSaveSessionFile(serverFilename, JSON.stringify(payload.scaleValues, null, 4), true);
+                helperSaveFile("conditionDir", serverFilename, JSON.stringify(payload.scaleValues, null, 4));
             }
 
             // Views with direct passing
@@ -154,7 +154,14 @@ else if (process.env.EST_SERVER_TYPE === "server") {
                 io.to(socket.id).emit("est-event:viewChangeResponse", helperGetViewData(viewNext, socket.id));
 
                 // On SCT and LST testing views: Notify partner that they were left in the room
-                const peerSocketId = helperClientGetPeerSocketId(socket.id);
+                let peerSocketId = null;
+                for (const registeredClient of appState.clientsData.values()) {
+                    if (registeredClient.clientId !== client.clientId) {
+                        peerSocketId = registeredClient.socketId;
+                        break;
+                    }
+                }
+
                 if (peerSocketId && (view.name === views.sct || view.name === views.lst)) {
                     io.to(peerSocketId).emit("est-event:viewChangeResponse", {
                         showDialog: true
@@ -162,7 +169,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
                 }
             }
 
-            // Views with gated passing (Manual gate: helperGateResolve cannot be used due to deferred double-gate)
+            // Views with gated passing
             else if (view.passing === "gated") {
                 appState.gates.viewChange.add(socket.id);
 
@@ -184,7 +191,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
             }
 
             const serverFilename = "client-" + client.clientLabel + "-pretest-form.json";
-            helperSaveSessionFile(serverFilename, JSON.stringify(payload.formData, null, 4), false);
+            helperSaveFile("sessionDir", serverFilename, JSON.stringify(payload.formData, null, 4));
 
             io.to(socket.id).emit("est-event:pretestSubmitResponse");
         });
@@ -199,9 +206,10 @@ else if (process.env.EST_SERVER_TYPE === "server") {
                 return;
             }
 
-            const coreRunKey = helperGetCoreRunKey(payload.testType);
+            const coreRunSuffix = payload.testType === "lst" ? "-r" + (appState.conditionListeningSpeakingTestIndex + 1) : "";
+            const coreRunKey = testConfigKeys[payload.testType] ? String(appState.conditionIndex + 1).padStart(4, "0") + ":" + payload.testType + coreRunSuffix : null;
             if (!coreRunKey) {
-                helperClientLogIgnoredEvent(socket, "coreStartRequest", "testType is missing or invalid");
+                helperClientLogIgnoredEvent(socket, "coreStartRequest", "The supplied test type is unknown");
                 return;
             }
             if (appState.coreStopCompletedKeys.has(coreRunKey)) {
@@ -209,15 +217,20 @@ else if (process.env.EST_SERVER_TYPE === "server") {
                 return;
             }
 
-            const currentCondition = helperGetCurrentCondition();
+            const currentCondition = appState.conditionIndex === 0 ? estConfig.conditions.baseline[0] : estConfig.conditions.random[appState.conditionOrder[appState.conditionIndex - 1]];
 
             // Stage 1: Sender component (Direct response)
             if (payload.component === "sender") {
-                const peerSocketId = helperClientGetPeerSocketId(socket.id);
-                const peerClient = peerSocketId ? helperClientGetBySocketId(peerSocketId) : null;
+                let peerClient = null;
+                for (const registeredClient of appState.clientsData.values()) {
+                    if (registeredClient.clientId !== thisClient.clientId) {
+                        peerClient = registeredClient;
+                        break;
+                    }
+                }
 
                 if (!peerClient) {
-                    helperClientLogIgnoredEvent(socket, "coreStartRequest", "no peer is registered yet");
+                    helperClientLogIgnoredEvent(socket, "coreStartRequest", "No peer is registered yet");
                     return;
                 }
 
@@ -239,14 +252,17 @@ else if (process.env.EST_SERVER_TYPE === "server") {
 
             // Stage 2: Receiver component (Gated response)
             else if (payload.component === "receiver") {
-                helperGateResolve(appState.gates.coreStart, socket.id, 2, () => {
+                appState.gates.coreStart.add(socket.id);
+
+                if (appState.gates.coreStart.size >= 2) {
                     helperClientEmitToAll("est-event:coreStartResponse", (clientSocketId, clientData) => ({
                         component: "receiver",
                         deviceSink: clientData.deviceSink,
                         nativeGain: currentCondition.nativeGain,
                         echoGain: currentCondition.echoGain
                     }));
-                });
+                    appState.gates.coreStart.clear();
+                }
             }
         });
 
@@ -256,13 +272,14 @@ else if (process.env.EST_SERVER_TYPE === "server") {
 
             const client = helperClientGetBySocketId(socket.id);
             if (!client) {
-                helperClientLogIgnoredEvent(socket, "coreStopRequest", "the client is not registered (anymore)");
+                helperClientLogIgnoredEvent(socket, "coreStopRequest", "The client is not registered (anymore)");
                 return;
             }
 
-            const coreRunKey = helperGetCoreRunKey(payload.testType);
+            const coreRunSuffix = payload.testType === "lst" ? "-r" + (appState.conditionListeningSpeakingTestIndex + 1) : "";
+            const coreRunKey = testConfigKeys[payload.testType] ? String(appState.conditionIndex + 1).padStart(4, "0") + ":" + payload.testType + coreRunSuffix : null;
             if (!coreRunKey) {
-                helperClientLogIgnoredEvent(socket, "coreStopRequest", "testType is missing or invalid");
+                helperClientLogIgnoredEvent(socket, "coreStopRequest", "The supplied test type is unknown");
                 return;
             }
 
@@ -284,30 +301,137 @@ else if (process.env.EST_SERVER_TYPE === "server") {
             }
 
             // Construct filename: client-{a|b}-{sct|lst}-{microphone|headphones}.ogg
-            const roundSuffix = helperGetRoundSuffix(payload.testType);
+            const roundSuffix = payload.testType === "lst" ? "-r" + (appState.conditionListeningSpeakingTestIndex + 1) : "";
             const serverFilename = "client-" + client.clientLabel + "-" + payload.testType + roundSuffix + "-" + payload.fileName;
 
             // Write file to current condition directory
-            helperSaveSessionFile(serverFilename, Buffer.from(payload.fileData), true);
+            helperSaveFile("conditionDir", serverFilename, Buffer.from(payload.fileData));
 
             // Gate: Track received files (2 files from 2 clients = 4 total)
-            const transferKey = helperGetTransferKeyForTestType(payload.testType);
+            const transferKey = String(appState.conditionIndex + 1).padStart(4, "0") + ":" + payload.testType + roundSuffix;
 
-            helperGateResolve(appState.gates.fileTransfer, transferKey + ":" + socket.id + ":" + payload.fileName, 4, () => {
+            appState.gates.fileTransfer.add(transferKey + ":" + socket.id + ":" + payload.fileName);
+
+            if (appState.gates.fileTransfer.size >= 4) {
                 appState.fileTransferCompletedKeys.add(transferKey);
                 helperClientEmitToAll("est-event:fileTransferResponse");
 
                 // Try to resolve any pending double-gated view change
-                if (appState.fileTransferPendingViewName && helperGetTransferKeyForEvaluationView(appState.fileTransferPendingViewName) === transferKey && appState.gates.viewChange.size === 2) {
-                    helperResolveGatedViewChange(appState.fileTransferPendingViewName);
+                if (appState.fileTransferPendingViewName && appState.gates.viewChange.size === 2) {
+                    const pendingView = viewFlow.find((v) => v.name === appState.fileTransferPendingViewName);
+                    const pendingTestType = pendingView?.metadata?.testType;
+                    const pendingRoundSuffix = pendingTestType === "lst" ? "-r" + (appState.conditionListeningSpeakingTestIndex + 1) : "";
+                    const pendingTransferKey = pendingTestType ? String(appState.conditionIndex + 1).padStart(4, "0") + ":" + pendingTestType + pendingRoundSuffix : null;
+
+                    if (pendingTransferKey === transferKey) {
+                        helperResolveGatedViewChange(appState.fileTransferPendingViewName);
+                    }
                 }
-            });
+
+                appState.gates.fileTransfer.clear();
+            }
         });
     });
 
     // ===========================================
     // ===== HELPER ==============================
     // ===========================================
+    function helperBuildViewFlow() {
+        const testViews = [];
+
+        if (testEnabled.sct) {
+            testViews.push({ name: views.sctExp, passing: "gated", metadata: {} }, { name: views.sct, passing: "direct", metadata: {} }, { name: views.sctEval, passing: "gated", metadata: { testType: "sct" } });
+        }
+        if (testEnabled.lst) {
+            testViews.push({ name: views.lstExp, passing: "gated", metadata: {} }, { name: views.lst, passing: "direct", metadata: {} }, { name: views.lstEval, passing: "gated", metadata: { testType: "lst" } });
+        }
+        if (testViews.length > 0) {
+            testViews[0].metadata = { ...testViews[0].metadata, loopBehaviour: "start" };
+
+            const loopEndView = [...testViews].reverse().find((view) => view.metadata?.testType);
+            loopEndView.metadata = { ...loopEndView.metadata, loopBehaviour: "end" };
+        }
+
+        return [{ name: views.waiting, passing: "direct", metadata: {} }, { name: views.welcome, passing: "direct", metadata: {} }, { name: views.pretest, passing: "gated", metadata: {} }, ...testViews, ...(testViews.length > 0 ? [{ name: views.break, passing: "gated", metadata: { loopBehaviour: "break" } }] : []), { name: views.ending, passing: "direct", metadata: {} }];
+    }
+
+    function helperClientCleanupSocketState(socketId) {
+        appState.gates.viewChange.delete(socketId);
+        appState.gates.coreStart.delete(socketId);
+
+        for (const transferEntry of Array.from(appState.gates.fileTransfer)) {
+            if (transferEntry.includes(":" + socketId + ":")) {
+                appState.gates.fileTransfer.delete(transferEntry);
+            }
+        }
+    }
+
+    function helperClientDisconnect(socket) {
+        const clientId = appState.clientsSocketRegistry.get(socket.id);
+        if (!clientId) return;
+
+        const client = appState.clientsData.get(clientId);
+        helperClientCleanupSocketState(socket.id);
+        appState.clientsSocketRegistry.delete(socket.id);
+
+        if (!client || client.socketId !== socket.id) return;
+
+        appState.clientsData.delete(clientId);
+
+        if (appState.shutdownScheduled) return;
+        appState.shutdownScheduled = true;
+
+        console.log("[Server] Client disconnected: " + clientId + " (" + socket.id + ")");
+        helperClientEmitToAll("est-event:coreStopResponse", { testType: null, upload: false });
+        helperClientEmitToAll("est-event:viewChangeResponse", { currentView: views.waiting });
+
+        console.log("[Server] Shutting down current server instance due to client disconnect");
+        setTimeout(() => process.exit(), 500);
+    }
+
+    function helperClientEmitToAll(eventName, dataOrFunction) {
+        appState.clientsData.forEach((clientData) => {
+            const clientSocketId = clientData.socketId;
+
+            if (dataOrFunction === undefined) {
+                io.to(clientSocketId).emit(eventName);
+            }
+            else if (typeof dataOrFunction === "function") {
+                io.to(clientSocketId).emit(eventName, dataOrFunction(clientSocketId, clientData));
+            }
+            else {
+                io.to(clientSocketId).emit(eventName, dataOrFunction);
+            }
+        });
+    }
+
+    function helperClientGetBySocketId(socketId) {
+        if (appState.shutdownScheduled) return null;
+
+        const clientId = appState.clientsSocketRegistry.get(socketId);
+        if (!clientId) return null;
+
+        const client = appState.clientsData.get(clientId);
+        if (!client || client.socketId !== socketId) return null;
+
+        return client;
+    }
+
+    function helperClientLogIgnoredEvent(socket, eventName, customReason) {
+        const clientId = appState.clientsSocketRegistry.get(socket.id);
+        let reason = "n/a";
+
+        if (appState.shutdownScheduled) {
+            reason = "Server shutdown is scheduled";
+        }
+        if (customReason) {
+            reason = customReason;
+        }
+
+        const message = "[Server] Ignoring " + eventName + " from " + clientId + " (" + socket.id + "): " + reason;
+        console.log(message);
+    }
+
     function helperClientRegister(socket, data) {
         const payload = data ?? {};
 
@@ -317,7 +441,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
             return;
         }
 
-        const clientId = helperClientNormalizeId(payload.clientId);
+        const clientId = typeof payload.clientId === "string" ? payload.clientId.trim() : null;
         if (!clientId) {
             console.log("[Server] Rejecting client registration from socket " + socket.id + " because clientId is missing or invalid");
             socket.disconnect(true);
@@ -331,15 +455,29 @@ else if (process.env.EST_SERVER_TYPE === "server") {
             return;
         }
 
-        if (!helperClientCanAcceptNewIdentity(clientId)) {
+        if (!appState.clientsData.has(clientId) && appState.clientsData.size >= 2) {
             console.log("[Server] Rejecting client registration for " + clientId + " because two clients are already registered");
             socket.disconnect(true);
             return;
         }
 
-        const clientsWereReady = helperClientCount() === 2;
+        const clientsWereReady = appState.clientsData.size === 2;
         const existingClient = appState.clientsData.get(clientId);
-        const clientSlot = existingClient ?? helperClientGetNextSlot();
+        let clientSlot = existingClient;
+
+        if (!clientSlot) {
+            const usedClientIndexes = new Set();
+            appState.clientsData.forEach((client) => {
+                usedClientIndexes.add(client.clientIndex);
+            });
+
+            if (!usedClientIndexes.has(0)) {
+                clientSlot = { clientIndex: 0, clientLabel: "a" };
+            }
+            else if (!usedClientIndexes.has(1)) {
+                clientSlot = { clientIndex: 1, clientLabel: "b" };
+            }
+        }
 
         if (!clientSlot) {
             console.log("[Server] Rejecting client registration for " + clientId + " because no client slot is available");
@@ -376,164 +514,9 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         });
         appState.clientsSocketRegistry.set(socket.id, clientId);
 
-        if (!clientsWereReady && helperClientCount() === 2) {
+        if (!clientsWereReady && appState.clientsData.size === 2) {
             helperClientEmitToAll("est-event:viewChangeResponse", { currentView: views.welcome });
         }
-    }
-
-    function helperClientDisconnect(socket) {
-        const clientId = appState.clientsSocketRegistry.get(socket.id);
-        if (!clientId) return;
-
-        const client = appState.clientsData.get(clientId);
-        helperClientCleanupSocketState(socket.id);
-        appState.clientsSocketRegistry.delete(socket.id);
-
-        if (!client || client.socketId !== socket.id) return;
-
-        appState.clientsData.delete(clientId);
-
-        if (appState.shutdownScheduled) return;
-        appState.shutdownScheduled = true;
-
-        console.log("[Server] Client disconnected: " + clientId + " (" + socket.id + ")");
-        helperClientEmitToAll("est-event:coreStopResponse", { testType: null, upload: false });
-        helperClientEmitToAll("est-event:viewChangeResponse", { currentView: views.waiting });
-
-        console.log("[Server] Shutting down current server instance due to client disconnect");
-        setTimeout(() => process.exit(), 500);
-    }
-
-    function helperClientNormalizeId(clientId) {
-        if (typeof clientId !== "string") return null;
-
-        const normalizedClientId = clientId.trim();
-        return normalizedClientId.length > 0 ? normalizedClientId : null;
-    }
-
-    function helperClientCanAcceptNewIdentity(clientId) {
-        return appState.clientsData.has(clientId) || helperClientCount() < 2;
-    }
-
-    function helperClientCount() {
-        return appState.clientsData.size;
-    }
-
-    function helperClientGetNextSlot() {
-        const usedClientIndexes = new Set();
-
-        appState.clientsData.forEach((client) => {
-            usedClientIndexes.add(client.clientIndex);
-        });
-
-        if (!usedClientIndexes.has(0)) return { clientIndex: 0, clientLabel: "a" };
-        if (!usedClientIndexes.has(1)) return { clientIndex: 1, clientLabel: "b" };
-
-        return null;
-    }
-
-    function helperClientGetBySocketId(socketId) {
-        if (appState.shutdownScheduled) return null;
-
-        const clientId = appState.clientsSocketRegistry.get(socketId);
-        if (!clientId) return null;
-
-        const client = appState.clientsData.get(clientId);
-        if (!client || client.socketId !== socketId) return null;
-
-        return client;
-    }
-
-    function helperClientGetPeerSocketId(socketId) {
-        const thisClient = helperClientGetBySocketId(socketId);
-        if (!thisClient) return null;
-
-        for (const client of appState.clientsData.values()) {
-            if (client.clientId !== thisClient.clientId) return client.socketId;
-        }
-
-        return null;
-    }
-
-    function helperClientCleanupSocketState(socketId) {
-        appState.gates.viewChange.delete(socketId);
-        appState.gates.coreStart.delete(socketId);
-
-        for (const transferEntry of Array.from(appState.gates.fileTransfer)) {
-            if (transferEntry.includes(":" + socketId + ":")) {
-                appState.gates.fileTransfer.delete(transferEntry);
-            }
-        }
-    }
-
-    function helperClientEmitToAll(eventName, dataOrFunction) {
-        appState.clientsData.forEach((clientData) => {
-            const clientSocketId = clientData.socketId;
-
-            if (dataOrFunction === undefined) {
-                io.to(clientSocketId).emit(eventName);
-            }
-            else if (typeof dataOrFunction === "function") {
-                io.to(clientSocketId).emit(eventName, dataOrFunction(clientSocketId, clientData));
-            }
-            else {
-                io.to(clientSocketId).emit(eventName, dataOrFunction);
-            }
-        });
-    }
-
-    function helperClientLogIgnoredEvent(socket, eventName, customReason) {
-        const clientId = appState.clientsSocketRegistry.get(socket.id);
-        const reason = customReason ?? (appState.shutdownScheduled ? "server shutdown is scheduled" : "socket is not an active registered client");
-
-        console.log("[Server] Ignoring " + eventName + " from " + clientId + " (" + socket.id + ") " + "because" + " " + reason);
-    }
-
-    function helperResolveConfigPath() {
-        const configName = "est-config.json";
-
-        if (process.resourcesPath) {
-            return path.join(process.resourcesPath, configName);
-        }
-        else if (process.pkg) {
-            return path.join(path.dirname(process.execPath), configName);
-        }
-        else {
-            return path.join(__dirname, "..", configName);
-        }
-    }
-
-    function helperBuildViewFlow() {
-        const testViews = [];
-
-        if (enabledTests.sct) {
-            testViews.push({ name: views.sctExp, passing: "gated", metadata: {} }, { name: views.sct, passing: "direct", metadata: {} }, { name: views.sctEval, passing: "gated", metadata: { testType: "sct" } });
-        }
-        if (enabledTests.lst) {
-            testViews.push({ name: views.lstExp, passing: "gated", metadata: {} }, { name: views.lst, passing: "direct", metadata: {} }, { name: views.lstEval, passing: "gated", metadata: { testType: "lst" } });
-        }
-        if (testViews.length > 0) {
-            testViews[0].metadata = { ...testViews[0].metadata, loopBehaviour: "start" };
-
-            const loopEndView = [...testViews].reverse().find((view) => view.metadata?.testType);
-            loopEndView.metadata = { ...loopEndView.metadata, loopBehaviour: "end" };
-        }
-
-        return [{ name: views.waiting, passing: "direct", metadata: {} }, { name: views.welcome, passing: "direct", metadata: {} }, { name: views.pretest, passing: "gated", metadata: {} }, ...testViews, ...(testViews.length > 0 ? [{ name: views.break, passing: "gated", metadata: { loopBehaviour: "break" } }] : []), { name: views.ending, passing: "direct", metadata: {} }];
-    }
-
-    function helperGetConditionDirName() {
-        return String(appState.conditionIndex + 1).padStart(4, "0");
-    }
-
-    function helperGetConditionAssetName(clientNumber) {
-        const conditionPadded = String(appState.conditionIndex + 1).padStart(2, "0");
-        return "client_" + clientNumber + "/" + conditionPadded + ".png";
-    }
-
-    function helperSaveSessionFile(filename, data, useConditionSubdir = false) {
-        const filePath = useConditionSubdir ? path.join(appState.sessionDir, helperGetConditionDirName(), filename) : path.join(appState.sessionDir, filename);
-        fs.writeFileSync(filePath, data);
     }
 
     function helperCreateFolderStructure() {
@@ -557,97 +540,6 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         }
     }
 
-    function helperGateResolve(gateSet, key, threshold, onResolve) {
-        gateSet.add(key);
-
-        if (gateSet.size >= threshold) {
-            onResolve();
-            gateSet.clear();
-        }
-    }
-
-    function helperGetTransferKeyForTestType(testType) {
-        return helperGetConditionDirName() + ":" + testType + helperGetRoundSuffix(testType);
-    }
-
-    function helperGetCoreRunKey(testType) { // To: Refactctor this into a higher-order function (e.g. together with helperGetTransferKeyForTestType)
-        if (!testConfigKeys[testType]) return null;
-        return helperGetTransferKeyForTestType(testType);
-    }
-
-    function helperGetTransferKeyForEvaluationView(currentViewName) {
-        const view = viewFlow.find((v) => v.name === currentViewName);
-        const testType = view?.metadata?.testType;
-        return testType ? helperGetTransferKeyForTestType(testType) : null;
-    }
-
-    function helperIsWaitingForFileTransfers(currentViewName) {
-        const transferKey = helperGetTransferKeyForEvaluationView(currentViewName);
-        return transferKey !== null && !appState.fileTransferCompletedKeys.has(transferKey);
-    }
-
-    function helperAdvanceConditionIfNeeded(currentViewName, viewNext) {
-        const view = viewFlow.find((v) => v.name === currentViewName);
-        const isFirstLstEval = currentViewName === views.lstEval && appState.conditionListeningSpeakingTestIndex === 0;
-        const isLoopEndView = view.metadata?.loopBehaviour === "end" && !isFirstLstEval;
-
-        // When current view indicates a loop end: Increment conditionIndex
-        if (isLoopEndView && viewNext !== views.ending) {
-            appState.conditionIndex++;
-        }
-        // When next view indicates a loop start: Define shuffled condition order
-        else if (viewNext === viewFlow.find((v) => v.metadata?.loopBehaviour === "start")?.name && appState.conditionIndex === 0) {
-            helperSetConditionOrder();
-        }
-        // When neither applies: Early exit without logging condition change
-        else {
-            return isLoopEndView;
-        }
-
-        const currentCondition = helperGetCurrentCondition();
-        console.log("[Server] Round " + appState.conditionIndex + ": Using condition " + JSON.stringify(currentCondition));
-        helperSaveSessionFile("condition-settings.json", JSON.stringify(currentCondition, null, 4), true);
-
-        return isLoopEndView;
-    }
-
-    function helperUpdateLstState(currentViewName, viewNext, isLoopEndView) {
-        const isFirstLstEval = currentViewName === views.lstEval && appState.conditionListeningSpeakingTestIndex === 0;
-
-        if (viewNext === views.lstExp) {
-            appState.conditionListeningSpeakingTestIndex = 0;
-        }
-        if (isFirstLstEval) {
-            appState.conditionListeningSpeakingTestIndex = 1;
-        }
-        if (isLoopEndView) {
-            appState.conditionListeningSpeakingTestIndex = 0;
-        }
-    }
-
-    function helperResolveGatedViewChange(currentViewName) {
-        const viewNext = helperGetNextView(currentViewName);
-
-        if (helperIsWaitingForFileTransfers(currentViewName)) {
-            appState.fileTransferPendingViewName = currentViewName;
-            return;
-        }
-
-        const isLoopEndView = helperAdvanceConditionIfNeeded(currentViewName, viewNext);
-        helperUpdateLstState(currentViewName, viewNext, isLoopEndView);
-
-        helperClientEmitToAll("est-event:viewChangeResponse", (clientSocketId) => helperGetViewData(viewNext, clientSocketId));
-        appState.gates.viewChange.clear();
-        appState.fileTransferPendingViewName = null;
-
-        if (viewNext === views.ending) {
-            setTimeout(() => {
-                console.log("[Server] Shutting down current server instance due to experiment completion");
-                process.exit();
-            }, 60000);
-        }
-    }
-
     function helperGetNextView(currentView) {
         const viewIndex = viewFlow.findIndex((view) => view.name === currentView);
         const view = viewFlow[viewIndex];
@@ -664,52 +556,20 @@ else if (process.env.EST_SERVER_TYPE === "server") {
                 return views.ending;
             }
             else if (appState.conditionIndex + 1 === Math.floor(roundsTotal / 2)) {
-                return viewFlow.find((v) => v.metadata?.loopBehaviour === "break").name;
+                return viewFlow.find((view) => view.metadata?.loopBehaviour === "break").name;
             }
             else {
-                return viewFlow.find((v) => v.metadata?.loopBehaviour === "start").name;
+                return viewFlow.find((view) => view.metadata?.loopBehaviour === "start").name;
             }
         }
 
         // When current view indicates a break: Resume to the loop
         if (view.metadata?.loopBehaviour === "break") {
-            return viewFlow.find((v) => v.metadata?.loopBehaviour === "start").name;
+            return viewFlow.find((view) => view.metadata?.loopBehaviour === "start").name;
         }
 
         // When nothing applies, just continue with the next view
         return viewFlow[viewIndex + 1].name;
-    }
-
-    function helperSetConditionOrder() {
-        const indices = estConfig.conditions.random.map((_, counter) => counter);
-        for (let counter00 = indices.length - 1; counter00 > 0; counter00--) {
-            const counter01 = Math.floor(Math.random() * (counter00 + 1));
-            [indices[counter00], indices[counter01]] = [indices[counter01], indices[counter00]];
-        }
-        appState.conditionOrder = indices;
-    }
-
-    function helperGetCurrentCondition() {
-        if (appState.conditionIndex === 0) {
-            return estConfig.conditions.baseline[0];
-        }
-        return estConfig.conditions.random[appState.conditionOrder[appState.conditionIndex - 1]];
-    }
-
-    function helperGetRoundSuffix(testType) {
-        if (testType !== "lst") return "";
-        return "-r" + (appState.conditionListeningSpeakingTestIndex + 1);
-    }
-
-    function helperGetListeningSpeakingTestRole(clientSocketId) {
-        const client = helperClientGetBySocketId(clientSocketId);
-        if (!client) return null;
-
-        if (appState.conditionListeningSpeakingTestIndex === 0) {
-            return client.clientIndex === 0 ? "speaker" : "listener";
-        }
-
-        return client.clientIndex === 0 ? "listener" : "speaker";
     }
 
     function helperGetViewData(viewName, clientSocketId) {
@@ -722,9 +582,19 @@ else if (process.env.EST_SERVER_TYPE === "server") {
             if (!client) return { currentView: viewName };
 
             const clientNumber = client.clientIndex === 0 ? "01" : "02";
-            const clientConditionAsset = helperGetConditionAssetName(clientNumber);
+            const conditionPadded = String(appState.conditionIndex + 1).padStart(2, "0");
+            const clientConditionAsset = "client_" + clientNumber + "/" + conditionPadded + ".png";
 
-            const conditionListeningSpeakingTestRole = isLst || isLstEvaluation ? helperGetListeningSpeakingTestRole(clientSocketId) : null;
+            let conditionListeningSpeakingTestRole = null;
+            if (isLst || isLstEvaluation) {
+                if (appState.conditionListeningSpeakingTestIndex === 0) {
+                    conditionListeningSpeakingTestRole = client.clientIndex === 0 ? "speaker" : "listener";
+                }
+                else {
+                    conditionListeningSpeakingTestRole = client.clientIndex === 0 ? "listener" : "speaker";
+                }
+            }
+
             let conditionAsset = null;
 
             if (isSct) {
@@ -748,6 +618,98 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         }
 
         return { currentView: viewName };
+    }
+
+    function helperResolveConfigPath() {
+        const configName = "est-config.json";
+
+        if (process.resourcesPath) {
+            return path.join(process.resourcesPath, configName);
+        }
+        else if (process.pkg) {
+            return path.join(path.dirname(process.execPath), configName);
+        }
+        else {
+            return path.join(__dirname, "..", configName);
+        }
+    }
+
+    function helperResolveGatedViewChange(currentViewName) {
+        const viewNext = helperGetNextView(currentViewName);
+        const view = viewFlow.find((view) => view.name === currentViewName);
+        const currentViewTestType = view?.metadata?.testType;
+
+        if (currentViewTestType) {
+            const roundSuffix = currentViewTestType === "lst" ? "-r" + (appState.conditionListeningSpeakingTestIndex + 1) : "";
+            const transferKey = String(appState.conditionIndex + 1).padStart(4, "0") + ":" + currentViewTestType + roundSuffix;
+
+            if (!appState.fileTransferCompletedKeys.has(transferKey)) {
+                appState.fileTransferPendingViewName = currentViewName;
+                return;
+            }
+        }
+
+        const isFirstLstEval = currentViewName === views.lstEval && appState.conditionListeningSpeakingTestIndex === 0;
+        const isLoopEndView = view.metadata?.loopBehaviour === "end" && !isFirstLstEval;
+        const loopStartViewName = viewFlow.find((view) => view.metadata?.loopBehaviour === "start")?.name;
+
+        if (isLoopEndView && viewNext !== views.ending) {
+            appState.conditionIndex++;
+
+            const currentCondition = appState.conditionIndex === 0 ? estConfig.conditions.baseline[0] : estConfig.conditions.random[appState.conditionOrder[appState.conditionIndex - 1]];
+            console.log("[Server] Round " + appState.conditionIndex + ": Using condition " + JSON.stringify(currentCondition));
+            helperSaveFile("conditionDir", "condition-settings.json", JSON.stringify(currentCondition, null, 4));
+        }
+        else if (viewNext === loopStartViewName && appState.conditionIndex === 0) {
+            const indices = estConfig.conditions.random.map((_, counter) => counter);
+            for (let counter00 = indices.length - 1; counter00 > 0; counter00--) {
+                const counter01 = Math.floor(Math.random() * (counter00 + 1));
+                [indices[counter00], indices[counter01]] = [indices[counter01], indices[counter00]];
+            }
+            appState.conditionOrder = indices;
+
+            const currentCondition = appState.conditionIndex === 0 ? estConfig.conditions.baseline[0] : estConfig.conditions.random[appState.conditionOrder[appState.conditionIndex - 1]];
+            console.log("[Server] Round " + appState.conditionIndex + ": Using condition " + JSON.stringify(currentCondition));
+            helperSaveFile("conditionDir", "condition-settings.json", JSON.stringify(currentCondition, null, 4));
+        }
+
+        if (viewNext === views.lstExp) {
+            appState.conditionListeningSpeakingTestIndex = 0;
+        }
+        if (isFirstLstEval) {
+            appState.conditionListeningSpeakingTestIndex = 1;
+        }
+        if (isLoopEndView) {
+            appState.conditionListeningSpeakingTestIndex = 0;
+        }
+
+        helperClientEmitToAll("est-event:viewChangeResponse", (clientSocketId) => helperGetViewData(viewNext, clientSocketId));
+        appState.gates.viewChange.clear();
+        appState.fileTransferPendingViewName = null;
+
+        if (viewNext === views.ending) {
+            setTimeout(() => {
+                console.log("[Server] Shutting down current server instance due to experiment completion");
+                process.exit();
+            }, 60000);
+        }
+    }
+
+    function helperSaveFile(location, filename, data) {
+        const conditionDirName = String(appState.conditionIndex + 1).padStart(4, "0");
+
+        let filePath = null;
+        if (location === "sessionDir") {
+            filePath = path.join(appState.sessionDir, filename);
+        }
+        else if (location === "conditionDir") {
+            filePath = path.join(appState.sessionDir, conditionDirName, filename);
+        }
+        else {
+            throw new Error("Unknown session file location: " + location);
+        }
+
+        fs.writeFileSync(filePath, data);
     }
 
     // ===========================================
