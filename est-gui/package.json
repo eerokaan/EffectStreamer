@@ -2,7 +2,7 @@
     "name": "de.tu-berlin.qu.effectstreamer.gui",
     "displayName": "EffectStreamer",
     "version": "1.0.0",
-    "description": "Tool to research the effects of echo in voice calls",
+    "description": "Research toolkit for reproducible ITU-T P.804 speech-quality experiments (GUI)",
     "main": "./out/main/index.js",
     "author": "Eero Kaan",
     "company": "Quality and Usability Lab | TU Berlin",

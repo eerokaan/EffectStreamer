@@ -1,7 +1,7 @@
-import shortConversationTestCss from "@/assets/css/short-conversation-test.css?raw";
 import listeningSpeakingTestCss from "@/assets/css/listening-speaking-test.css?raw";
-import interFontUrl from "@/assets/fonts/Inter.ttf?url";
+import shortConversationTestCss from "@/assets/css/short-conversation-test.css?raw";
 import firaCodeFontUrl from "@/assets/fonts/FiraCode.ttf?url";
+import interFontUrl from "@/assets/fonts/Inter.ttf?url";
 
 const conditionSctHtmlAssets = import.meta.glob("@/assets/html/short-conversation-test/**/*.html", { eager: true, query: "?raw", import: "default" });
 const conditionSctImageAssets = import.meta.glob("@/assets/img/short-conversation-test/**/*.png", { eager: true, query: "?url", import: "default" });
@@ -62,17 +62,13 @@ const conditionSctAssets = {
     ...createHtmlAssets(conditionSctHtmlAssets, htmlRelativeAssetCreateUrlMap(conditionSctImageAssets)),
     ...createImageAssets(conditionSctImageAssets)
 };
-const conditionSctExplanationAssets = createImageAssets(
-    import.meta.glob("@/assets/img/short-conversation-test/*.png", { eager: true, query: "?url", import: "default" })
-);
+const conditionSctExplanationAssets = createImageAssets(import.meta.glob("@/assets/img/short-conversation-test/*.png", { eager: true, query: "?url", import: "default" }));
 
 const conditionLstAssets = {
     ...createHtmlAssets(conditionLstHtmlAssets, htmlRelativeAssetCreateUrlMap(conditionLstImageAssets)),
     ...createImageAssets(conditionLstImageAssets)
 };
-const conditionLstExplanationAssets = createImageAssets(
-    import.meta.glob("@/assets/img/listening-speaking-test/*.png", { eager: true, query: "?url", import: "default" })
-);
+const conditionLstExplanationAssets = createImageAssets(import.meta.glob("@/assets/img/listening-speaking-test/*.png", { eager: true, query: "?url", import: "default" }));
 
 /* -------------- Asset Resolver -------------- */
 

@@ -1,15 +1,15 @@
 // ===========================================
 // ===== COMMON ==============================
 // ===========================================
-import { electronApp, optimizer } from "@electron-toolkit/utils";
 import { spawn } from "child_process";
 import { app, BrowserWindow, ipcMain, shell } from "electron";
-import fs from "fs";
-import path from "path";
 import { io } from "socket.io-client";
+import { electronApp, optimizer } from "@electron-toolkit/utils";
 import appContent from "./lib/appContent";
 import appContext from "./lib/appContext";
 import appInfo from "./lib/appInfo";
+import fs from "fs";
+import path from "path";
 
 const estConfig = JSON.parse(fs.readFileSync(helperResolveConfigPath(), "UTF-8"));
 
@@ -151,9 +151,11 @@ async function socketLogic() {
         // Stage 1: Sender component
         if (data.component === "sender") {
             const args = [
-                "--mode", data.component,
+                "--mode",
+                data.component,
                 ...(data.deviceSource ? ["--device", data.deviceSource] : []),
-                "--peerip", data.peerIp,
+                "--peerip",
+                data.peerIp,
                 ...(data.nativeDelay != null ? ["--native-delay", data.nativeDelay] : []),
                 ...(data.echoDelay != null ? ["--echo-delay", data.echoDelay] : []),
                 ...(data.packetlossType != null ? ["--packetloss-type", data.packetlossType] : []),
@@ -174,12 +176,7 @@ async function socketLogic() {
 
         // Stage 2: Receiver component
         else if (data.component === "receiver") {
-            const args = [
-                "--mode", data.component,
-                ...(data.deviceSink ? ["--device", data.deviceSink] : []),
-                ...(data.nativeGain != null ? ["--native-gain", data.nativeGain] : []),
-                ...(data.echoGain != null ? ["--echo-gain", data.echoGain] : [])
-            ];
+            const args = ["--mode", data.component, ...(data.deviceSink ? ["--device", data.deviceSink] : []), ...(data.nativeGain != null ? ["--native-gain", data.nativeGain] : []), ...(data.echoGain != null ? ["--echo-gain", data.echoGain] : [])];
 
             await helperEstCoreSpawn(args, (childProcess) => {
                 appContext.estCoreReceiver = childProcess;
@@ -220,7 +217,7 @@ async function socketLogic() {
         appContext.socket.emit("est-event:fileTransferRequest", {
             fileName: "headphones.ogg",
             fileData: headphonesData,
-            testType: data.testType,
+            testType: data.testType
         });
     });
 
