@@ -97,10 +97,10 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         conditionListeningSpeakingTestIndex: 0,
         fileTransferCompletedKeys: new Set(),
         fileTransferPendingViewName: null,
+        coreStopCompletedKeys: new Set(),
         gates: {
             viewChange: new Set(),
             coreStart: new Set(),
-            coreStop: new Set(),
             fileTransfer: new Set()
         }
     };
@@ -199,6 +199,16 @@ else if (process.env.EST_SERVER_TYPE === "server") {
                 return;
             }
 
+            const coreRunKey = helperGetCoreRunKey(payload.testType);
+            if (!coreRunKey) {
+                helperClientLogIgnoredEvent(socket, "coreStartRequest", "testType is missing or invalid");
+                return;
+            }
+            if (appState.coreStopCompletedKeys.has(coreRunKey)) {
+                helperClientLogIgnoredEvent(socket, "coreStartRequest", "est-core is already stopped");
+                return;
+            }
+
             const currentCondition = helperGetCurrentCondition();
 
             // Stage 1: Sender component (Direct response)
@@ -213,6 +223,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
 
                 const estCoreSettings = {
                     component: "sender",
+                    testType: payload.testType,
                     peerIp: peerClient?.ipAddress,
                     deviceSource: thisClient.deviceSource,
                     nativeDelay: currentCondition.nativeDelay,
@@ -249,9 +260,17 @@ else if (process.env.EST_SERVER_TYPE === "server") {
                 return;
             }
 
-            helperGateResolve(appState.gates.coreStop, socket.id, 2, () => {
-                helperClientEmitToAll("est-event:coreStopResponse", { testType: payload.testType, upload: true });
-            });
+            const coreRunKey = helperGetCoreRunKey(payload.testType);
+            if (!coreRunKey) {
+                helperClientLogIgnoredEvent(socket, "coreStopRequest", "testType is missing or invalid");
+                return;
+            }
+
+            if (appState.coreStopCompletedKeys.has(coreRunKey)) return;
+            appState.coreStopCompletedKeys.add(coreRunKey);
+
+            appState.gates.coreStart.clear();
+            helperClientEmitToAll("est-event:coreStopResponse", { testType: payload.testType, upload: true });
         });
 
         // ===== fileTransferRequest ==============================
@@ -265,9 +284,8 @@ else if (process.env.EST_SERVER_TYPE === "server") {
             }
 
             // Construct filename: client-{a|b}-{sct|lst}-{microphone|headphones}.ogg
-            const originalName = payload.filename.replace(".ogg", "");
             const roundSuffix = helperGetRoundSuffix(payload.testType);
-            const serverFilename = "client-" + client.clientLabel + "-" + payload.testType + roundSuffix + "-" + originalName + ".ogg";
+            const serverFilename = "client-" + client.clientLabel + "-" + payload.testType + roundSuffix + "-" + payload.fileName;
 
             // Write file to current condition directory
             helperSaveSessionFile(serverFilename, Buffer.from(payload.fileData), true);
@@ -275,7 +293,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
             // Gate: Track received files (2 files from 2 clients = 4 total)
             const transferKey = helperGetTransferKeyForTestType(payload.testType);
 
-            helperGateResolve(appState.gates.fileTransfer, transferKey + ":" + socket.id + ":" + payload.filename, 4, () => {
+            helperGateResolve(appState.gates.fileTransfer, transferKey + ":" + socket.id + ":" + payload.fileName, 4, () => {
                 appState.fileTransferCompletedKeys.add(transferKey);
                 helperClientEmitToAll("est-event:fileTransferResponse");
 
@@ -440,7 +458,6 @@ else if (process.env.EST_SERVER_TYPE === "server") {
     function helperClientCleanupSocketState(socketId) {
         appState.gates.viewChange.delete(socketId);
         appState.gates.coreStart.delete(socketId);
-        appState.gates.coreStop.delete(socketId);
 
         for (const transferEntry of Array.from(appState.gates.fileTransfer)) {
             if (transferEntry.includes(":" + socketId + ":")) {
@@ -551,6 +568,11 @@ else if (process.env.EST_SERVER_TYPE === "server") {
 
     function helperGetTransferKeyForTestType(testType) {
         return helperGetConditionDirName() + ":" + testType + helperGetRoundSuffix(testType);
+    }
+
+    function helperGetCoreRunKey(testType) { // To: Refactctor this into a higher-order function (e.g. together with helperGetTransferKeyForTestType)
+        if (!testConfigKeys[testType]) return null;
+        return helperGetTransferKeyForTestType(testType);
     }
 
     function helperGetTransferKeyForEvaluationView(currentViewName) {

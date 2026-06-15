@@ -167,7 +167,8 @@ async function socketLogic() {
                 appContext.estCoreSender = childProcess;
             });
             appContext.socket.emit("est-event:coreStartRequest", {
-                component: "receiver"
+                component: "receiver",
+                testType: data.testType
             });
         }
 
@@ -212,14 +213,14 @@ async function socketLogic() {
 
         // Send both files to the server
         appContext.socket.emit("est-event:fileTransferRequest", {
-            testType: data.testType,
-            filename: "microphone.ogg",
-            fileData: microphoneData
+            fileName: "microphone.ogg",
+            fileData: microphoneData,
+            testType: data.testType
         });
         appContext.socket.emit("est-event:fileTransferRequest", {
+            fileName: "headphones.ogg",
+            fileData: headphonesData,
             testType: data.testType,
-            filename: "headphones.ogg",
-            fileData: headphonesData
         });
     });
 

@@ -12,7 +12,8 @@ function ViewListeningSpeakingTest() {
 
     useEffect(() => {
         window.appApi.ipcRenderer.invoke("ipc:coreStartRequest", {
-            component: "sender"
+            component: "sender",
+            testType: "lst"
         });
         return () => {
             window.appApi.ipcRenderer.invoke("ipc:coreStopRequest", {
