@@ -6,7 +6,7 @@ const useStoreRoot = createStore({
     conditionScaleOffset: null,
     conditionAsset: null,
     conditionListeningSpeakingTestIndex: null,
-    lstRole: null
+    conditionListeningSpeakingTestRole: null
 });
 
 export default useStoreRoot;

@@ -724,14 +724,14 @@ else if (process.env.EST_SERVER_TYPE === "server") {
             const clientNumber = client.clientIndex === 0 ? "01" : "02";
             const clientConditionAsset = helperGetConditionAssetName(clientNumber);
 
-            const lstRole = isLst || isLstEvaluation ? helperGetListeningSpeakingTestRole(clientSocketId) : null;
+            const conditionListeningSpeakingTestRole = isLst || isLstEvaluation ? helperGetListeningSpeakingTestRole(clientSocketId) : null;
             let conditionAsset = null;
 
             if (isSct) {
                 conditionAsset = clientConditionAsset;
             }
             else if (isLst) {
-                conditionAsset = lstRole === "speaker" ? clientConditionAsset : "listener.png";
+                conditionAsset = conditionListeningSpeakingTestRole === "speaker" ? clientConditionAsset : "listener.png";
             }
 
             const response = {
@@ -741,7 +741,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
 
             if (isLst || isLstEvaluation) {
                 response.conditionListeningSpeakingTestIndex = appState.conditionListeningSpeakingTestIndex;
-                response.lstRole = lstRole;
+                response.conditionListeningSpeakingTestRole = conditionListeningSpeakingTestRole;
             }
 
             return response;

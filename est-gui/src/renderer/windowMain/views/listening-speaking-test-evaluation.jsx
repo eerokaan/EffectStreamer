@@ -10,7 +10,7 @@ import useStoreRoot from "@/stores/root";
 
 function ViewListeningSpeakingTestEvaluation() {
     const { scaleIndex, setScaleIndex, scaleValues } = useStoreComponentScale();
-    const { currentView, conditionScaleOffset, setConditionScaleOffset, lstRole } = useStoreRoot();
+    const { currentView, conditionScaleOffset, setConditionScaleOffset, conditionListeningSpeakingTestRole } = useStoreRoot();
 
     // Initialize the random scale offset once per session
     useEffect(() => {
@@ -19,7 +19,7 @@ function ViewListeningSpeakingTestEvaluation() {
         }
     }, [conditionScaleOffset, setConditionScaleOffset]);
 
-    const permutedScaleOrder = getListeningSpeakingTestScaleOrder(conditionScaleOffset ?? 0, lstRole);
+    const permutedScaleOrder = getListeningSpeakingTestScaleOrder(conditionScaleOffset ?? 0, conditionListeningSpeakingTestRole);
     const scaleName = permutedScaleOrder[scaleIndex] ?? permutedScaleOrder[0];
     const scaleDetail = scaleDetails[scaleName];
     const isLastScale = scaleIndex === permutedScaleOrder.length - 1;

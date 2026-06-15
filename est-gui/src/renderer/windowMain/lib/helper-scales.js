@@ -50,8 +50,8 @@ const getPermutedScaleOrder = (offset) => {
     return [scaleOrder[0], ...getPermutedDimensionScaleOrder(offset)];
 };
 
-const getListeningSpeakingTestScaleOrder = (offset, lstRole) => {
-    const roleScales = new Set(listeningSpeakingTestScaleGroups[lstRole] ?? []);
+const getListeningSpeakingTestScaleOrder = (offset, conditionListeningSpeakingTestRole) => {
+    const roleScales = new Set(listeningSpeakingTestScaleGroups[conditionListeningSpeakingTestRole] ?? []);
     return [scaleOrder[0], ...getPermutedDimensionScaleOrder(offset).filter((scaleName) => roleScales.has(scaleName))];
 };
 

@@ -127,7 +127,7 @@ async function socketLogic() {
                 conditionScaleOffset: data.conditionScaleOffset ?? null,
                 conditionAsset: data.conditionAsset ?? null,
                 conditionListeningSpeakingTestIndex: data.conditionListeningSpeakingTestIndex ?? null,
-                lstRole: data.lstRole ?? null
+                conditionListeningSpeakingTestRole: data.conditionListeningSpeakingTestRole ?? null
             }
         });
         appContext.windowMain.webContents.send("ipc:storeSetValueRequest", {
