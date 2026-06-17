@@ -33,7 +33,7 @@ static void print_usage(const char* prog_name) {
     fprintf(stderr, "  --native-delay            The native delay in milliseconds (sender mode only, default: 0)\n");
     fprintf(stderr, "  --native-gain             The native gain, e.g., 0.5 (receiver mode only, default: 1.0)\n");
     fprintf(stderr, "  --echo-delay              The echo delay in milliseconds (sender mode only, default: 0)\n");
-    fprintf(stderr, "  --echo-gain               The echo gain, e.g., 0.5 (receiver mode only, default: 1.0)\n");
+    fprintf(stderr, "  --echo-gain               The echo gain, e.g., 0.5 (receiver mode only, default: 0.0)\n");
     fprintf(stderr, "  --packetloss-type         Packet loss type: 'none', 'random', or 'bursty' (sender mode only, default: none)\n");
     fprintf(stderr, "  --packetloss-ratio        Packet loss ratio from 0.0 to 1.0 (sender mode only, default: 0.0)\n");
     fprintf(stderr, "  --packetloss-seed         Packet loss seed; 0 chooses a random seed per stream (sender mode only, default: 0)\n");
@@ -92,7 +92,7 @@ int main(int argc, char* argv[]) {
     int nativedelay = 0;
     int echodelay = 0;
     double nativegain = 1.0;
-    double echogain = 1.0;
+    double echogain = 0.0;
     const char* packetloss_type = "none";
     double packetloss_ratio = 0.0;
     guint packetloss_seed = 0;

@@ -11,7 +11,7 @@ Currently these impairment arguments are supported:
 | Native (End-to-End) | `--native-delay`           | Sender   | `0`           | `0` to `INT_MAX`             | Native branch delay. Values up to `20` ms result in no additional queue threshold; above `20` ms, the queue threshold is set to `value - 20` ms. |
 | Native (End-to-End) | `--native-gain`            | Receiver | `1.0`         | `0.0` to `1.0`               | Applied to native audio with GStreamer's `volume` element. For example, `0.5` is 50% and `1.0` is 100%. |
 | Echo                | `--echo-delay`             | Sender   | `0`           | `0` to `INT_MAX`             | Echo branch delay. Values up to `20` ms result in no additional queue threshold; above `20` ms, the queue threshold is set to `value - 20` ms. |
-| Echo                | `--echo-gain`              | Receiver | `1.0`         | `0.0` to `1.0`               | Applied to echo audio with GStreamer's `volume` element. For example, `0.5` is 50% and `1.0` is 100%. |
+| Echo                | `--echo-gain`              | Receiver | `0.0`         | `0.0` to `1.0`               | Applied to echo audio with GStreamer's `volume` element. For example, `0.5` is 50% and `1.0` is 100%. |
 | Packet Loss         | `--packetloss-type`        | Sender   | `none`        | `none`, `random`, `bursty`   | Enables no loss, independent random loss, or bursty loss. |
 | Packet Loss         | `--packetloss-ratio`       | Sender   | `0.0`         | `0.0` to `1.0`               | Loss fraction. `0.0` drops no packets and `1.0` drops all packets. Values above `0.0` require `--packetloss-type random` or `--packetloss-type bursty`. |
 | Packet Loss         | `--packetloss-seed`        | Sender   | `0`           | `0` to `G_MAXUINT`           | Seed for reproducible packet loss; `0` chooses a random seed per stream. |
@@ -38,7 +38,7 @@ Receiver mode:
 
 EffectStreamer Core is split up into two modes of operation: `sender` and `receiver`. The sender deals with capturing audio from a source (e.g. a microphone), forking the signal out and then streaming them off to different destinations, while the receiver deals with the receiving of said audio streams and routing them to different sinks again (e.g. headphones, audiofile for recording, etc.).
 
-Regarding the impairment types, the sender side is responsible for native-delay, echo-delay and packet loss on the peer network branch, while the receiver deals with native-gain and echo-gain. If not specified, the delay parameters default to `0` (0ms), the gain parameters default to `1.0` (100%) and packet loss defaults to `none`. Packet loss options are sender-mode options and use the EffectStreamer NetSim GStreamer plugin at runtime.
+Regarding the impairment types, the sender side is responsible for native-delay, echo-delay and packet loss on the peer network branch, while the receiver deals with native-gain and echo-gain. If not specified, the delay parameters default to `0` (0ms), native gain defaults to `1.0` (100%), echo gain defaults to `0.0` (muted) and packet loss defaults to `none`. Packet loss options are sender-mode options and use the EffectStreamer NetSim GStreamer plugin at runtime.
 
 Following this architecture, each peer has to run a sender and receiver instance each. It is important to start the senders on both peers first, before starting the receivers, to ensure established audio streaming to which the receivers can hook into.
 
