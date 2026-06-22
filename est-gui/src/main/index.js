@@ -5,11 +5,11 @@ import { spawn } from "child_process";
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { io } from "socket.io-client";
 import { electronApp, optimizer } from "@electron-toolkit/utils";
-import appContent from "./lib/appContent";
-import appContext from "./lib/appContext";
-import appInfo from "./lib/appInfo";
 import fs from "fs";
 import path from "path";
+import appContent from "@/main/lib/appContent";
+import appContext from "@/main/lib/appContext";
+import appInfo from "@/main/lib/appInfo";
 
 const estConfig = JSON.parse(fs.readFileSync(helperResolveConfigPath(), "UTF-8"));
 

@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
-import appInfo from "../main/lib/appInfo";
+import appInfo from "@/main/lib/appInfo";
 
 // Define valid channels by operation type
 const validChannels = {

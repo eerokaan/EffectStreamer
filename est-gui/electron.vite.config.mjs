@@ -4,8 +4,16 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
-    main: {},
-    preload: {},
+    main: {
+        resolve: {
+            alias: [{ find: "@", replacement: resolve(__dirname, "./src") }]
+        }
+    },
+    preload: {
+        resolve: {
+            alias: [{ find: "@", replacement: resolve(__dirname, "./src") }]
+        }
+    },
     renderer: {
         build: {
             rollupOptions: {
@@ -15,9 +23,7 @@ export default defineConfig({
             }
         },
         resolve: {
-            alias: {
-                "@": resolve("./src/renderer/windowMain")
-            }
+            alias: [{ find: "@", replacement: resolve(__dirname, "./src/renderer/windowMain") }]
         },
         plugins: [react(), tailwindcss()]
     }
