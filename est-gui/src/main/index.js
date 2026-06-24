@@ -140,12 +140,6 @@ async function socketLogic() {
         });
     });
 
-    // pretestSubmitResponse
-    // [SERVER] -> [MAIN]
-    appContext.socket.on("est-event:pretestSubmitResponse", () => {
-        // Form submitted
-    });
-
     // coreStartResponse
     // [SERVER] -> [MAIN]
     appContext.socket.on("est-event:coreStartResponse", async (data) => {
@@ -222,6 +216,12 @@ async function socketLogic() {
         });
     });
 
+    // pretestSubmitResponse
+    // [SERVER] -> [MAIN]
+    appContext.socket.on("est-event:pretestSubmitResponse", () => {
+        // Form submitted
+    });
+
     // fileTransferResponse
     // [SERVER] -> [MAIN]
     appContext.socket.on("est-event:fileTransferResponse", () => {
@@ -238,12 +238,6 @@ async function socketLogic() {
         appContext.socket.emit("est-event:viewChangeRequest", args[0]);
     });
 
-    // pretestSubmitRequest
-    // [RENDERER -> PRELOAD -> MAIN] -> [SERVER]
-    ipcMain.handle("ipc:pretestSubmitRequest", (_, ...args) => {
-        appContext.socket.emit("est-event:pretestSubmitRequest", args[0]);
-    });
-
     // coreStartRequest
     // [RENDERER -> PRELOAD -> MAIN] -> [SERVER]
     ipcMain.handle("ipc:coreStartRequest", (_, ...args) => {
@@ -254,6 +248,12 @@ async function socketLogic() {
     // [RENDERER -> PRELOAD -> MAIN] -> [SERVER]
     ipcMain.handle("ipc:coreStopRequest", (_, ...args) => {
         appContext.socket.emit("est-event:coreStopRequest", args[0]);
+    });
+
+    // pretestSubmitRequest
+    // [RENDERER -> PRELOAD -> MAIN] -> [SERVER]
+    ipcMain.handle("ipc:pretestSubmitRequest", (_, ...args) => {
+        appContext.socket.emit("est-event:pretestSubmitRequest", args[0]);
     });
 }
 
