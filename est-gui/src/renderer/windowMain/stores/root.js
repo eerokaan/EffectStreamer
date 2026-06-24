@@ -3,8 +3,9 @@ import createStore from "@/lib/stores-create";
 const useStoreRoot = createStore({
     currentView: "viewWaiting",
     showDialog: false,
-    conditionScaleOffset: null,
+    pretestForm: null,
     conditionAsset: null,
+    conditionScaleOffset: null,
     conditionListeningSpeakingTestIndex: null,
     conditionListeningSpeakingTestRole: null
 });

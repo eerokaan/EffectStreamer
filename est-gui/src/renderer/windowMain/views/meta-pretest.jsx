@@ -5,8 +5,9 @@ import PretestForm from "@/components/pretest-form";
 import useStoreRoot from "@/stores/root";
 
 function ViewPretest() {
-    const { currentView } = useStoreRoot();
+    const { currentView, pretestForm } = useStoreRoot();
     const formRef = useRef(null);
+    const pretestFormKey = JSON.stringify(pretestForm ?? []);
 
     const handleFormSubmit = async (data) => {
         window.appApi.ipcRenderer.invoke("ipc:pretestSubmitRequest", {
@@ -34,7 +35,7 @@ function ViewPretest() {
                     <p className="mb-4">Diese Informationen helfen uns dabei, die Ergebnisse der Studie besser zu verstehen und statistisch einzuordnen.</p>
                     <p className="mb-6">Bitte nehmen Sie sich einen Moment Zeit, um das folgende Formular auszufüllen, damit wir anschließend direkt mit den Tests beginnen können.</p>
 
-                    <PretestForm ref={formRef} onSubmit={handleFormSubmit} />
+                    <PretestForm key={pretestFormKey} ref={formRef} pretestForm={pretestForm} onSubmit={handleFormSubmit} />
                 </div>
 
                 <ComponentFooter onNext={handleNext}></ComponentFooter>

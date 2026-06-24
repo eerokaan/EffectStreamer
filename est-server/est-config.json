@@ -8,20 +8,151 @@
         "listening-speaking-test": true
     },
     "conditions": {
-        "baseline": [{ "echoDelay": "20", "echoGain": "0.002" }],
+        "baseline": [{ "echoGain": "0.002", "nativeDelay": 40 }],
         "random": [
-            { "echoDelay": "50", "echoGain": "0.03" },
-            { "echoDelay": "50", "echoGain": "0.1" },
-            { "echoDelay": "50", "echoGain": "0.35" },
-            { "echoDelay": "100", "echoGain": "0.03" },
-            { "echoDelay": "100", "echoGain": "0.1" },
-            { "echoDelay": "100", "echoGain": "0.35" },
-            { "echoDelay": "200", "echoGain": "0.03" },
-            { "echoDelay": "200", "echoGain": "0.1" },
-            { "echoDelay": "200", "echoGain": "0.35" },
-            { "echoDelay": "400", "echoGain": "0.03" },
-            { "echoDelay": "400", "echoGain": "0.1" },
-            { "echoDelay": "400", "echoGain": "0.35" }
+            { "echoGain": "0.35", "nativeDelay": 100 },
+            { "echoGain": "0.35", "nativeDelay": 200 },
+            { "echoGain": "0.35", "nativeDelay": 400 },
+            { "echoGain": "0.35", "nativeDelay": 800 },
+            { "echoGain": "0.10", "nativeDelay": 100 },
+            { "echoGain": "0.10", "nativeDelay": 200 },
+            { "echoGain": "0.10", "nativeDelay": 400 },
+            { "echoGain": "0.10", "nativeDelay": 800 },
+            { "echoGain": "0.03", "nativeDelay": 100 },
+            { "echoGain": "0.03", "nativeDelay": 200 },
+            { "echoGain": "0.03", "nativeDelay": 400 },
+            { "echoGain": "0.03", "nativeDelay": 800 }
         ]
-    }
+    },
+    "pretestForm": [
+        {
+            "name": "input-age",
+            "type": "input",
+            "inputType": "number",
+            "label": "Alter",
+            "description": "Wie alt sind Sie?",
+            "placeholder": "Bitte angeben",
+            "required": true,
+            "layoutWidth": 6,
+            "validation": { "valueType": "integer", "min": 0 }
+        },
+        {
+            "name": "select-gender",
+            "type": "select",
+            "label": "Gender",
+            "description": "Wie identifizieren Sie sich?",
+            "placeholder": "Bitte angeben",
+            "required": true,
+            "layoutWidth": 6,
+            "options": [
+                { "value": "female", "label": "Weiblich" },
+                { "value": "male", "label": "Männlich" },
+                { "value": "non-binary", "label": "Non-Binär" },
+                { "value": "other", "label": "Andere" },
+                { "value": "no-choice", "label": "Keine Angabe" }
+            ]
+        },
+        {
+            "name": "select-german-proficiency",
+            "type": "select",
+            "label": "Deutschkenntnisse",
+            "description": "Wie würden Sie Ihre Deutschkenntnisse einschätzen?",
+            "placeholder": "Bitte angeben",
+            "required": true,
+            "layoutWidth": 12,
+            "options": [
+                { "value": "native", "label": "Muttersprache" },
+                { "value": "level-c", "label": "C1/2 (Verhandlungssicher)" },
+                { "value": "level-b", "label": "B1/2 (Gesprächssicher)" },
+                { "value": "level-a", "label": "A1/2 (Anfänger)" },
+                { "value": "other", "label": "Keine der genannten" }
+            ]
+        },
+        {
+            "name": "select-hours-internet",
+            "type": "select",
+            "label": "Stunden im Internet / Woche",
+            "description": "Wie viele Stunden pro Woche verbringen Sie im Durchschnitt im Internet?",
+            "placeholder": "Bitte angeben",
+            "required": true,
+            "layoutWidth": 6,
+            "options": [
+                { "value": "less-than-3h", "label": "< 3 h/Woche (~ 25 min/Tag)" },
+                { "value": "between-3h-6h", "label": "3–6 h/Woche (~ 25–50 min/Tag)" },
+                { "value": "between-6h-9h", "label": "6–9 h/Woche (~ 1 h/Tag)" },
+                { "value": "between-9h-15h", "label": "9–15 h/Woche (~ 1–2 h/Tag)" },
+                { "value": "between-15h-21h", "label": "15–21 h/Woche (~ 2–3 h/Tag)" },
+                { "value": "between-21h-30h", "label": "21–30 h/Woche (~ 3–4 h/Tag)" },
+                { "value": "between-30h-40h", "label": "30–40 h/Woche (~ 4–6 h/Tag)" },
+                { "value": "between-40h-60h", "label": "40–60 h/Woche (~ 6–8 h/Tag)" },
+                { "value": "more-than-60h", "label": "> 60 h/Woche (~ 8 h/Tag)" }
+            ]
+        },
+        {
+            "name": "select-hours-calls",
+            "type": "select",
+            "label": "Stunden in (Video)Calls / Woche",
+            "description": "Wie viele Stunden pro Woche telefonieren Sie im Durchschnitt über das Internet (z.B. Discord, Zoom, WhatsApp, etc.)?",
+            "placeholder": "Bitte angeben",
+            "required": true,
+            "layoutWidth": 6,
+            "options": [
+                { "value": "less-than-3h", "label": "< 3 h/Woche (~ 25 min/Tag)" },
+                { "value": "between-3h-6h", "label": "3–6 h/Woche (~ 25–50 min/Tag)" },
+                { "value": "between-6h-9h", "label": "6–9 h/Woche (~ 1 h/Tag)" },
+                { "value": "between-9h-15h", "label": "9–15 h/Woche (~ 1–2 h/Tag)" },
+                { "value": "between-15h-21h", "label": "15–21 h/Woche (~ 2–3 h/Tag)" },
+                { "value": "between-21h-30h", "label": "21–30 h/Woche (~ 3–4 h/Tag)" },
+                { "value": "between-30h-40h", "label": "30–40 h/Woche (~ 4–6 h/Tag)" },
+                { "value": "between-40h-60h", "label": "40–60 h/Woche (~ 6–8 h/Tag)" },
+                { "value": "more-than-60h", "label": "> 60 h/Woche (~ 8 h/Tag)" }
+            ]
+        },
+        {
+            "name": "slider-experience",
+            "type": "slider",
+            "label": "Bisherige Erfahrung mit Sprach/Videotelefonie",
+            "required": false,
+            "layoutWidth": 12,
+            "validation": { "min": 0, "max": 100, "step": 1 },
+            "defaultValue": 50,
+            "marks": { "minLabel": "Nicht erfahren", "maxLabel": "Sehr erfahren" }
+        },
+        {
+            "name": "switch-gaming",
+            "type": "switch",
+            "label": "Spielen Sie Videospiele mit Voicechat?",
+            "description": "z.B. über Discord, TeamSpeak, etc.",
+            "required": false,
+            "layoutWidth": 6,
+            "defaultValue": false
+        },
+        {
+            "name": "switch-streaming",
+            "type": "switch",
+            "label": "Streamen Sie Ihr Gameplay live?",
+            "description": "z.B. über Twitch, YouTube, etc.",
+            "required": false,
+            "layoutWidth": 6,
+            "defaultValue": false
+        },
+        {
+            "name": "switch-prior-experience",
+            "type": "switch",
+            "label": "Schon Erfahrung gesammelt?",
+            "description": "Haben Sie schon einmal an einem Hörtest/-experiment teilgenommen?",
+            "required": false,
+            "layoutWidth": 6,
+            "defaultValue": false
+        },
+        {
+            "name": "switch-audio-tech-familiarity",
+            "type": "switch",
+            "label": "Kontakt mit Audiotechnik?",
+            "description": "Haben Sie regelmäßig (z.B. über Ihre Arbeit) mit Audiotechnikverfahren/-forschung zu tun?",
+            "required": false,
+            "layoutWidth": 6,
+            "defaultValue": false
+        }
+    ]
 }

@@ -52,6 +52,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
     const fs = require("fs");
 
     const estConfig = JSON.parse(fs.readFileSync(helperResolveConfigPath(), "UTF-8"));
+    const pretestFormConfig = helperPretestFormNormalizeConfig(estConfig.pretestForm);
     const testConfigKeys = {
         sct: "short-conversation-test",
         lst: "listening-speaking-test"
@@ -573,6 +574,10 @@ else if (process.env.EST_SERVER_TYPE === "server") {
     }
 
     function helperGetViewData(viewName, clientSocketId) {
+        if (viewName === views.pretest) {
+            return { currentView: viewName, pretestForm: pretestFormConfig };
+        }
+
         const isSct = viewName === views.sct;
         const isLst = viewName === views.lst;
         const isLstEvaluation = viewName === views.lstEval;
@@ -618,6 +623,306 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         }
 
         return { currentView: viewName };
+    }
+
+    function helperPretestFormError(configPath, message) {
+        throw new Error("[Config] " + configPath + " " + message);
+    }
+
+    function helperPretestFormNormalizeConfig(pretestForm) {
+        if (!Array.isArray(pretestForm) || pretestForm.length === 0) {
+            helperPretestFormError("pretestForm", "must be a non-empty array");
+        }
+
+        const fieldNames = new Set();
+
+        return pretestForm.map((field, index) => {
+            const fieldPath = "pretestForm[" + index + "]";
+            helperPretestFormValidatePlainObject(field, fieldPath);
+
+            const name = helperPretestFormNormalizeRequiredString(field.name, fieldPath + ".name");
+            if (fieldNames.has(name)) {
+                helperPretestFormError(fieldPath + ".name", "must be unique");
+            }
+            fieldNames.add(name);
+
+            const type = helperPretestFormNormalizeRequiredString(field.type, fieldPath + ".type");
+            if (!["input", "select", "slider", "switch"].includes(type)) {
+                helperPretestFormError(fieldPath + ".type", "must be one of: input, select, slider, switch");
+            }
+
+            const normalizedField = {
+                name,
+                type,
+                label: helperPretestFormNormalizeRequiredString(field.label, fieldPath + ".label"),
+                required: helperPretestFormNormalizeRequired(field.required, type, fieldPath + ".required"),
+                layoutWidth: helperPretestFormNormalizeLayoutWidth(field, fieldPath)
+            };
+
+            const description = helperPretestFormNormalizeOptionalString(field.description, fieldPath + ".description");
+            if (description) normalizedField.description = description;
+
+            const placeholder = helperPretestFormNormalizeOptionalString(field.placeholder, fieldPath + ".placeholder");
+            if (placeholder) normalizedField.placeholder = placeholder;
+
+            if (type === "input") {
+                return helperPretestFormNormalizeInputField(field, normalizedField, fieldPath);
+            }
+            else if (type === "select") {
+                return helperPretestFormNormalizeSelectField(field, normalizedField, fieldPath);
+            }
+            else if (type === "slider") {
+                return helperPretestFormNormalizeSliderField(field, normalizedField, fieldPath);
+            }
+            else if (type === "switch") {
+                return helperPretestFormNormalizeSwitchField(field, normalizedField, fieldPath);
+            }
+        });
+    }
+
+    function helperPretestFormNormalizeLayoutWidth(field, fieldPath) {
+        if (field.layout !== undefined) {
+            helperPretestFormError(fieldPath + ".layout", "is no longer supported; use layoutWidth instead");
+        }
+
+        const layoutWidth = field.layoutWidth ?? 12;
+        if (!Number.isInteger(layoutWidth) || layoutWidth < 1 || layoutWidth > 12) {
+            helperPretestFormError(fieldPath + ".layoutWidth", "must be an integer from 1 through 12");
+        }
+
+        return layoutWidth;
+    }
+
+    function helperPretestFormNormalizeRequired(required, type, configPath) {
+        if (required == null) {
+            return type === "input" || type === "select";
+        }
+        if (typeof required !== "boolean") {
+            helperPretestFormError(configPath, "must be a boolean");
+        }
+        return required;
+    }
+
+    function helperPretestFormNormalizeInputField(field, normalizedField, fieldPath) {
+        const inputType = field.inputType == null ? "text" : helperPretestFormNormalizeRequiredString(field.inputType, fieldPath + ".inputType");
+        if (!["text", "number"].includes(inputType)) {
+            helperPretestFormError(fieldPath + ".inputType", "must be one of: text, number");
+        }
+
+        const validation = helperPretestFormNormalizeInputValidation(field.validation, inputType, fieldPath + ".validation");
+        const normalizedInput = { ...normalizedField, inputType, validation };
+
+        if (field.defaultValue !== undefined) {
+            helperPretestFormValidateDefaultValue(field.defaultValue, validation, fieldPath + ".defaultValue");
+            normalizedInput.defaultValue = field.defaultValue;
+        }
+
+        return normalizedInput;
+    }
+
+    function helperPretestFormNormalizeInputValidation(validation, inputType, configPath) {
+        const normalizedValidation = helperPretestFormNormalizeValidationObject(validation, configPath);
+        const valueType = normalizedValidation.valueType == null ? (inputType === "number" ? "number" : "string") : helperPretestFormNormalizeRequiredString(normalizedValidation.valueType, configPath + ".valueType");
+
+        if (!["string", "number", "integer"].includes(valueType)) {
+            helperPretestFormError(configPath + ".valueType", "must be one of: string, number, integer");
+        }
+
+        const result = { valueType };
+
+        if (valueType === "string") {
+            if (normalizedValidation.minLength != null) result.minLength = helperPretestFormNormalizeNonNegativeInteger(normalizedValidation.minLength, configPath + ".minLength");
+            if (normalizedValidation.maxLength != null) result.maxLength = helperPretestFormNormalizeNonNegativeInteger(normalizedValidation.maxLength, configPath + ".maxLength");
+            if (result.minLength != null && result.maxLength != null && result.minLength > result.maxLength) {
+                helperPretestFormError(configPath, "minLength must be less than or equal to maxLength");
+            }
+            if (normalizedValidation.pattern != null) {
+                const pattern = helperPretestFormNormalizeRequiredString(normalizedValidation.pattern, configPath + ".pattern");
+                try {
+                    new RegExp(pattern);
+                }
+                catch {
+                    helperPretestFormError(configPath + ".pattern", "must be a valid regular expression");
+                }
+                result.pattern = pattern;
+            }
+        }
+        else {
+            if (normalizedValidation.min != null) result.min = helperPretestFormNormalizeNumber(normalizedValidation.min, configPath + ".min");
+            if (normalizedValidation.max != null) result.max = helperPretestFormNormalizeNumber(normalizedValidation.max, configPath + ".max");
+            if (result.min != null && result.max != null && result.min > result.max) {
+                helperPretestFormError(configPath, "min must be less than or equal to max");
+            }
+        }
+
+        return result;
+    }
+
+    function helperPretestFormNormalizeSelectField(field, normalizedField, fieldPath) {
+        if (!Array.isArray(field.options) || field.options.length === 0) {
+            helperPretestFormError(fieldPath + ".options", "must be a non-empty array");
+        }
+
+        const optionValues = new Set();
+        const options = field.options.map((option, index) => {
+            const optionPath = fieldPath + ".options[" + index + "]";
+            helperPretestFormValidatePlainObject(option, optionPath);
+
+            const value = helperPretestFormNormalizeRequiredString(option.value, optionPath + ".value");
+            if (optionValues.has(value)) {
+                helperPretestFormError(optionPath + ".value", "must be unique within this select field");
+            }
+            optionValues.add(value);
+
+            return {
+                value,
+                label: helperPretestFormNormalizeRequiredString(option.label, optionPath + ".label")
+            };
+        });
+
+        if (field.defaultValue !== undefined) {
+            const defaultValue = helperPretestFormNormalizeRequiredString(field.defaultValue, fieldPath + ".defaultValue");
+            if (!optionValues.has(defaultValue)) {
+                helperPretestFormError(fieldPath + ".defaultValue", "must match one of the configured option values");
+            }
+            return { ...normalizedField, options, defaultValue };
+        }
+
+        return { ...normalizedField, options };
+    }
+
+    function helperPretestFormNormalizeSliderField(field, normalizedField, fieldPath) {
+        const validation = helperPretestFormNormalizeValidationObject(field.validation, fieldPath + ".validation");
+        const min = validation.min == null ? 0 : helperPretestFormNormalizeNumber(validation.min, fieldPath + ".validation.min");
+        const max = validation.max == null ? 100 : helperPretestFormNormalizeNumber(validation.max, fieldPath + ".validation.max");
+        const step = validation.step == null ? 1 : helperPretestFormNormalizeNumber(validation.step, fieldPath + ".validation.step");
+
+        if (min > max) {
+            helperPretestFormError(fieldPath + ".validation", "min must be less than or equal to max");
+        }
+        if (step <= 0) {
+            helperPretestFormError(fieldPath + ".validation.step", "must be greater than 0");
+        }
+
+        const defaultValue = field.defaultValue == null ? helperPretestFormGetSliderDefaultValue(min, max, step) : helperPretestFormNormalizeNumber(field.defaultValue, fieldPath + ".defaultValue");
+        if (defaultValue < min || defaultValue > max) {
+            helperPretestFormError(fieldPath + ".defaultValue", "must be within the configured slider range");
+        }
+        if (!helperPretestFormStepAligned(defaultValue, min, step)) {
+            helperPretestFormError(fieldPath + ".defaultValue", "must align with validation.step");
+        }
+
+        const normalizedSlider = {
+            ...normalizedField,
+            validation: { min, max, step },
+            defaultValue
+        };
+
+        if (field.marks != null) {
+            helperPretestFormValidatePlainObject(field.marks, fieldPath + ".marks");
+            const minLabel = helperPretestFormNormalizeOptionalString(field.marks.minLabel, fieldPath + ".marks.minLabel");
+            const maxLabel = helperPretestFormNormalizeOptionalString(field.marks.maxLabel, fieldPath + ".marks.maxLabel");
+            if (minLabel || maxLabel) {
+                normalizedSlider.marks = {};
+                if (minLabel) normalizedSlider.marks.minLabel = minLabel;
+                if (maxLabel) normalizedSlider.marks.maxLabel = maxLabel;
+            }
+        }
+
+        return normalizedSlider;
+    }
+
+    function helperPretestFormNormalizeSwitchField(field, normalizedField, fieldPath) {
+        if (field.defaultValue != null && typeof field.defaultValue !== "boolean") {
+            helperPretestFormError(fieldPath + ".defaultValue", "must be a boolean");
+        }
+
+        return { ...normalizedField, defaultValue: field.defaultValue ?? false };
+    }
+
+    function helperPretestFormNormalizeValidationObject(validation, configPath) {
+        if (validation == null) {
+            return {};
+        }
+
+        helperPretestFormValidatePlainObject(validation, configPath);
+        return validation;
+    }
+
+    function helperPretestFormValidateDefaultValue(defaultValue, validation, configPath) {
+        if (validation.valueType === "string" && typeof defaultValue !== "string") {
+            helperPretestFormError(configPath, "must be a string");
+        }
+        if (validation.valueType === "string" && validation.minLength != null && defaultValue.length < validation.minLength) {
+            helperPretestFormError(configPath, "must satisfy validation.minLength");
+        }
+        if (validation.valueType === "string" && validation.maxLength != null && defaultValue.length > validation.maxLength) {
+            helperPretestFormError(configPath, "must satisfy validation.maxLength");
+        }
+        if (validation.valueType === "string" && validation.pattern != null && !new RegExp(validation.pattern).test(defaultValue)) {
+            helperPretestFormError(configPath, "must satisfy validation.pattern");
+        }
+        if (validation.valueType === "number" && (typeof defaultValue !== "number" || !Number.isFinite(defaultValue))) {
+            helperPretestFormError(configPath, "must be a number");
+        }
+        if (validation.valueType === "integer" && !Number.isInteger(defaultValue)) {
+            helperPretestFormError(configPath, "must be an integer");
+        }
+        if ((validation.valueType === "number" || validation.valueType === "integer") && validation.min != null && defaultValue < validation.min) {
+            helperPretestFormError(configPath, "must satisfy validation.min");
+        }
+        if ((validation.valueType === "number" || validation.valueType === "integer") && validation.max != null && defaultValue > validation.max) {
+            helperPretestFormError(configPath, "must satisfy validation.max");
+        }
+    }
+
+    function helperPretestFormValidatePlainObject(value, configPath) {
+        if (value == null || typeof value !== "object" || Array.isArray(value)) {
+            helperPretestFormError(configPath, "must be an object");
+        }
+    }
+
+    function helperPretestFormNormalizeRequiredString(value, configPath) {
+        if (typeof value !== "string" || value.trim().length === 0) {
+            helperPretestFormError(configPath, "must be a non-empty string");
+        }
+        return value.trim();
+    }
+
+    function helperPretestFormNormalizeOptionalString(value, configPath) {
+        if (value == null) {
+            return null;
+        }
+        if (typeof value !== "string") {
+            helperPretestFormError(configPath, "must be a string");
+        }
+
+        const trimmedValue = value.trim();
+        return trimmedValue.length > 0 ? trimmedValue : null;
+    }
+
+    function helperPretestFormNormalizeNumber(value, configPath) {
+        if (typeof value !== "number" || !Number.isFinite(value)) {
+            helperPretestFormError(configPath, "must be a finite number");
+        }
+        return value;
+    }
+
+    function helperPretestFormNormalizeNonNegativeInteger(value, configPath) {
+        if (!Number.isInteger(value) || value < 0) {
+            helperPretestFormError(configPath, "must be a non-negative integer");
+        }
+        return value;
+    }
+
+    function helperPretestFormStepAligned(value, min, step) {
+        const quotient = (value - min) / step;
+        return Math.abs(quotient - Math.round(quotient)) < 1e-9;
+    }
+
+    function helperPretestFormGetSliderDefaultValue(min, max, step) {
+        const stepCount = Math.floor((max - min) / step);
+        return min + Math.floor(stepCount / 2) * step;
     }
 
     function helperResolveConfigPath() {

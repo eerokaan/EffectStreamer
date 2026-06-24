@@ -8,15 +8,15 @@ Currently these impairment arguments are supported:
 
 | Impairment          | CLI Option                 | Mode     | Default Value | Valid Values                 | Notes |
 | ------------------- | -------------------------- | -------- | ------------- | ---------------------------- | ----- |
-| Native (End-to-End) | `--native-delay`           | Sender   | `0`           | `0` to `INT_MAX`             | Native branch delay. Values up to `20` ms result in no additional queue threshold; above `20` ms, the queue threshold is set to `value - 20` ms. |
-| Native (End-to-End) | `--native-gain`            | Receiver | `1.0`         | `0.0` to `1.0`               | Applied to native audio with GStreamer's `volume` element. For example, `0.5` is 50% and `1.0` is 100%. |
-| Echo                | `--echo-delay`             | Sender   | `0`           | `0` to `INT_MAX`             | Echo branch delay. Values up to `20` ms result in no additional queue threshold; above `20` ms, the queue threshold is set to `value - 20` ms. |
-| Echo                | `--echo-gain`              | Receiver | `0.0`         | `0.0` to `1.0`               | Applied to echo audio with GStreamer's `volume` element. For example, `0.5` is 50% and `1.0` is 100%. |
-| Packet Loss         | `--packetloss-type`        | Sender   | `none`        | `none`, `random`, `bursty`   | Enables no loss, independent random loss, or bursty loss. |
-| Packet Loss         | `--packetloss-ratio`       | Sender   | `0.0`         | `0.0` to `1.0`               | Loss fraction. `0.0` drops no packets and `1.0` drops all packets. Values above `0.0` require `--packetloss-type random` or `--packetloss-type bursty`. |
-| Packet Loss         | `--packetloss-seed`        | Sender   | `0`           | `0` to `G_MAXUINT`           | Seed for reproducible packet loss; `0` chooses a random seed per stream. |
+| Native (End-to-End) | `--native-delay`           | Sender   | `0`           | `0` to `INT_MAX`             | Native branch delay. Values up to `20` ms result in no additional queue threshold. Above `20` ms the queue threshold is set to `value - 20` ms. |
+| Native (End-to-End) | `--native-gain`            | Receiver | `1.0`         | `0.0` to `1.0`               | Assumed to be active on default (`1.0`). `0.0` is 0% gain and `1.0` is 100% gain. |
+| Echo                | `--echo-delay`             | Sender   | `0`           | `0` to `INT_MAX`             | Echo branch delay. Values up to `20` ms result in no additional queue threshold. Above `20` ms the queue threshold is set to `value - 20` ms. |
+| Echo                | `--echo-gain`              | Receiver | `0.0`         | `0.0` to `1.0`               | Assumed to be inactive on default (`0.0`). `0.0` is 0% gain and `1.0` is 100% gain. |
+| Packet Loss         | `--packetloss-type`        | Sender   | `none`        | `none`, `random`, `bursty`   | Defines the loss type: No loss, random loss, or bursty loss. |
+| Packet Loss         | `--packetloss-ratio`       | Sender   | `0.0`         | `0.0` to `1.0`               | Defines the loss ratio: `0.0` drops no packets and `1.0` drops all packets. Values above `0.0` require `--packetloss-type random` or `--packetloss-type bursty`. |
+| Packet Loss         | `--packetloss-seed`        | Sender   | `0`           | `0` to `G_MAXUINT`           | Defines a seed for reproducible packet loss: `0` chooses a random seed per stream. |
 | Packet Loss         | `--packetloss-burst-model` | Sender   | `g107-markov` | `g107-markov`                | ITU-T G.107 two-state Markov model for bursty packet loss. |
-| Packet Loss         | `--packetloss-burst-ratio` | Sender   | `1.0`         | `1.0` to `8.0`               | ITU-T G.107 `BurstR` value; used by bursty packet loss. |
+| Packet Loss         | `--packetloss-burst-ratio` | Sender   | `1.0`         | `1.0` to `8.0`               | ITU-T G.107 `BurstR` value used by bursty packet loss. |
 
 Moreover, the EffectStreamer Core is able to be cross-compiled to Linux and Windows at the same time, while also taking care of audio server differences (ALSA vs. WASAPI2); this allows the EffectStreamer Core to be embedded into other applications, like it is done with EffectStreamer GUI (hence the naming "Core").
 

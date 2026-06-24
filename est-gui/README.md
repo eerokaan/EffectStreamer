@@ -4,9 +4,9 @@
 
 This is the EffectStreamer GUI – the participant-facing interface of EffectStreamer, guiding participants through the experiment and collecting their evaluations and audio.
 
-## Usage
-
 EffectStreamer GUI is distributed as a packaged Electron application. It connects to the EffectStreamer Server and starts the bundled EffectStreamer Core processes when the server requests an audio condition.
+
+## The configuration file
 
 Before starting the GUI, place an `est-config.json` file next to the packaged application binary and adjust it for the client machine:
 
@@ -28,6 +28,8 @@ Before starting the GUI, place an `est-config.json` file next to the packaged ap
 ```
 
 The `server` section points to the running EffectStreamer Server. The `client.identity` value is the stable identity under which this GUI registers at the server. Configure a unique value for each participant machine, for example `client-a` on the first machine and `client-b` on the second machine. The `client.ipAddress` value is the IP address under which this GUI client should register itself at the server. On Linux, `client.audioDevices.source` and `client.audioDevices.sink` should be ALSA device IDs, for example values from `arecord -l` and `aplay -l`. On Windows, these device values can usually be left empty in the server-side setup because EffectStreamer Core can automatically select WASAPI devices.
+
+## Usage
 
 ### Linux
 

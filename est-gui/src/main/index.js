@@ -124,8 +124,9 @@ async function socketLogic() {
             payload: {
                 currentView: data.currentView,
                 showDialog: data.showDialog ?? false,
-                conditionScaleOffset: data.conditionScaleOffset ?? null,
+                pretestForm: data.pretestForm ?? null,
                 conditionAsset: data.conditionAsset ?? null,
+                conditionScaleOffset: data.conditionScaleOffset ?? null,
                 conditionListeningSpeakingTestIndex: data.conditionListeningSpeakingTestIndex ?? null,
                 conditionListeningSpeakingTestRole: data.conditionListeningSpeakingTestRole ?? null
             }
