@@ -527,17 +527,17 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         // Determine next session number (n+1 from existing directories)
         const existing = fs
             .readdirSync(effectstreamerDir)
-            .filter((name) => /^\d{4}$/.test(name))
-            .map(Number);
+            .filter((name) => /^session_\d{4}$/.test(name))
+            .map((name) => Number(name.slice("session_".length)));
         const sessionNum = existing.length > 0 ? Math.max(...existing) + 1 : 1;
 
-        appState.sessionDir = path.join(effectstreamerDir, String(sessionNum).padStart(4, "0"));
+        appState.sessionDir = path.join(effectstreamerDir, "session_" + String(sessionNum).padStart(4, "0"));
         fs.mkdirSync(appState.sessionDir);
 
         // Create condition directories
         const roundsTotal = estConfig.conditions.baseline.length + estConfig.conditions.random.length;
         for (let counter = 1; counter <= roundsTotal; counter++) {
-            fs.mkdirSync(path.join(appState.sessionDir, String(counter).padStart(4, "0")));
+            fs.mkdirSync(path.join(appState.sessionDir, "condition_" + String(counter).padStart(4, "0")));
         }
     }
 
@@ -1001,7 +1001,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
     }
 
     function helperSaveFile(location, filename, data) {
-        const conditionDirName = String(appState.conditionIndex + 1).padStart(4, "0");
+        const conditionDirName = "condition_" + String(appState.conditionIndex + 1).padStart(4, "0");
 
         let filePath = null;
         if (location === "sessionDir") {

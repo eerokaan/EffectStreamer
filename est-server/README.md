@@ -4,9 +4,9 @@
 
 This is the EffectStreamer Server – it orchestrates the entire experiment; managing state, coordinating all connected participants, collecting evaluation data, and serving as the single source of truth via a central configuration file.
 
-The server writes session data to `~/effectstreamer`. Each experiment run receives a new numbered session directory containing submitted forms, scale results, condition settings, and transferred audio recordings.
+The server writes session data to `~/effectstreamer`. Each experiment run receives a new `session_####` directory containing submitted forms, scale results, condition settings, and transferred audio recordings inside `condition_####` subdirectories.
 
-EffectStreamer Server is distributed as a standalone Node.js executable and should be started before the GUI clients connect. 
+EffectStreamer Server is distributed as a standalone Node.js executable and should be started before the GUI clients connect.
 
 ## The configuration file
 
@@ -109,65 +109,65 @@ The `pretestForm` array configures the fields shown by the GUI before the experi
 
 **Supported pretest field types:**
 
-| Type | Function | Saved value |
-| --- | --- | --- |
-| `input` | Renders a text or number input. | String for text inputs, number for numeric inputs. |
-| `select` | Renders a dropdown with configured entries. | The selected option's `value`. |
-| `slider` | Renders a numeric slider. | Number. |
-| `switch` | Renders a boolean on/off switch. | Boolean. |
+| Type     | Function                                    | Saved value                                        |
+| -------- | ------------------------------------------- | -------------------------------------------------- |
+| `input`  | Renders a text or number input.             | String for text inputs, number for numeric inputs. |
+| `select` | Renders a dropdown with configured entries. | The selected option's `value`.                     |
+| `slider` | Renders a numeric slider.                   | Number.                                            |
+| `switch` | Renders a boolean on/off switch.            | Boolean.                                           |
 
 **Supported pretest field parameters:**
 
-| Parameter | Required | Description |
-| --- | --- | --- |
-| `name` | yes | Unique string. This becomes the key in the resulting `client-*-pretest-form.json` file. |
-| `type` | yes | Field renderer type: `input`, `select`, `slider`, or `switch`. |
-| `label` | yes | Visible label shown to participants. |
-| `description` | no | Helper text shown below or next to the field. |
-| `placeholder` | no | Placeholder text for `input` and `select` fields. |
-| `required` | no | Boolean. If omitted, `input` and `select` default to required, while `slider` and `switch` default to optional. |
-| `defaultValue` | no | Initial value. The expected type depends on the field type. |
-| `layoutWidth` | no | Integer from `1` to `12`. `12` is full width, `6` is half width, `4` is one third, and `3` is one quarter. If omitted, the field is full width. |
-| `validation` | no | Field-specific legal-value rules. |
+| Parameter      | Required | Description                                                                                                                                     |
+| -------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`         | yes      | Unique string. This becomes the key in the resulting `client-*-pretest-form.json` file.                                                         |
+| `type`         | yes      | Field renderer type: `input`, `select`, `slider`, or `switch`.                                                                                  |
+| `label`        | yes      | Visible label shown to participants.                                                                                                            |
+| `description`  | no       | Helper text shown below or next to the field.                                                                                                   |
+| `placeholder`  | no       | Placeholder text for `input` and `select` fields.                                                                                               |
+| `required`     | no       | Boolean. If omitted, `input` and `select` default to required, while `slider` and `switch` default to optional.                                 |
+| `defaultValue` | no       | Initial value. The expected type depends on the field type.                                                                                     |
+| `layoutWidth`  | no       | Integer from `1` to `12`. `12` is full width, `6` is half width, `4` is one third, and `3` is one quarter. If omitted, the field is full width. |
+| `validation`   | no       | Field-specific legal-value rules.                                                                                                               |
 
 **Input field parameters:**
 
-| Parameter | Description |
-| --- | --- |
-| `inputType` | `text` or `number`. If omitted, the GUI uses `text`. |
+| Parameter              | Description                                                                                                              |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `inputType`            | `text` or `number`. If omitted, the GUI uses `text`.                                                                     |
 | `validation.valueType` | `string`, `number`, or `integer`. If omitted, `number` inputs validate as numbers and `text` inputs validate as strings. |
-| `validation.min` | Minimum legal value for `number` or `integer` inputs. |
-| `validation.max` | Maximum legal value for `number` or `integer` inputs. |
-| `validation.minLength` | Minimum length for `string` inputs. |
-| `validation.maxLength` | Maximum length for `string` inputs. |
-| `validation.pattern` | Regular expression string for `string` inputs. The value must match this pattern. |
+| `validation.min`       | Minimum legal value for `number` or `integer` inputs.                                                                    |
+| `validation.max`       | Maximum legal value for `number` or `integer` inputs.                                                                    |
+| `validation.minLength` | Minimum length for `string` inputs.                                                                                      |
+| `validation.maxLength` | Maximum length for `string` inputs.                                                                                      |
+| `validation.pattern`   | Regular expression string for `string` inputs. The value must match this pattern.                                        |
 
 **Select field parameters:**
 
-| Parameter | Description |
-| --- | --- |
-| `options` | Required array of `{ "value": string, "label": string }` objects. |
-| `defaultValue` | Optional string. Must match one configured option `value`. |
+| Parameter      | Description                                                       |
+| -------------- | ----------------------------------------------------------------- |
+| `options`      | Required array of `{ "value": string, "label": string }` objects. |
+| `defaultValue` | Optional string. Must match one configured option `value`.        |
 
 For `select`, `label` is what participants see and `value` is what is saved. The configured option values are the only legal submitted values.
 
 **Slider field parameters:**
 
-| Parameter | Description |
-| --- | --- |
-| `validation.min` | Lower numeric bound. Defaults to `0`. |
-| `validation.max` | Upper numeric bound. Defaults to `100`. |
-| `validation.step` | Slider increment. Defaults to `1`. |
-| `defaultValue` | Optional number. Must be inside the configured range and align with `validation.step`. |
-| `marks.minLabel` | Optional label shown below the lower end of the slider. |
-| `marks.maxLabel` | Optional label shown below the upper end of the slider. |
+| Parameter         | Description                                                                            |
+| ----------------- | -------------------------------------------------------------------------------------- |
+| `validation.min`  | Lower numeric bound. Defaults to `0`.                                                  |
+| `validation.max`  | Upper numeric bound. Defaults to `100`.                                                |
+| `validation.step` | Slider increment. Defaults to `1`.                                                     |
+| `defaultValue`    | Optional number. Must be inside the configured range and align with `validation.step`. |
+| `marks.minLabel`  | Optional label shown below the lower end of the slider.                                |
+| `marks.maxLabel`  | Optional label shown below the upper end of the slider.                                |
 
 **Switch field parameters:**
 
-| Parameter | Description |
-| --- | --- |
-| `defaultValue` | Optional boolean. Usually `false`. |
-| `required` | Usually unnecessary for switches. A switch is saved as a boolean either way. |
+| Parameter      | Description                                                                  |
+| -------------- | ---------------------------------------------------------------------------- |
+| `defaultValue` | Optional boolean. Usually `false`.                                           |
+| `required`     | Usually unnecessary for switches. A switch is saved as a boolean either way. |
 
 ## Usage
 

@@ -48,17 +48,17 @@ static gboolean bus_call(GstBus* bus, GstMessage* msg, gpointer data) {
     return TRUE;
 }
 
-static char* create_session_directory(void) {
-    char* session_dir;
-    session_dir = g_build_filename(g_get_home_dir(), "effectstreamer", NULL);
+static char* create_recording_directory(void) {
+    char* recording_dir;
+    recording_dir = g_build_filename(g_get_home_dir(), "effectstreamer", NULL);
 
-    if (g_mkdir_with_parents(session_dir, 0755) != 0) {
-        g_printerr("Warning: Could not create session directory %s\n", session_dir);
+    if (g_mkdir_with_parents(recording_dir, 0755) != 0) {
+        g_printerr("Warning: Could not create recording directory %s\n", recording_dir);
     } else {
-        g_print("Created session directory: %s\n", session_dir);
+        g_print("Created recording directory: %s\n", recording_dir);
     }
 
-    return session_dir;
+    return recording_dir;
 }
 
 int run_receiver(ReceiverParams* params) {
@@ -83,7 +83,7 @@ int run_receiver(ReceiverParams* params) {
 
     GstCaps *caps_rtp, *caps_audio;
     GstPad *adder_sink1, *adder_sink2, *src_pad1, *src_pad2;
-    char* session_dir;
+    char* recording_dir;
     char* record_file_microphone;
     char* record_file_headphones;
 
@@ -93,10 +93,10 @@ int run_receiver(ReceiverParams* params) {
     g_print("  Native Gain: %.2f\n", params->nativegain);
     g_print("  Echo Gain: %.2f\n", params->echogain);
 
-    /* Create session directory */
-    session_dir = create_session_directory();
-    record_file_microphone = g_strdup_printf("%s%cmicrophone.ogg", session_dir, G_DIR_SEPARATOR);
-    record_file_headphones = g_strdup_printf("%s%cheadphones.ogg", session_dir, G_DIR_SEPARATOR);
+    /* Create recording directory */
+    recording_dir = create_recording_directory();
+    record_file_microphone = g_strdup_printf("%s%cmicrophone.ogg", recording_dir, G_DIR_SEPARATOR);
+    record_file_headphones = g_strdup_printf("%s%cheadphones.ogg", recording_dir, G_DIR_SEPARATOR);
     g_print("  Recording microphone to: %s\n", record_file_microphone);
     g_print("  Recording headphones to: %s\n", record_file_headphones);
 
@@ -147,7 +147,7 @@ int run_receiver(ReceiverParams* params) {
         !oggmux_mic || !filesink_mic || !adder || !tee || !queue_speaker || !queue_record || !audioconvert_speaker || !audioresample_speaker || !alsasink ||
         !audioconvert_record || !audioresample_record || !opusenc_hp || !oggmux_hp || !filesink_hp) {
         g_printerr("Not all elements could be created.\n");
-        g_free(session_dir);
+        g_free(recording_dir);
         g_free(record_file_microphone);
         g_free(record_file_headphones);
         return 1;
@@ -200,7 +200,7 @@ int run_receiver(ReceiverParams* params) {
     if (!gst_element_link_many(udpsrc1, rtpjitterbuffer1, rtpL16depay1, audioconvert1, capsfilter1, volume1, NULL)) {
         g_printerr("Failed to link source 1 pipeline.\n");
         gst_object_unref(context.pipeline);
-        g_free(session_dir);
+        g_free(recording_dir);
         g_free(record_file_microphone);
         g_free(record_file_headphones);
         return 1;
@@ -210,7 +210,7 @@ int run_receiver(ReceiverParams* params) {
     if (!gst_element_link_many(udpsrc2, rtpjitterbuffer2, rtpL16depay2, audioconvert2, capsfilter2, volume2, NULL)) {
         g_printerr("Failed to link source 2 pipeline.\n");
         gst_object_unref(context.pipeline);
-        g_free(session_dir);
+        g_free(recording_dir);
         g_free(record_file_microphone);
         g_free(record_file_headphones);
         return 1;
@@ -220,7 +220,7 @@ int run_receiver(ReceiverParams* params) {
     if (!gst_element_link_many(udpsrc3, rtpjitterbuffer3, rtpL16depay3, audioconvert3, opusenc_mic, oggmux_mic, filesink_mic, NULL)) {
         g_printerr("Failed to link source 3 (microphone) pipeline.\n");
         gst_object_unref(context.pipeline);
-        g_free(session_dir);
+        g_free(recording_dir);
         g_free(record_file_microphone);
         g_free(record_file_headphones);
         return 1;
@@ -230,7 +230,7 @@ int run_receiver(ReceiverParams* params) {
     if (!gst_element_link(adder, tee)) {
         g_printerr("Failed to link adder to tee.\n");
         gst_object_unref(context.pipeline);
-        g_free(session_dir);
+        g_free(recording_dir);
         g_free(record_file_microphone);
         g_free(record_file_headphones);
         return 1;
@@ -240,7 +240,7 @@ int run_receiver(ReceiverParams* params) {
     if (!gst_element_link_many(tee, queue_speaker, audioconvert_speaker, audioresample_speaker, alsasink, NULL)) {
         g_printerr("Failed to link tee to speaker output.\n");
         gst_object_unref(context.pipeline);
-        g_free(session_dir);
+        g_free(recording_dir);
         g_free(record_file_microphone);
         g_free(record_file_headphones);
         return 1;
@@ -250,7 +250,7 @@ int run_receiver(ReceiverParams* params) {
     if (!gst_element_link_many(tee, queue_record, audioconvert_record, audioresample_record, opusenc_hp, oggmux_hp, filesink_hp, NULL)) {
         g_printerr("Failed to link tee to headphones recording.\n");
         gst_object_unref(context.pipeline);
-        g_free(session_dir);
+        g_free(recording_dir);
         g_free(record_file_microphone);
         g_free(record_file_headphones);
         return 1;
@@ -262,7 +262,7 @@ int run_receiver(ReceiverParams* params) {
     if (gst_pad_link(src_pad1, adder_sink1) != GST_PAD_LINK_OK) {
         g_printerr("Failed to link volume1 to adder.\n");
         gst_object_unref(context.pipeline);
-        g_free(session_dir);
+        g_free(recording_dir);
         g_free(record_file_microphone);
         g_free(record_file_headphones);
         return 1;
@@ -274,7 +274,7 @@ int run_receiver(ReceiverParams* params) {
     if (gst_pad_link(src_pad2, adder_sink2) != GST_PAD_LINK_OK) {
         g_printerr("Failed to link volume2 to adder.\n");
         gst_object_unref(context.pipeline);
-        g_free(session_dir);
+        g_free(recording_dir);
         g_free(record_file_microphone);
         g_free(record_file_headphones);
         return 1;
@@ -292,7 +292,7 @@ int run_receiver(ReceiverParams* params) {
     if (ret == GST_STATE_CHANGE_FAILURE) {
         g_printerr("Unable to set the pipeline to the playing state.\n");
         gst_object_unref(context.pipeline);
-        g_free(session_dir);
+        g_free(recording_dir);
         g_free(record_file_microphone);
         g_free(record_file_headphones);
         return 1;
@@ -311,7 +311,7 @@ int run_receiver(ReceiverParams* params) {
     gst_object_unref(adder_sink2);
     g_source_remove(bus_watch_id);
     g_main_loop_unref(context.loop);
-    g_free(session_dir);
+    g_free(recording_dir);
     g_free(record_file_microphone);
     g_free(record_file_headphones);
 
