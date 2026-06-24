@@ -8,9 +8,9 @@ Currently these impairment arguments are supported:
 
 | Impairment          | CLI Option                 | Mode     | Default Value | Valid Values                 | Notes |
 | ------------------- | -------------------------- | -------- | ------------- | ---------------------------- | ----- |
-| Native (End-to-End) | `--native-delay`           | Sender   | `0`           | `0` to `INT_MAX`             | Native branch delay. Values up to `20` ms result in no additional queue threshold. Above `20` ms the queue threshold is set to `value - 20` ms. |
+| Native (End-to-End) | `--native-delay`           | Sender   | `0`           | `0` to `INT_MAX`             | Native branch delay. Values up to 20ms result in no additional queue threshold. Above 20ms the queue threshold is set to `value - 20` ms. |
 | Native (End-to-End) | `--native-gain`            | Receiver | `1.0`         | `0.0` to `1.0`               | Assumed to be active on default (`1.0`). `0.0` is 0% gain and `1.0` is 100% gain. |
-| Echo                | `--echo-delay`             | Sender   | `0`           | `0` to `INT_MAX`             | Echo branch delay. Values up to `20` ms result in no additional queue threshold. Above `20` ms the queue threshold is set to `value - 20` ms. |
+| Echo                | `--echo-delay`             | Sender   | `0`           | `0` to `INT_MAX`             | Echo branch delay. Values up to 20ms result in no additional queue threshold. Above 20ms the queue threshold is set to `value - 20` ms. |
 | Echo                | `--echo-gain`              | Receiver | `0.0`         | `0.0` to `1.0`               | Assumed to be inactive on default (`0.0`). `0.0` is 0% gain and `1.0` is 100% gain. |
 | Packet Loss         | `--packetloss-type`        | Sender   | `none`        | `none`, `random`, `bursty`   | Defines the loss type: No loss, random loss, or bursty loss. |
 | Packet Loss         | `--packetloss-ratio`       | Sender   | `0.0`         | `0.0` to `1.0`               | Defines the loss ratio: `0.0` drops no packets and `1.0` drops all packets. Values above `0.0` require `--packetloss-type random` or `--packetloss-type bursty`. |
