@@ -6,7 +6,7 @@ import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
 import useStoreRoot from "@/stores/root";
 
-function ViewShortConversationTest() {
+function ViewShortConversationTestMain() {
     const { conditionAsset, showDialog, setShowDialog } = useStoreRoot();
     const asset = resolveAsset(conditionSctAssets, conditionAsset);
 
@@ -52,4 +52,4 @@ function ViewShortConversationTest() {
     );
 }
 
-export default ViewShortConversationTest;
+export default ViewShortConversationTestMain;

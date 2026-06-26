@@ -6,7 +6,7 @@ import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
 import useStoreRoot from "@/stores/root";
 
-function ViewListeningSpeakingTest() {
+function ViewListeningSpeakingTestMain() {
     const { conditionAsset, showDialog, setShowDialog } = useStoreRoot();
     const asset = resolveAsset(conditionLstAssets, conditionAsset);
 
@@ -52,4 +52,4 @@ function ViewListeningSpeakingTest() {
     );
 }
 
-export default ViewListeningSpeakingTest;
+export default ViewListeningSpeakingTestMain;

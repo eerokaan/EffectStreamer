@@ -45,7 +45,7 @@ class ExperimentFlow {
                 }
             }
 
-            if (peerSocketId && (view.name === this.views.sct || view.name === this.views.lst)) {
+            if (peerSocketId && (view.name === this.views.sctMain || view.name === this.views.lstMain)) {
                 this.clientRegistry.emitToSocket(peerSocketId, "est-event:viewChangeResponse", {
                     showDialog: true
                 });

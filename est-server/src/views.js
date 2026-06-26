@@ -3,10 +3,10 @@ const views = {
     welcome: "viewWelcome",
     pretest: "viewPretest",
     sctExp: "viewShortConversationTestExplanation",
-    sct: "viewShortConversationTest",
+    sctMain: "viewShortConversationTestMain",
     sctEval: "viewShortConversationTestEvaluation",
     lstExp: "viewListeningSpeakingTestExplanation",
-    lst: "viewListeningSpeakingTest",
+    lstMain: "viewListeningSpeakingTestMain",
     lstEval: "viewListeningSpeakingTestEvaluation",
     break: "viewBreak",
     ending: "viewEnding"

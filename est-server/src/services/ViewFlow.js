@@ -17,14 +17,14 @@ class ViewFlow {
         if (this.testEnabled.sct) {
             testViews.push(
                 { name: views.sctExp, passing: "gated", metadata: {} },
-                { name: views.sct, passing: "direct", metadata: {} },
+                { name: views.sctMain, passing: "direct", metadata: {} },
                 { name: views.sctEval, passing: "gated", metadata: { testType: "sct" } }
             );
         }
         if (this.testEnabled.lst) {
             testViews.push(
                 { name: views.lstExp, passing: "gated", metadata: {} },
-                { name: views.lst, passing: "direct", metadata: {} },
+                { name: views.lstMain, passing: "direct", metadata: {} },
                 { name: views.lstEval, passing: "gated", metadata: { testType: "lst" } }
             );
         }
@@ -49,7 +49,7 @@ class ViewFlow {
         const view = this.viewFlow[viewIndex];
 
         if (currentView === views.lstEval && this.state.conditionListeningSpeakingTestIndex === 0) {
-            return views.lst;
+            return views.lstMain;
         }
 
         // When current view indicates a loop end: Either exit (viewEnding), show break (viewBreak) or loop back
@@ -81,8 +81,8 @@ class ViewFlow {
             return { currentView: viewName, pretestForm: this.pretestFormConfig };
         }
 
-        const isSct = viewName === views.sct;
-        const isLst = viewName === views.lst;
+        const isSct = viewName === views.sctMain;
+        const isLst = viewName === views.lstMain;
         const isLstEvaluation = viewName === views.lstEval;
 
         if (isSct || isLst || isLstEvaluation) {
