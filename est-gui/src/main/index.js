@@ -133,7 +133,7 @@ async function socketLogic() {
         });
         appContext.windowMain.webContents.send("ipc:storeSetValueRequest", {
             storeName: "ComponentFooter",
-            payload: { isWaitingForPeer: false }
+            payload: { isWaitingForPeer: false, isWaitingForUpload: false }
         });
         appContext.windowMain.webContents.send("ipc:storeResetRequest", {
             storeName: "ComponentScale"
@@ -187,6 +187,10 @@ async function socketLogic() {
         // For cases where we simply want to close down (No file upload)
         if (data.upload === false) {
             await helperEstCoreCleanup();
+            appContext.windowMain.webContents.send("ipc:storeSetValueRequest", {
+                storeName: "ComponentFooter",
+                payload: { isWaitingForUpload: false }
+            });
             return;
         }
 

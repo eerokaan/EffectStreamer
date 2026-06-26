@@ -30,8 +30,8 @@ function loadConfig(configPath) {
         lst: "listening-speaking-test"
     };
     const testEnabled = {
-        sct: estConfig.tests?.[testConfigKeys.sct] !== false,
-        lst: estConfig.tests?.[testConfigKeys.lst] !== false
+        sct: estConfig.tests[testConfigKeys.sct] !== false,
+        lst: estConfig.tests[testConfigKeys.lst] !== false
     };
 
     return { estConfig, pretestFormConfig, testConfigKeys, testEnabled };

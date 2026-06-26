@@ -1,8 +1,9 @@
 class ClientRegistry {
-    constructor({ state, io, views }) {
+    constructor({ state, io, views, onClientsReady = () => {} }) {
         this.state = state;
         this.io = io;
         this.views = views;
+        this.onClientsReady = onClientsReady;
     }
 
     cleanupSocketState(socketId) {
@@ -121,6 +122,7 @@ class ClientRegistry {
 
         const clientsWereReady = this.state.clientsData.size === 2;
         const existingClient = this.state.clientsData.get(clientId);
+        const clientReconnected = Boolean(existingClient?.socketId && existingClient.socketId !== socket.id);
         let clientSlot = existingClient;
 
         if (!clientSlot) {
@@ -143,7 +145,7 @@ class ClientRegistry {
             return;
         }
 
-        if (existingClient?.socketId && existingClient.socketId !== socket.id) {
+        if (clientReconnected) {
             const oldSocketId = existingClient.socketId;
             this.cleanupSocketState(oldSocketId);
             this.state.clientsSocketRegistry.delete(oldSocketId);
@@ -172,7 +174,8 @@ class ClientRegistry {
         });
         this.state.clientsSocketRegistry.set(socket.id, clientId);
 
-        if (!clientsWereReady && this.state.clientsData.size === 2) {
+        if ((!clientsWereReady && this.state.clientsData.size === 2) || (clientsWereReady && clientReconnected)) {
+            this.onClientsReady();
             this.emitToAll("est-event:viewChangeResponse", { currentView: this.views.welcome });
         }
     }

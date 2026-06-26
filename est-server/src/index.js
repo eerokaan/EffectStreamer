@@ -41,8 +41,16 @@ else if (process.env.EST_SERVER_TYPE === "server") {
     });
 
     const state = new ServerState();
-    const clientRegistry = new ClientRegistry({ state, io, views });
     const sessionFiles = new SessionFiles({ state, estConfig });
+    const clientRegistry = new ClientRegistry({
+        state,
+        io,
+        views,
+        onClientsReady: () => {
+            state.resetExperimentSession();
+            sessionFiles.createFolderStructure();
+        }
+    });
     const viewFlow = new ViewFlow({ state, estConfig, testEnabled, pretestFormConfig, clientRegistry });
     const experimentFlow = new ExperimentFlow({ state, estConfig, views, viewFlow, clientRegistry, sessionFiles });
     const effectStreamerCore = new EffectStreamerCore({ state, estConfig, testConfigKeys, clientRegistry });
@@ -107,7 +115,6 @@ else if (process.env.EST_SERVER_TYPE === "server") {
     // ===== HTTP SERVER LOGIC ===================
     // ===========================================
     server.listen(estConfig.server.port, estConfig.server.ipAddress, () => {
-        sessionFiles.createFolderStructure();
         console.log("[Server] Server started (PID: " + process.pid + ") - Running on port " + estConfig.server.port);
     });
 }

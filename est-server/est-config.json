@@ -8,20 +8,20 @@
         "listening-speaking-test": true
     },
     "conditions": {
-        "baseline": [{ "echoGain": "0.002", "nativeDelay": 40 }],
+        "baseline": [{ "echoDelay": 20, "echoGain": "0.002", "nativeDelay": 10 }],
         "random": [
-            { "echoGain": "0.35", "nativeDelay": 100 },
-            { "echoGain": "0.35", "nativeDelay": 200 },
-            { "echoGain": "0.35", "nativeDelay": 400 },
-            { "echoGain": "0.35", "nativeDelay": 800 },
-            { "echoGain": "0.10", "nativeDelay": 100 },
-            { "echoGain": "0.10", "nativeDelay": 200 },
-            { "echoGain": "0.10", "nativeDelay": 400 },
-            { "echoGain": "0.10", "nativeDelay": 800 },
-            { "echoGain": "0.03", "nativeDelay": 100 },
-            { "echoGain": "0.03", "nativeDelay": 200 },
-            { "echoGain": "0.03", "nativeDelay": 400 },
-            { "echoGain": "0.03", "nativeDelay": 800 }
+            { "echoDelay": 50, "echoGain": "0.35", "nativeDelay": 25 },
+            { "echoDelay": 100, "echoGain": "0.35", "nativeDelay": 50 },
+            { "echoDelay": 200, "echoGain": "0.35", "nativeDelay": 100 },
+            { "echoDelay": 400, "echoGain": "0.35", "nativeDelay": 200 },
+            { "echoDelay": 50, "echoGain": "0.10", "nativeDelay": 25 },
+            { "echoDelay": 100, "echoGain": "0.10", "nativeDelay": 50 },
+            { "echoDelay": 200, "echoGain": "0.10", "nativeDelay": 100 },
+            { "echoDelay": 400, "echoGain": "0.10", "nativeDelay": 200 },
+            { "echoDelay": 50, "echoGain": "0.03", "nativeDelay": 25 },
+            { "echoDelay": 100, "echoGain": "0.03", "nativeDelay": 50 },
+            { "echoDelay": 200, "echoGain": "0.03", "nativeDelay": 100 },
+            { "echoDelay": 400, "echoGain": "0.03", "nativeDelay": 200 }
         ]
     },
     "pretestForm": [
