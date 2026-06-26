@@ -4,11 +4,16 @@ const pretestForm = require("./pretestForm.js");
 
 function resolveConfigPath(srcDir) {
     const configName = "est-config.json";
+    const isSeaExecutable = (() => {
+        try {
+            return require("node:sea").isSea();
+        }
+        catch {
+            return false;
+        }
+    })();
 
-    if (process.resourcesPath) {
-        return path.join(process.resourcesPath, configName);
-    }
-    else if (process.pkg) {
+    if (isSeaExecutable) {
         return path.join(path.dirname(process.execPath), configName);
     }
     else {
