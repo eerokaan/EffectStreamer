@@ -1,5 +1,8 @@
+AllowShortFunctionsOnASingleLine: None
 BasedOnStyle: Google
-IndentWidth: 4
-TabWidth: 4
+ColumnLimit: 120
 ContinuationIndentWidth: 4
-ColumnLimit: 160
+IncludeBlocks: Preserve
+IndentWidth: 4
+SortIncludes: false
+TabWidth: 4

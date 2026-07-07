@@ -1,6 +1,6 @@
-import createStore from "@/lib/stores-create";
+import storeCreate from "@/lib/store-create";
 
-const useStoreComponentScale = createStore({
+const useStoreComponentScale = storeCreate({
     scaleValues: {},
     scaleIndex: 0
 });

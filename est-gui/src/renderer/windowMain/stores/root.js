@@ -1,6 +1,6 @@
-import createStore from "@/lib/stores-create";
+import storeCreate from "@/lib/store-create";
 
-const useStoreRoot = createStore({
+const useStoreRoot = storeCreate({
     currentView: "viewWaiting",
     showDialog: false,
     pretestForm: null,

@@ -1,13 +1,15 @@
-# ===== EffectStreamer Core: Executable binaries ===============
-est-core/dist/est-core* filter=lfs diff=lfs merge=lfs -text
+# EffectStreamer Core: Compiled standalone binaries
+est-core/dist/** filter=lfs diff=lfs merge=lfs -text
 
-# ===== EffectStreamer Server: Executable binaries ===============
+# EffectStreamer Server: Released executable binaries
 est-server/dist/est-server* filter=lfs diff=lfs merge=lfs -text
 
-# ===== EffectStreamer GUI: Executable binaries, GStreamer and runtime assets ===============
+# EffectStreamer GUI: Released installers
 est-gui/dist/EffectStreamer* filter=lfs diff=lfs merge=lfs -text
 
+# EffectStreamer GUI: Bundled est-core and GStreamer
 est-gui/build/linux/** filter=lfs diff=lfs merge=lfs -text
 est-gui/build/win/** filter=lfs diff=lfs merge=lfs -text
 
+# EffectStreamer GUI: Static image files
 est-gui/src/renderer/windowMain/assets/img/** filter=lfs diff=lfs merge=lfs -text

@@ -1,8 +1,9 @@
-import createStore from "@/lib/stores-create";
+import storeCreate from "@/lib/store-create";
 
-const useStoreComponentFooter = createStore({
+const useStoreComponentFooter = storeCreate({
     isWaitingForPeer: false,
-    isWaitingForUpload: false
+    isWaitingForUpload: false,
+    isWaitingForRecording: false
 });
 
 export default useStoreComponentFooter;

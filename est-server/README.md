@@ -4,13 +4,22 @@
 
 This is the EffectStreamer Server – it orchestrates the entire experiment; managing state, coordinating all connected participants, collecting evaluation data, and serving as the single source of truth via a central configuration file.
 
-The server writes session data to `~/effectstreamer`. Each experiment run receives a new `session_####` directory containing submitted forms, scale results, condition settings, and transferred audio recordings inside `condition_####` subdirectories.
+The server writes session data to `~/effectstreamer`. Each experiment run receives a new `session_####` directory containing submitted forms, scale results, condition settings, transferred audio recordings, and audio transport diagnostics inside `condition_####` subdirectories.
 
 EffectStreamer Server is distributed as a standalone Node.js executable and should be started before the GUI clients connect.
 
 ## The configuration file
 
-Before starting the server, place an `est-config.json` file next to the server executable and adjust it for your needs. This how this file may look like:
+Before starting the server, copy the `config-server.example.json` config file to `~/effectstreamer/config-server.json` and adjust it for your needs. The path is based on the current OS user's home directory on Linux and Windows.
+
+On Linux for example, the initial setup can be performed with:
+
+```
+mkdir -p ~/effectstreamer
+cp config-server.example.json ~/effectstreamer/config-server.json
+```
+
+An example configuration looks like this:
 
 ```
 {
@@ -79,15 +88,17 @@ Before starting the server, place an `est-config.json` file next to the server e
 
 ### Server config
 
-The `server` values define where the server listens for `est-gui` clients.
+The `server` values define where the server listens for `est-gui` clients. `ipAddress` must be an IPv4 or IPv6 address and `port` must be an integer from `1` through `65535`. Ports supplied as numeric strings are normalized to numbers.
 
 ### Tests config
 
-The `tests` values define which test types are included in the experiment flow; set `short-conversation-test` or `listening-speaking-test` to `false` to skip that test type for every condition.
+The `tests` values define which test types are included in the experiment flow. Both values are required booleans; set `short-conversation-test` or `listening-speaking-test` to `false` to skip that test type for every condition.
 
 ### Conditions config
 
 The `conditions.baseline` runs as a first condition to establish a baseline for the participants. Afterwards, the server picks a random condition within `conditions.random` until all conditions are exhausted.
+
+`conditions.baseline` must contain exactly one condition and `conditions.random` must be an array, which may also be empty. Condition properties (impairment parameters) not listed below are rejected. Numeric values may be JSON numbers or numeric strings and are normalized to numbers during startup.
 
 You can use the following impairment parameters for the conditions:
 
@@ -130,7 +141,7 @@ The `pretestForm` array configures the fields shown by the GUI before the experi
 | `layoutWidth`  | no       | Integer from `1` to `12`. `12` is full width, `6` is half width, `4` is one third, and `3` is one quarter. If omitted, the field is full width. |
 | `validation`   | no       | Field-specific legal-value rules.                                                                                                               |
 
-**Input field parameters:**
+**Field parameters for Inputs:**
 
 | Parameter              | Description                                                                                                              |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------ |
@@ -142,7 +153,7 @@ The `pretestForm` array configures the fields shown by the GUI before the experi
 | `validation.maxLength` | Maximum length for `string` inputs.                                                                                      |
 | `validation.pattern`   | Regular expression string for `string` inputs. The value must match this pattern.                                        |
 
-**Select field parameters:**
+**Field parameters for Selects:**
 
 | Parameter      | Description                                                       |
 | -------------- | ----------------------------------------------------------------- |
@@ -151,7 +162,7 @@ The `pretestForm` array configures the fields shown by the GUI before the experi
 
 For `select`, `label` is what participants see and `value` is what is saved. The configured option values are the only legal submitted values.
 
-**Slider field parameters:**
+**Field parameters for Sliders:**
 
 | Parameter         | Description                                                                            |
 | ----------------- | -------------------------------------------------------------------------------------- |
@@ -162,7 +173,7 @@ For `select`, `label` is what participants see and `value` is what is saved. The
 | `marks.minLabel`  | Optional label shown below the lower end of the slider.                                |
 | `marks.maxLabel`  | Optional label shown below the upper end of the slider.                                |
 
-**Switch field parameters:**
+**Field parameters for Switches:**
 
 | Parameter      | Description                                                                  |
 | -------------- | ---------------------------------------------------------------------------- |
@@ -202,7 +213,7 @@ npm install
 npm run build:linux
 ```
 
-The Linux executable and a copy of `est-config.json` will be written to `est-server/dist`.
+The Linux executable will be written to `est-server/dist`. The configuration file is always loaded from `~/effectstreamer/config-server.json`.
 
 ### Windows
 
@@ -213,4 +224,4 @@ npm install
 npm run build:win
 ```
 
-The Windows executable and a copy of `est-config.json` will be written to `est-server/dist`.
+The Windows executable will be written to `est-server/dist`. The configuration file is always loaded from the current user's home directory at `effectstreamer/config-server.json`.

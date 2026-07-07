@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
-import PretestForm from "@/components/pretest-form";
+import ComponentPretestForm from "@/components/pretestform";
 import useStoreRoot from "@/stores/root";
 
 function ViewPretest() {
@@ -10,7 +10,7 @@ function ViewPretest() {
     const pretestFormKey = JSON.stringify(pretestForm ?? []);
 
     const handleFormSubmit = async (data) => {
-        window.appApi.ipcRenderer.invoke("ipc:pretestSubmitRequest", {
+        window.appApi.ipcRenderer.invoke("ipc:pretestSaveRequest", {
             formData: data
         });
         window.appApi.ipcRenderer.invoke("ipc:viewChangeRequest", {
@@ -35,7 +35,7 @@ function ViewPretest() {
                     <p className="mb-4">Diese Informationen helfen uns dabei, die Ergebnisse der Studie besser zu verstehen und statistisch einzuordnen.</p>
                     <p className="mb-6">Bitte nehmen Sie sich einen Moment Zeit, um das folgende Formular auszufüllen, damit wir anschließend direkt mit den Tests beginnen können.</p>
 
-                    <PretestForm key={pretestFormKey} ref={formRef} pretestForm={pretestForm} onSubmit={handleFormSubmit} />
+                    <ComponentPretestForm key={pretestFormKey} ref={formRef} pretestForm={pretestForm} onSubmit={handleFormSubmit} />
                 </div>
 
                 <ComponentFooter onNext={handleNext}></ComponentFooter>

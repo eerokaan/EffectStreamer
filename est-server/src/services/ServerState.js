@@ -1,4 +1,5 @@
 class ServerState {
+    // prettier-ignore
     constructor() {
         this.sessionDir = null;
         this.shutdownScheduled = false;
@@ -11,13 +12,10 @@ class ServerState {
         this.conditionIndex = 0;
         this.conditionOrder = [];
         this.conditionListeningSpeakingTestIndex = 0;
-        this.fileTransferCompletedKeys = new Set();
-        this.fileTransferPendingViewName = null;
-        this.coreStopCompletedKeys = new Set();
+        this.recordingContextActive = null;
+        this.recordingContexts = new Map();
         this.gates = {
-            viewChange: new Set(),
-            coreStart: new Set(),
-            fileTransfer: new Set()
+            viewChange: new Set()
         };
     }
 }

@@ -2,49 +2,44 @@
 
 ## Introduction
 
-This is the EffectStreamer Core – a standalone application which allows for VoIP conversations to be held under different impairment type conditions.
+EffectStreamer Core is a standalone application for VoIP conversations under different impairment conditions. It supports host audio through ALSA on Linux and WASAPI2 on Windows, plus a raw stdio backend for an external audio host.
 
-Currently these impairment arguments are supported:
+The following impairment arguments are supported:
 
-| Impairment          | CLI Option                 | Mode     | Default Value | Valid Values                 | Notes |
-| ------------------- | -------------------------- | -------- | ------------- | ---------------------------- | ----- |
-| Native (End-to-End) | `--native-delay`           | Sender   | `0`           | `0` to `INT_MAX`             | Native branch delay. Values up to 20ms result in no additional queue threshold. Above 20ms the queue threshold is set to `value - 20` ms. |
-| Native (End-to-End) | `--native-gain`            | Receiver | `1.0`         | `0.0` to `1.0`               | Assumed to be active on default (`1.0`). `0.0` is 0% gain and `1.0` is 100% gain. |
-| Echo                | `--echo-delay`             | Sender   | `0`           | `0` to `INT_MAX`             | Echo branch delay. Values up to 20ms result in no additional queue threshold. Above 20ms the queue threshold is set to `value - 20` ms. |
-| Echo                | `--echo-gain`              | Receiver | `0.0`         | `0.0` to `1.0`               | Assumed to be inactive on default (`0.0`). `0.0` is 0% gain and `1.0` is 100% gain. |
-| Packet Loss         | `--packetloss-type`        | Sender   | `none`        | `none`, `random`, `bursty`   | Defines the loss type: No loss, random loss, or bursty loss. |
-| Packet Loss         | `--packetloss-ratio`       | Sender   | `0.0`         | `0.0` to `1.0`               | Defines the loss ratio: `0.0` drops no packets and `1.0` drops all packets. Values above `0.0` require `--packetloss-type random` or `--packetloss-type bursty`. |
-| Packet Loss         | `--packetloss-seed`        | Sender   | `0`           | `0` to `G_MAXUINT`           | Defines a seed for reproducible packet loss: `0` chooses a random seed per stream. |
-| Packet Loss         | `--packetloss-burst-model` | Sender   | `g107-markov` | `g107-markov`                | ITU-T G.107 two-state Markov model for bursty packet loss. |
-| Packet Loss         | `--packetloss-burst-ratio` | Sender   | `1.0`         | `1.0` to `8.0`               | ITU-T G.107 `BurstR` value used by bursty packet loss. |
-
-Moreover, the EffectStreamer Core is able to be cross-compiled to Linux and Windows at the same time, while also taking care of audio server differences (ALSA vs. WASAPI2); this allows the EffectStreamer Core to be embedded into other applications, like it is done with EffectStreamer GUI (hence the naming "Core").
+| Impairment          | CLI Option                 | Mode     | Default Value | Valid Values               | Notes                                                              |
+| ------------------- | -------------------------- | -------- | ------------- | -------------------------- | ------------------------------------------------------------------ |
+| Native (End-to-End) | `--native-delay`           | Sender   | `0`           | `0` to `INT_MAX`           | Exact additional native-branch queue delay in milliseconds.        |
+| Native (End-to-End) | `--native-gain`            | Receiver | `1.0`         | `0.0` to `1.0`             | `0.0` is 0% gain and `1.0` is 100% gain.                           |
+| Echo                | `--echo-delay`             | Sender   | `0`           | `0` to `INT_MAX`           | Exact additional echo-branch queue delay in milliseconds.          |
+| Echo                | `--echo-gain`              | Receiver | `0.0`         | `0.0` to `1.0`             | `0.0` is muted and `1.0` is 100% gain.                             |
+| Packet Loss         | `--packetloss-type`        | Sender   | `none`        | `none`, `random`, `bursty` | Loss pattern type.                                                 |
+| Packet Loss         | `--packetloss-ratio`       | Sender   | `0.0`         | `0.0` to `1.0`             | Values above `0.0` require `random` or `bursty` loss.              |
+| Packet Loss         | `--packetloss-seed`        | Sender   | `0`           | `0` to `G_MAXUINT`         | `0` chooses a random seed per stream.                              |
+| Packet Loss         | `--packetloss-burst-model` | Sender   | `g107-markov` | `g107-markov`              | ITU-T G.107 two-state Markov model.                                |
+| Packet Loss         | `--packetloss-burst-ratio` | Sender   | `1.0`         | `1.0` to `8.0`             | ITU-T G.107 `BurstR` value.                                        |
 
 ## Usage
 
-To use EffectStreamer Core itself, without the usual wrapping inside EffectStreamer GUI, one has to handle the CLI parameters manually.
+`--device-type` is required. Linux accepts `alsa` and `stdio`; Windows accepts `wasapi2` and `stdio`. `--device-id` is optional for host backends and is invalid for `stdio`. If a host device ID is omitted, the first matching source in sender mode or sink in receiver mode is selected. Device IDs are backend identifiers such as ALSA `hw:0,1` or a WASAPI2 endpoint ID, not display labels.
 
 ```
 Sender mode:
-./est-core
-    --mode sender [--device <DEVICE-ID>] --peerip <IP-ADDRESS> [--native-delay <MS>] [--echo-delay <MS>]
-    [--packetloss-type <none|random|bursty>] [--packetloss-ratio <0.0-1.0>] [--packetloss-seed <INT>]
-    [--packetloss-burst-model <g107-markov>] [--packetloss-burst-ratio <1.0-8.0>] [--help]
+./est-core \
+    --mode sender --device-type <alsa|wasapi2|stdio> [--device-id <DEVICE-ID>] \
+    --peerip <IP-ADDRESS> [--native-delay <MS>] [--echo-delay <MS>] \
+    [--packetloss-type <none|random|bursty>] [--packetloss-ratio <0.0-1.0>] \
+    [--packetloss-seed <INT>] [--packetloss-burst-model <g107-markov>] \
+    [--packetloss-burst-ratio <1.0-8.0>] [--help]
 
 Receiver mode:
-./est-core
-    --mode receiver [--device <DEVICE-ID>] [--native-gain <GAIN>] [--echo-gain <GAIN>] [--help]
+./est-core \
+    --mode receiver --device-type <alsa|wasapi2|stdio> [--device-id <DEVICE-ID>] \
+    [--native-gain <GAIN>] [--echo-gain <GAIN>] [--help]
 ```
 
-EffectStreamer Core is split up into two modes of operation: `sender` and `receiver`. The sender deals with capturing audio from a source (e.g. a microphone), forking the signal out and then streaming them off to different destinations, while the receiver deals with the receiving of said audio streams and routing them to different sinks again (e.g. headphones, audiofile for recording, etc.).
+Each peer runs one sender and one receiver. Start both senders before the receivers so the receiver streams are available when playback and recording begin. The sender applies native delay, echo delay, and peer-branch packet loss. The receiver applies native and echo gain and records `microphone.ogg` and `headphones.ogg` under `~/effectstreamer`.
 
-Regarding the impairment types, the sender side is responsible for native-delay, echo-delay and packet loss on the peer network branch, while the receiver deals with native-gain and echo-gain. If not specified, the delay parameters default to `0` (0ms), native gain defaults to `1.0` (100%), echo gain defaults to `0.0` (muted) and packet loss defaults to `none`. Packet loss options are sender-mode options and use the EffectStreamer NetSim GStreamer plugin at runtime.
-
-Following this architecture, each peer has to run a sender and receiver instance each. It is important to start the senders on both peers first, before starting the receivers, to ensure established audio streaming to which the receivers can hook into.
-
-On Linux use the ALSA audio server `arecord -l` and `aplay -l` commands to find out the device id of your source (e.g. microphone) and sink devices (e.g. headphones) respectively. For example, the console output of `Karte 0: AudioPCI [Ensoniq AudioPCI], Gerät 1: ES1371/2 [ES1371]` would translate to the device id `hw:0,1`. Here, the device ids are mandatory to specify.
-
-On Windows, EffectStreamer Core supports automatically fetching the source and sink device ids, as WASAPI device ids are much harder to find out compared to ALSA device ids on Linux. Here, the device ids are optional to specify.
+For ALSA device IDs, use `arecord -l` for sources and `aplay -l` for sinks. For example, card 0, device 1 maps to `hw:0,1`. WASAPI2 endpoint IDs can normally be omitted and auto-detected.
 
 ## Compilation
 
@@ -79,7 +74,7 @@ cd EffectStreamer/est-core
 git clone https://gitlab.freedesktop.org/gstreamer/cerbero gst-sdk
 cd gst-sdk
 
-git checkout 1.28.0
+git checkout 1.28.7
 ```
 
 #### Linux
@@ -104,6 +99,15 @@ git checkout 1.28.0
 
 ### Step 3) Build EffectStreamer Core with GStreamer linking
 
+The reproducible build script runs the compiler commands below without replacing tracked binaries:
+
+```bash
+SDK=/absolute/path/to/gst-sdk/build/dist/linux_x86_64 TARGET_OS=linux bash build_scripts/build.sh
+SDK=/absolute/path/to/gst-sdk/build/dist/mingw_x86_64 TARGET_OS=win bash build_scripts/build.sh
+```
+
+Outputs default to `.build/linux/est-core` and `.build/win/est-core.exe`. Override with `EST_CORE_OUTPUT` if needed. Run with the matching bundled runtime/library environment described in Step 5. The script can be invoked from any working directory and never copies or deletes SDK/runtime files.
+
 ```
 cd ..
 ```
@@ -122,10 +126,14 @@ cp -a $SDK/bin/* gst-lib/x86_64-linux-gnu/bin/
 cp -a $SDK/lib/x86_64-linux-gnu/* gst-lib/x86_64-linux-gnu/lib/
 
 gcc -o est-core \
+    -Iest-src \
+    -Iest-src/stdin \
     est-src/main.c \
-    est-src/sender.c \
-    est-src/receiver.c \
-    est-src/deviceutils.c \
+    est-src/modes/sender.c \
+    est-src/modes/receiver.c \
+    est-src/stdin/receiverstdin.c \
+    est-src/device/deviceutils.c \
+    est-src/platform/linux.c \
     $(pkg-config --cflags --libs gstreamer-1.0) \
     -Wl,-rpath-link,$LIBRARY_PATH \
     -Wl,-rpath,'$ORIGIN/gst-lib/x86_64-linux-gnu/lib'
@@ -145,10 +153,14 @@ cp -a $SDK/bin/* gst-lib/x86_64-windows/bin/
 cp -a $SDK/lib/* gst-lib/x86_64-windows/lib/
 
 x86_64-w64-mingw32-gcc -o est-core.exe \
+    -Iest-src \
+    -Iest-src/stdin \
     est-src/main.c \
-    est-src/sender.c \
-    est-src/receiver.c \
-    est-src/deviceutils.c \
+    est-src/modes/sender.c \
+    est-src/modes/receiver.c \
+    est-src/stdin/receiverstdin.c \
+    est-src/device/deviceutils.c \
+    est-src/platform/windows.c \
     $(pkg-config --cflags --libs gstreamer-1.0)
 ```
 

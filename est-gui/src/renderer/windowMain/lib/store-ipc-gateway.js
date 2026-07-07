@@ -1,5 +1,6 @@
+import useStoreComponentDevicePicker from "@/stores/component-devicepicker";
 import useStoreComponentFooter from "@/stores/component-footer";
-import useStoreComponentPretestForm from "@/stores/component-pretest-form";
+import useStoreComponentPretestForm from "@/stores/component-pretestform";
 import useStoreComponentScale from "@/stores/component-scale";
 import useStoreRoot from "@/stores/root";
 
@@ -7,12 +8,13 @@ import useStoreRoot from "@/stores/root";
 const storeRegistry = {
     Root: useStoreRoot,
     ComponentFooter: useStoreComponentFooter,
+    ComponentDevicePicker: useStoreComponentDevicePicker,
     ComponentScale: useStoreComponentScale,
     ComponentPretestForm: useStoreComponentPretestForm
 };
 
 // Initialize IPC gateway, so that Zustand stores are accessible via IPC calls
-const storesIpcGateway = () => {
+const storeIpcGateway = () => {
     if (!window.appApi || !window.appApi.ipcRenderer) {
         console.warn("IPC renderer not available. Store communication won't work.");
         return;
@@ -83,4 +85,4 @@ const storesIpcGateway = () => {
     });
 };
 
-export default storesIpcGateway;
+export default storeIpcGateway;

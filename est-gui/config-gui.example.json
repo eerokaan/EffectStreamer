@@ -7,8 +7,8 @@
         "identity": "client-a",
         "ipAddress": "127.0.0.1",
         "audioDevices": {
-            "source": "hw:0,0",
-            "sink": "hw:0,0"
+            "source": "default",
+            "sink": "default"
         }
     }
 }

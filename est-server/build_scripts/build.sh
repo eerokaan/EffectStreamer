@@ -29,8 +29,5 @@ elif [ "$TARGET_OS" = "win" ]; then
     npx postject dist/est-server.exe NODE_SEA_BLOB out/sea.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
 fi
 
-# Copy config to dist
-cp est-config.json dist/est-config.json
-
 # Finish
-echo "Build complete. Executable and config created in dist/"
+echo "Build complete. Executable created in dist/"

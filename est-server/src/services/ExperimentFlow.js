@@ -1,122 +1,152 @@
+const { isObject } = require("../utils/validation.js");
+const { buildScaleFilename } = require("../utils/filenames.js");
+const { createShuffledIndices } = require("../utils/random.js");
+const { getRoundSuffix, getExperimentCondition } = require("../utils/experiment.js");
+
 class ExperimentFlow {
-    constructor({ state, estConfig, views, viewFlow, clientRegistry, sessionFiles }) {
+    // prettier-ignore
+    constructor({
+        state,
+        config,
+        views,
+        viewFlow,
+        clientRegistry,
+        sessionFiles,
+        effectStreamerCore
+    }) {
         this.state = state;
-        this.estConfig = estConfig;
+        this.config = config;
         this.views = views;
         this.viewFlow = viewFlow;
         this.clientRegistry = clientRegistry;
         this.sessionFiles = sessionFiles;
+        this.effectStreamerCore = effectStreamerCore;
     }
 
     handleViewChangeRequest(socket, data) {
-        const payload = data ?? {};
+        // Ignore requests with missing or invalid data
+        if (!isObject(data)) {
+            this.clientRegistry.logEventError(socket, "viewChangeRequest", "Data is missing or invalid");
+            return;
+        }
 
-        const client = this.clientRegistry.getBySocketId(socket.id);
+        // Validate client
+        const client = this.clientRegistry.fetchClient(socket.id);
         if (!client) {
-            this.clientRegistry.logIgnoredEvent(socket, "viewChangeRequest");
+            this.clientRegistry.logEventError(socket, "viewChangeRequest", "Client is unknown (Perhaps ongoing shutdown?)");
             return;
         }
 
-        const view = this.viewFlow.viewFlow.find((view) => view.name === payload.currentView);
-        if (!view) {
-            this.clientRegistry.logIgnoredEvent(socket, "viewChangeRequest", "Requested view is unknown");
+        // Validate currentView
+        const currentView = this.viewFlow.getViewByName(data.currentView);
+        if (!currentView) {
+            this.clientRegistry.logEventError(socket, "viewChangeRequest", "Requested view is unknown");
             return;
         }
 
-        // Optional: Write scale data file if provided (for evaluation views)
-        if (payload.scaleValues) {
-            const roundSuffix = view.metadata.testType === "lst" ? "-r" + (this.state.conditionListeningSpeakingTestIndex + 1) : "";
-            const serverFilename = "client-" + client.clientLabel + "-" + view.metadata.testType + roundSuffix + "-scales.json";
-            this.sessionFiles.saveFile("conditionDir", serverFilename, JSON.stringify(payload.scaleValues, null, 4));
+        // Write scale data to file if applicable
+        if (data.scaleValues) {
+            const roundSuffix = getRoundSuffix(currentView.metadata.testType, this.state.conditionListeningSpeakingTestIndex);
+            const serverFilename = buildScaleFilename(client.clientId, currentView.metadata.testType, roundSuffix);
+            this.sessionFiles.saveFile("conditionDir", serverFilename, JSON.stringify(data.scaleValues, null, 4));
         }
 
         // Views with direct passing
-        const viewNext = this.viewFlow.getNextView(view.name);
-
-        if (view.passing === "direct") {
-            this.clientRegistry.emitToSocket(socket.id, "est-event:viewChangeResponse", this.viewFlow.getViewData(viewNext, socket.id));
-
-            // On SCT and LST testing views: Notify partner that they were left in the room
-            let peerSocketId = null;
-            for (const registeredClient of this.state.clientsData.values()) {
-                if (registeredClient.clientId !== client.clientId) {
-                    peerSocketId = registeredClient.socketId;
-                    break;
-                }
-            }
-
-            if (peerSocketId && (view.name === this.views.sctMain || view.name === this.views.lstMain)) {
-                this.clientRegistry.emitToSocket(peerSocketId, "est-event:viewChangeResponse", {
-                    showDialog: true
-                });
-            }
+        if (currentView.passing === "direct") {
+            this.resolveDirectViewChange(socket, client, currentView);
         }
 
         // Views with gated passing
-        else if (view.passing === "gated") {
+        else if (currentView.passing === "gated") {
             this.state.gates.viewChange.add(socket.id);
 
             // Both clients now want to proceed
             if (this.state.gates.viewChange.size === 2) {
-                this.resolveGatedViewChange(view.name);
+                this.resolveGatedViewChange(currentView);
             }
         }
     }
 
-    resolveGatedViewChange(currentViewName) {
-        const viewNext = this.viewFlow.getNextView(currentViewName);
-        const view = this.viewFlow.viewFlow.find((view) => view.name === currentViewName);
-        const currentViewTestType = view?.metadata?.testType;
+    resolveDirectViewChange(socket, client, currentView) {
+        const nextView = this.viewFlow.getNextView(currentView);
 
+        // Determine the test type of the current view
+        let currentViewTestType = null;
+        if (currentView.name === this.views.sctMain) currentViewTestType = "sct";
+        if (currentView.name === this.views.lstMain) currentViewTestType = "lst";
+
+        // Prevent direct passing for views with recording contexts
         if (currentViewTestType) {
-            const roundSuffix = currentViewTestType === "lst" ? "-r" + (this.state.conditionListeningSpeakingTestIndex + 1) : "";
-            const transferKey = String(this.state.conditionIndex + 1).padStart(4, "0") + ":" + currentViewTestType + roundSuffix;
-
-            if (!this.state.fileTransferCompletedKeys.has(transferKey)) {
-                this.state.fileTransferPendingViewName = currentViewName;
+            // Stop active recording context before leaving the test view
+            const stopResult = this.effectStreamerCore.recordingContextStopPrepare(socket, currentViewTestType);
+            if (stopResult.status === "completed") {
+                this.clientRegistry.emitToSocket(socket.id, "est-event:viewChangeResponse", this.viewFlow.getViewData(nextView, client));
                 return;
             }
+
+            // Notify peer that they were left in the room while this recording context is being stopped and uploaded
+            const peerClient = this.clientRegistry.fetchPeerClient(client);
+            if (peerClient) {
+                this.clientRegistry.emitToSocket(peerClient.socketId, "est-event:viewChangeResponse", {
+                    showDialog: true
+                });
+            }
+            return;
         }
 
-        const isFirstLstEval = currentViewName === this.views.lstEval && this.state.conditionListeningSpeakingTestIndex === 0;
-        const isLoopEndView = view.metadata?.loopBehaviour === "end" && !isFirstLstEval;
-        const loopStartViewName = this.viewFlow.viewFlow.find((view) => view.metadata?.loopBehaviour === "start")?.name;
+        // Continue direct navigation when no recording context is active
+        this.clientRegistry.emitToSocket(socket.id, "est-event:viewChangeResponse", this.viewFlow.getViewData(nextView, client));
+    }
 
-        if (isLoopEndView && viewNext !== this.views.ending) {
+    resolveGatedViewChange(currentView) {
+        const nextView = this.viewFlow.getNextView(currentView);
+        const isFirstLstEval = currentView.name === this.views.lstEval && this.state.conditionListeningSpeakingTestIndex === 0;
+        const isLoopEndView = currentView.metadata.loopBehaviour === "end" && !isFirstLstEval;
+
+        // Advance to the next condition when the loop continues
+        if (isLoopEndView && nextView.name !== this.views.ending) {
             this.state.conditionIndex++;
 
-            const currentCondition = this.state.conditionIndex === 0 ? this.estConfig.conditions.baseline[0] : this.estConfig.conditions.random[this.state.conditionOrder[this.state.conditionIndex - 1]];
-            console.log("[Server] Round " + this.state.conditionIndex + ": Using condition " + JSON.stringify(currentCondition));
+            // Log current condition to file and console
+            const currentCondition = getExperimentCondition(this.config, this.state.conditionIndex, this.state.conditionOrder);
             this.sessionFiles.saveFile("conditionDir", "condition-settings.json", JSON.stringify(currentCondition, null, 4));
-        }
-        else if (viewNext === loopStartViewName && this.state.conditionIndex === 0) {
-            const indices = this.estConfig.conditions.random.map((_, counter) => counter);
-            for (let counter00 = indices.length - 1; counter00 > 0; counter00--) {
-                const counter01 = Math.floor(Math.random() * (counter00 + 1));
-                [indices[counter00], indices[counter01]] = [indices[counter01], indices[counter00]];
-            }
-            this.state.conditionOrder = indices;
-
-            const currentCondition = this.state.conditionIndex === 0 ? this.estConfig.conditions.baseline[0] : this.estConfig.conditions.random[this.state.conditionOrder[this.state.conditionIndex - 1]];
             console.log("[Server] Round " + this.state.conditionIndex + ": Using condition " + JSON.stringify(currentCondition));
+        }
+
+        // Initialize condition order when entering the first condition
+        else if (this.state.conditionIndex === 0 && nextView.metadata.loopBehaviour === "start") {
+            // Shuffle the random condition list for random order
+            this.state.conditionOrder = createShuffledIndices(this.config.conditions.random.length);
+
+            // Log current condition to file and console
+            const currentCondition = getExperimentCondition(this.config, this.state.conditionIndex, this.state.conditionOrder);
             this.sessionFiles.saveFile("conditionDir", "condition-settings.json", JSON.stringify(currentCondition, null, 4));
+            console.log("[Server] Round " + this.state.conditionIndex + ": Using condition " + JSON.stringify(currentCondition));
         }
 
-        if (viewNext === this.views.lstExp) {
-            this.state.conditionListeningSpeakingTestIndex = 0;
-        }
-        if (isFirstLstEval) {
-            this.state.conditionListeningSpeakingTestIndex = 1;
-        }
-        if (isLoopEndView) {
-            this.state.conditionListeningSpeakingTestIndex = 0;
+        // For LST: Set current LST round index based on view position
+        if (nextView.name === this.views.lstExp) this.state.conditionListeningSpeakingTestIndex = 0;
+        if (isFirstLstEval) this.state.conditionListeningSpeakingTestIndex = 1;
+        if (isLoopEndView) this.state.conditionListeningSpeakingTestIndex = 0;
+
+        // Start recording before entering an SCT/LST main view
+        // Cancel the transition and restore LST state if startup is rejected
+        let recordingContextStarted = true;
+        if (nextView.name === this.views.sctMain) recordingContextStarted = this.effectStreamerCore.recordingContextStart("sct");
+        else if (nextView.name === this.views.lstMain) recordingContextStarted = this.effectStreamerCore.recordingContextStart("lst");
+
+        const responseView = recordingContextStarted ? nextView : currentView;
+        if (!recordingContextStarted && isFirstLstEval) this.state.conditionListeningSpeakingTestIndex = 0;
+
+        for (const client of this.state.clientsData.values()) {
+            this.clientRegistry.emitToSocket(client.socketId, "est-event:viewChangeResponse", this.viewFlow.getViewData(responseView, client));
         }
 
-        this.clientRegistry.emitToAll("est-event:viewChangeResponse", (clientSocketId) => this.viewFlow.getViewData(viewNext, clientSocketId));
         this.state.gates.viewChange.clear();
-        this.state.fileTransferPendingViewName = null;
+        if (!recordingContextStarted) return;
 
-        if (viewNext === this.views.ending) {
+        // For ending view: Schedule server shutdown after the ending view is shown
+        if (nextView.name === this.views.ending) {
             setTimeout(() => {
                 console.log("[Server] Shutting down current server instance due to experiment completion");
                 process.exit();
@@ -124,45 +154,20 @@ class ExperimentFlow {
         }
     }
 
-    handleFileTransferRequest(socket, data) {
-        const payload = data ?? {};
+    resolvePendingRecordingViewChanges(recordingContext) {
+        const currentViewName = recordingContext.scope.testType === "sct" ? this.views.sctMain : this.views.lstMain;
+        const currentView = this.viewFlow.getViewByName(currentViewName);
+        const nextView = this.viewFlow.getNextView(currentView);
 
-        const client = this.clientRegistry.getBySocketId(socket.id);
-        if (!client) {
-            this.clientRegistry.logIgnoredEvent(socket, "fileTransferRequest");
-            return;
-        }
-
-        // Construct filename: client-{a|b}-{sct|lst}-{microphone|headphones}.ogg
-        const roundSuffix = payload.testType === "lst" ? "-r" + (this.state.conditionListeningSpeakingTestIndex + 1) : "";
-        const serverFilename = "client-" + client.clientLabel + "-" + payload.testType + roundSuffix + "-" + payload.fileName;
-
-        // Write file to current condition directory
-        this.sessionFiles.saveFile("conditionDir", serverFilename, Buffer.from(payload.fileData));
-
-        // Gate: Track received files (2 files from 2 clients = 4 total)
-        const transferKey = String(this.state.conditionIndex + 1).padStart(4, "0") + ":" + payload.testType + roundSuffix;
-
-        this.state.gates.fileTransfer.add(transferKey + ":" + socket.id + ":" + payload.fileName);
-
-        if (this.state.gates.fileTransfer.size >= 4) {
-            this.state.fileTransferCompletedKeys.add(transferKey);
-            this.clientRegistry.emitToAll("est-event:fileTransferResponse");
-
-            // Try to resolve any pending double-gated view change
-            if (this.state.fileTransferPendingViewName && this.state.gates.viewChange.size === 2) {
-                const pendingView = this.viewFlow.viewFlow.find((v) => v.name === this.state.fileTransferPendingViewName);
-                const pendingTestType = pendingView?.metadata?.testType;
-                const pendingRoundSuffix = pendingTestType === "lst" ? "-r" + (this.state.conditionListeningSpeakingTestIndex + 1) : "";
-                const pendingTransferKey = pendingTestType ? String(this.state.conditionIndex + 1).padStart(4, "0") + ":" + pendingTestType + pendingRoundSuffix : null;
-
-                if (pendingTransferKey === transferKey) {
-                    this.resolveGatedViewChange(this.state.fileTransferPendingViewName);
-                }
+        // Release clients waiting for recording completion
+        for (const socketId of recordingContext.sockets.viewChangePending) {
+            const client = this.clientRegistry.fetchClient(socketId);
+            if (client) {
+                this.clientRegistry.emitToSocket(socketId, "est-event:viewChangeResponse", this.viewFlow.getViewData(nextView, client));
             }
-
-            this.state.gates.fileTransfer.clear();
         }
+
+        recordingContext.sockets.viewChangePending.clear();
     }
 }
 

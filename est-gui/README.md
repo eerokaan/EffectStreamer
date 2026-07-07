@@ -8,7 +8,7 @@ EffectStreamer GUI is distributed as a packaged Electron application. It connect
 
 ## The configuration file
 
-Before starting the GUI, place an `est-config.json` file next to the packaged application binary and adjust it for the client machine:
+Before starting the GUI, create `~/effectstreamer/config-gui.json` for the current OS user. `config-gui.example.json` is the repository template; the application does not search for or migrate legacy adjacent configuration files:
 
 ```
 {
@@ -20,14 +20,14 @@ Before starting the GUI, place an `est-config.json` file next to the packaged ap
         "identity": "client-a",
         "ipAddress": "127.0.0.1",
         "audioDevices": {
-            "source": "hw:0,0",
-            "sink": "hw:0,0"
+            "source": "default",
+            "sink": "default"
         }
     }
 }
 ```
 
-The `server` section points to the running EffectStreamer Server. The `client.identity` value is the stable identity under which this GUI registers at the server. Configure a unique value for each participant machine, for example `client-a` on the first machine and `client-b` on the second machine. The `client.ipAddress` value is the IP address under which this GUI client should register itself at the server. On Linux, `client.audioDevices.source` and `client.audioDevices.sink` should be ALSA device IDs, for example values from `arecord -l` and `aplay -l`. On Windows, these device values can usually be left empty in the server-side setup because EffectStreamer Core can automatically select WASAPI devices.
+The `server` section points to the running EffectStreamer Server. The `client.identity` value is the stable identity under which this GUI registers at the server. Configure a unique value for each participant machine, for example `client-a` on the first machine and `client-b` on the second machine. The `client.ipAddress` value is the LAN address under which this GUI client registers. Audio device values are Chromium `MediaDevices.deviceId` strings, not ALSA or WASAPI identifiers. Use `default` for the explicit system-default choice, or open the device picker with `Ctrl+Alt+O` (`Command+Alt+O` on macOS) and save a concrete device.
 
 ## Usage
 
@@ -40,13 +40,13 @@ chmod +x EffectStreamer_GUI*.AppImage
 ./EffectStreamer_GUI*.AppImage
 ```
 
-For AppImage builds, the GUI reads `est-config.json` from the same directory as the `.AppImage` file.
+The AppImage reads `~/effectstreamer/config-gui.json`.
 
 ### Windows
 
 Run the installer `EffectStreamer_GUI.exe` and start EffectStreamer from the Start Menu or the installed executable.
 
-For packaged Windows builds, the GUI reads `est-config.json` from the same directory as the installed `.exe` file. In almost all cases this would be under `C:\Program Files\EffectStreamer`.
+Packaged Windows builds read `%USERPROFILE%\effectstreamer\config-gui.json`.
 
 ## Compilation
 

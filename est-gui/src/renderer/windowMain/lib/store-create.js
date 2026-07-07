@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 // Creates a Zustand store with programmatically generated set actions
-const createStore = (defaultStates) =>
+const storeCreate = (defaultStates) =>
     create((set) => {
         const setActions = Object.entries(defaultStates).reduce((accumulator, [key]) => {
             const setterName = "set" + key.charAt(0).toUpperCase() + key.slice(1);
@@ -16,4 +16,4 @@ const createStore = (defaultStates) =>
         };
     });
 
-export default createStore;
+export default storeCreate;

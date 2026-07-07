@@ -1,4 +1,5 @@
 const { spawn } = require("child_process");
+const { loadConfig } = require("./bootstraps/configManager.js");
 
 class Harness {
     constructor() {
@@ -20,6 +21,7 @@ class Harness {
     }
 
     spawnServer() {
+        this.validateConfigBeforeStart();
         console.log("[Harness] Starting server instance");
 
         this.childProcess = spawn(process.execPath, process.argv.slice(1), {
@@ -35,6 +37,16 @@ class Harness {
             console.log("[Harness] Server instance exited (code: " + code + ") - Restarting in 500ms");
             setTimeout(() => this.spawnServer(), 500);
         });
+    }
+
+    validateConfigBeforeStart() {
+        try {
+            loadConfig();
+        }
+        catch (error) {
+            console.error("[Harness] Failed to load and validate config: " + error.message);
+            process.exit(1);
+        }
     }
 }
 

@@ -1,8 +1,12 @@
 const defaultStates = {
     windowMain: null,
     socket: null,
-    estCoreSender: null,
-    estCoreReceiver: null
+    config: null,
+    configPath: null,
+    audioDevices: null,
+    audioTransport: null,
+    estCoreContextKey: null,
+    isClosing: false
 };
 
 const appContext = {

@@ -1,12 +1,14 @@
-const { views } = require("../views.js");
+const { views } = require("../bootstraps/views.js");
+const { padNumber } = require("../utils/format.js");
 
 class ViewFlow {
-    constructor({ state, estConfig, testEnabled, pretestFormConfig, clientRegistry }) {
+    // prettier-ignore
+    constructor({
+        state,
+        config
+    }) {
         this.state = state;
-        this.estConfig = estConfig;
-        this.testEnabled = testEnabled;
-        this.pretestFormConfig = pretestFormConfig;
-        this.clientRegistry = clientRegistry;
+        this.config = config;
         this.viewFlow = this.buildViewFlow();
     }
 
@@ -14,118 +16,126 @@ class ViewFlow {
     buildViewFlow() {
         const testViews = [];
 
-        if (this.testEnabled.sct) {
+        // Add enabled test view sequences
+        if (this.config.tests.sct) {
             testViews.push(
                 { name: views.sctExp, passing: "gated", metadata: {} },
                 { name: views.sctMain, passing: "direct", metadata: {} },
                 { name: views.sctEval, passing: "gated", metadata: { testType: "sct" } }
             );
         }
-        if (this.testEnabled.lst) {
+        if (this.config.tests.lst) {
             testViews.push(
                 { name: views.lstExp, passing: "gated", metadata: {} },
                 { name: views.lstMain, passing: "direct", metadata: {} },
                 { name: views.lstEval, passing: "gated", metadata: { testType: "lst" } }
             );
         }
+
+        // Mark loop boundaries across enabled tests
         if (testViews.length > 0) {
             testViews[0].metadata = { ...testViews[0].metadata, loopBehaviour: "start" };
-            
-            const loopEndView = [...testViews].reverse().find((view) => view.metadata?.testType);
+
+            const loopEndView = [...testViews].reverse().find((v) => v.metadata.testType);
             loopEndView.metadata = { ...loopEndView.metadata, loopBehaviour: "end" };
         }
 
+        // Final view flow
         return [
             { name: views.waiting, passing: "direct", metadata: {} },
             { name: views.welcome, passing: "direct", metadata: {} },
             { name: views.pretest, passing: "gated", metadata: {} },
             ...testViews,
             ...(testViews.length > 0 ? [{ name: views.break, passing: "gated", metadata: { loopBehaviour: "break" } }] : []),
-            { name: views.ending, passing: "direct", metadata: {} }];
+            { name: views.ending, passing: "direct", metadata: {} }
+        ];
     }
 
     getNextView(currentView) {
-        const viewIndex = this.viewFlow.findIndex((view) => view.name === currentView);
-        const view = this.viewFlow[viewIndex];
+        const viewIndex = this.viewFlow.findIndex((v) => v === currentView);
 
-        if (currentView === views.lstEval && this.state.conditionListeningSpeakingTestIndex === 0) {
-            return views.lstMain;
+        // Repeat LST main view for the second role assignment
+        if (currentView.name === views.lstEval && this.state.conditionListeningSpeakingTestIndex === 0) {
+            return this.getViewByName(views.lstMain);
         }
 
-        // When current view indicates a loop end: Either exit (viewEnding), show break (viewBreak) or loop back
-        if (view.metadata?.loopBehaviour === "end") {
-            const roundsTotal = this.estConfig.conditions.baseline.length + this.estConfig.conditions.random.length;
+        // Resolve loop-end navigation: Finish, break, or continue
+        if (currentView.metadata.loopBehaviour === "end") {
+            const roundsTotal = this.config.conditions.baseline.length + this.config.conditions.random.length;
 
             if (this.state.conditionIndex >= roundsTotal - 1) {
-                return views.ending;
+                return this.getViewByName(views.ending);
             }
             else if (this.state.conditionIndex + 1 === Math.floor(roundsTotal / 2)) {
-                return this.viewFlow.find((view) => view.metadata?.loopBehaviour === "break").name;
+                return this.getViewByMetadata("loopBehaviour", "break");
             }
             else {
-                return this.viewFlow.find((view) => view.metadata?.loopBehaviour === "start").name;
+                return this.getViewByMetadata("loopBehaviour", "start");
             }
         }
 
-        // When current view indicates a break: Resume to the loop
-        if (view.metadata?.loopBehaviour === "break") {
-            return this.viewFlow.find((view) => view.metadata?.loopBehaviour === "start").name;
+        // Resume the condition loop after a break
+        if (currentView.metadata.loopBehaviour === "break") {
+            return this.getViewByMetadata("loopBehaviour", "start");
         }
 
-        // When nothing applies, just continue with the next view
-        return this.viewFlow[viewIndex + 1].name;
+        // When nothing applies just continue with the next view
+        return this.viewFlow[viewIndex + 1];
     }
 
-    getViewData(viewName, clientSocketId) {
-        if (viewName === views.pretest) {
-            return { currentView: viewName, pretestForm: this.pretestFormConfig };
+    getViewByName(viewName) {
+        return this.viewFlow.find((v) => v.name === viewName);
+    }
+
+    getViewByMetadata(key, value) {
+        return this.viewFlow.find((v) => v.metadata[key] === value);
+    }
+
+    getViewData(view, client) {
+        // Payload for pretest view
+        if (view.name === views.pretest) {
+            // prettier-ignore
+            return {
+                currentView: view.name,
+                pretestForm: this.config.pretestForm
+            };
         }
 
-        const isSct = viewName === views.sctMain;
-        const isLst = viewName === views.lstMain;
-        const isLstEvaluation = viewName === views.lstEval;
+        // Payload for sctMain view
+        if (view.name === views.sctMain) {
+            // prettier-ignore
+            return {
+                currentView: view.name,
+                conditionAsset: this.getClientConditionAsset(client)
+            };
+        }
 
-        if (isSct || isLst || isLstEvaluation) {
-            const client = this.clientRegistry.getBySocketId(clientSocketId);
-            if (!client) return { currentView: viewName };
-
-            const clientNumber = client.clientIndex === 0 ? "01" : "02";
-            const conditionPadded = String(this.state.conditionIndex + 1).padStart(2, "0");
-            const clientConditionAsset = "client_" + clientNumber + "/" + conditionPadded + ".png";
-
-            let conditionListeningSpeakingTestRole = null;
-            if (isLst || isLstEvaluation) {
-                if (this.state.conditionListeningSpeakingTestIndex === 0) {
-                    conditionListeningSpeakingTestRole = client.clientIndex === 0 ? "speaker" : "listener";
-                }
-                else {
-                    conditionListeningSpeakingTestRole = client.clientIndex === 0 ? "listener" : "speaker";
-                }
-            }
+        // Payload for lstMain and lstEval views
+        if (view.name === views.lstMain || view.name === views.lstEval) {
+            const isClientA = client.clientId === "client-a";
+            const isFirstLstRound = this.state.conditionListeningSpeakingTestIndex === 0;
+            const conditionListeningSpeakingTestRole = isClientA === isFirstLstRound ? "speaker" : "listener";
 
             let conditionAsset = null;
 
-            if (isSct) {
-                conditionAsset = clientConditionAsset;
-            }
-            else if (isLst) {
-                conditionAsset = conditionListeningSpeakingTestRole === "speaker" ? clientConditionAsset : "listener.png";
-            }
+            if (conditionListeningSpeakingTestRole === "speaker") conditionAsset = this.getClientConditionAsset(client);
+            else if (conditionListeningSpeakingTestRole === "listener") conditionAsset = "listener.png";
 
-            const response = {
-                currentView: viewName,
-                conditionAsset: conditionAsset
+            // prettier-ignore
+            return {
+                currentView: view.name,
+                conditionAsset,
+                conditionListeningSpeakingTestIndex: this.state.conditionListeningSpeakingTestIndex,
+                conditionListeningSpeakingTestRole
             };
-
-            if (isLst || isLstEvaluation) {
-                response.conditionListeningSpeakingTestIndex = this.state.conditionListeningSpeakingTestIndex;
-                response.conditionListeningSpeakingTestRole = conditionListeningSpeakingTestRole;
-            }
-
-            return response;
         }
 
-        return { currentView: viewName };
+        return { currentView: view.name };
+    }
+
+    getClientConditionAsset(client) {
+        const conditionPadded = padNumber(this.state.conditionIndex + 1, 2);
+        return client.clientId + "/" + conditionPadded + ".png";
     }
 }
 

@@ -1,3 +1,4 @@
+import ComponentDevicePicker from "@/components/devicepicker";
 import ViewListeningSpeakingTestEvaluation from "@/views/listening-speaking-test-evaluation";
 import ViewListeningSpeakingTestExplanation from "@/views/listening-speaking-test-explanation";
 import ViewListeningSpeakingTestMain from "@/views/listening-speaking-test-main";
@@ -31,6 +32,7 @@ function Root() {
 
     return (
         <>
+            <ComponentDevicePicker />
             <div className="flex min-h-screen flex-col p-12">
                 <View></View>
             </div>

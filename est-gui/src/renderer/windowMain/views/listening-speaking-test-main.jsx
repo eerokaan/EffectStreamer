@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { conditionLstAssets, resolveAsset } from "@/lib/helper-assets";
@@ -10,26 +9,14 @@ function ViewListeningSpeakingTestMain() {
     const { conditionAsset, showDialog, setShowDialog } = useStoreRoot();
     const asset = resolveAsset(conditionLstAssets, conditionAsset);
 
-    useEffect(() => {
-        window.appApi.ipcRenderer.invoke("ipc:coreStartRequest", {
-            component: "sender",
-            testType: "lst"
-        });
-        return () => {
-            window.appApi.ipcRenderer.invoke("ipc:coreStopRequest", {
-                testType: "lst"
-            });
-        };
-    }, []);
-
     return (
         <>
             <div className="flex flex-1 flex-col justify-center">
                 <ComponentHeader headline="Gesprächsraum"></ComponentHeader>
 
                 <div className="flex w-full max-w-5xl flex-1 flex-col">
-                    {asset?.type === "html" && <iframe srcDoc={asset.srcDoc} className="w-full flex-1 border-none" title="Test Document" />}
-                    {asset?.type === "image" && <img src={asset.srcImg} alt="Test Asset" className="block w-full" draggable="false" />}
+                    {asset.type === "html" && <iframe srcDoc={asset.srcDoc} className="w-full flex-1 border-none" title="Test Document" />}
+                    {asset.type === "image" && <img src={asset.srcImg} alt="Test Asset" className="block w-full" draggable="false" />}
                 </div>
 
                 <ComponentFooter></ComponentFooter>

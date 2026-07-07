@@ -1,8 +1,10 @@
+import { initializeAudioSessionControl } from "@/lib/helper-webrtc";
 import ReactDOM from "react-dom/client";
-import storesIpcGateway from "@/lib/stores-ipc-gateway";
+import storeIpcGateway from "@/lib/store-ipc-gateway";
 import Root from "@/root";
 import "@/assets/css/main.css";
 
-storesIpcGateway();
+storeIpcGateway();
+initializeAudioSessionControl();
 
 ReactDOM.createRoot(document.getElementById("root")).render(<Root></Root>);

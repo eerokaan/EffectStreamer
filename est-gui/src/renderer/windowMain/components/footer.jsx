@@ -5,8 +5,21 @@ import useStoreComponentFooter from "@/stores/component-footer";
 import useStoreRoot from "@/stores/root";
 
 function ComponentFooter({ onNext, disabled }) {
-    const { isWaitingForPeer, setIsWaitingForPeer, isWaitingForUpload } = useStoreComponentFooter();
+    const { isWaitingForPeer, setIsWaitingForPeer, isWaitingForUpload, isWaitingForRecording } = useStoreComponentFooter();
     const { currentView } = useStoreRoot();
+
+    const isWaiting = isWaitingForPeer || isWaitingForUpload || isWaitingForRecording;
+    let label = "Weiter";
+    
+    if (isWaitingForPeer) {
+        label = "Warte auf Partner";
+    }
+    else if (isWaitingForUpload) {
+        label = "Audiodaten werden hochgeladen";
+    }
+    else if (isWaitingForRecording) {
+        label = "Audio wird vorbereitet";
+    }
 
     const requestNextView = async () => {
         setIsWaitingForPeer(true);
@@ -27,8 +40,8 @@ function ComponentFooter({ onNext, disabled }) {
     return (
         <>
             <div className="mt-8 flex flex-none justify-end">
-                <Button variant="default" onClick={requestNextView} disabled={isWaitingForPeer || isWaitingForUpload || disabled}>
-                    {isWaitingForUpload ? "Audiodaten werden hochgeladen" : isWaitingForPeer ? "Warte auf Partner" : "Weiter"} {isWaitingForUpload || isWaitingForPeer ? <Spinner data-icon="inline-end" /> : <ArrowRight data-icon="inline-end" />}
+                <Button variant="default" onClick={requestNextView} disabled={isWaiting || disabled}>
+                    {label} {isWaiting ? <Spinner data-icon="inline-end" /> : <ArrowRight data-icon="inline-end" />}
                 </Button>
             </div>
         </>

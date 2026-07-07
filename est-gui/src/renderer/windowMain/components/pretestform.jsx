@@ -7,7 +7,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { buildPretestFormSchema } from "@/lib/helper-form-schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import useStoreComponentPretestForm from "@/stores/component-pretest-form";
+import useStoreComponentPretestForm from "@/stores/component-pretestform";
 
 const layoutWidthClassNames = {
     1: "col-span-1",
@@ -83,9 +83,10 @@ function helperRenderSelectField(fieldConfig, field, fieldState) {
 }
 
 function helperRenderSliderField(fieldConfig, field, fieldState) {
-    const min = fieldConfig.validation?.min ?? 0;
-    const max = fieldConfig.validation?.max ?? 100;
-    const step = fieldConfig.validation?.step ?? 1;
+    const min = fieldConfig.validation.min;
+    const max = fieldConfig.validation.max;
+    const step = fieldConfig.validation.step;
+    const marks = fieldConfig.marks;
     const value = Array.isArray(field.value) ? field.value : [field.value ?? fieldConfig.defaultValue ?? helperGetSliderDefaultValue(min, max, step)];
 
     return (
@@ -93,10 +94,10 @@ function helperRenderSliderField(fieldConfig, field, fieldState) {
             <FieldLabel htmlFor={fieldConfig.name}>{fieldConfig.label}</FieldLabel>
             {fieldConfig.description && <FieldDescription>{fieldConfig.description}</FieldDescription>}
             <Slider id={fieldConfig.name} value={value} onValueChange={(newValue) => field.onChange(newValue[0])} min={min} max={max} step={step} />
-            {(fieldConfig.marks?.minLabel || fieldConfig.marks?.maxLabel) && (
+            {marks && (marks.minLabel || marks.maxLabel) && (
                 <div className="flex justify-between">
-                    <span className="text-sm whitespace-nowrap text-muted-foreground">{fieldConfig.marks?.minLabel}</span>
-                    <span className="text-sm whitespace-nowrap text-muted-foreground">{fieldConfig.marks?.maxLabel}</span>
+                    <span className="text-sm whitespace-nowrap text-muted-foreground">{marks.minLabel}</span>
+                    <span className="text-sm whitespace-nowrap text-muted-foreground">{marks.maxLabel}</span>
                 </div>
             )}
             {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
@@ -131,9 +132,9 @@ function helperBuildDefaultValues(fields) {
             defaultValues[field.name] = field.defaultValue ?? "";
         }
         else if (field.type === "slider") {
-            const min = field.validation?.min ?? 0;
-            const max = field.validation?.max ?? 100;
-            const step = field.validation?.step ?? 1;
+            const min = field.validation.min;
+            const max = field.validation.max;
+            const step = field.validation.step;
             defaultValues[field.name] = field.defaultValue ?? helperGetSliderDefaultValue(min, max, step);
         }
         else if (field.type === "switch") {
@@ -149,7 +150,7 @@ function helperGetSliderDefaultValue(min, max, step) {
     return min + Math.floor(stepCount / 2) * step;
 }
 
-const PretestForm = forwardRef(function PretestForm({ pretestForm, onSubmit }, ref) {
+const ComponentPretestForm = forwardRef(function ComponentPretestForm({ pretestForm, onSubmit }, ref) {
     const fields = useMemo(() => (Array.isArray(pretestForm) ? pretestForm : []), [pretestForm]);
     const defaultValues = useMemo(() => helperBuildDefaultValues(fields), [fields]);
     const formSchema = useMemo(() => buildPretestFormSchema(fields), [fields]);
@@ -191,4 +192,4 @@ const PretestForm = forwardRef(function PretestForm({ pretestForm, onSubmit }, r
     );
 });
 
-export default PretestForm;
+export default ComponentPretestForm;
