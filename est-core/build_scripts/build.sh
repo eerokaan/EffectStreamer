@@ -30,5 +30,7 @@ fi
     "$root/est-src/main.c" "$root/est-src/modes/sender.c" "$root/est-src/modes/receiver.c" \
     "$root/est-src/stdin/receiverstdin.c" "$root/est-src/device/deviceutils.c" \
     "$root/est-src/platform/$platform.c" "$root/est-src/control/control.c" "$root/est-src/lifecycle.c" \
+    "$root/est-src/recording/wav.c" \
+    "$root/est-src/device/discovery.c" "$root/est-src/device/devicecheck.c" \
     "$root/est-deps/cJSON/cJSON.c" "${gst_flags[@]}" "${link_flags[@]}" -o "$output"
 echo "Built $output (GStreamer $(pkg-config --modversion gstreamer-1.0))"

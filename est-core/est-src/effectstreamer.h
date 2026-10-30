@@ -60,6 +60,8 @@ typedef struct {
     const char* device_id;
     const char* peerip;
     gboolean managed;
+    gboolean recording;
+    const char* recording_dir;
     int peer_port;
     int echo_port;
     int record_port;
@@ -78,6 +80,8 @@ typedef struct {
     const char* device_id;
     double nativegain;
     gboolean managed;
+    gboolean recording;
+    const char* recording_dir;
     double echogain;
     int listen_port;
     int echo_port;

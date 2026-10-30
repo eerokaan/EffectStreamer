@@ -7,6 +7,7 @@
 #include "effectstreamer.h"
 #include "receiverstdin.h"
 #include "lifecycle.h"
+#include "recording/wav.h"
 
 typedef struct {
     GMutex lock;
@@ -113,18 +114,6 @@ static gboolean bus_call(GstBus* bus, GstMessage* msg, gpointer data) {
     return TRUE;
 }
 
-static char* create_recording_directory(void) {
-    char* recording_dir = g_build_filename(g_get_home_dir(), "effectstreamer", NULL);
-
-    if (g_mkdir_with_parents(recording_dir, 0755) != 0) {
-        g_printerr("Warning: Could not create recording directory %s\n", recording_dir);
-    } else {
-        g_printerr("Created recording directory: %s\n", recording_dir);
-    }
-
-    return recording_dir;
-}
-
 static void speaker_queue_overrun(GstElement* queue, gpointer data) {
     SpeakerQueueStats* stats = (SpeakerQueueStats*)data;
     gint64 now = g_get_monotonic_time();
@@ -165,11 +154,8 @@ int run_receiver(ReceiverParams* params) {
 
     GstElement *udpsrc1, *rtpjitterbuffer1, *rtpL16depay1, *audioconvert1, *capsfilter1, *volume1;
     GstElement *udpsrc2, *rtpjitterbuffer2, *rtpL16depay2, *audioconvert2, *capsfilter2, *volume2;
-    GstElement *udpsrc3, *rtpjitterbuffer3, *rtpL16depay3, *audioconvert3;
-    GstElement *opusenc_mic, *oggmux_mic, *filesink_mic;
-    GstElement *adder, *tee, *queue_speaker, *queue_record;
+    GstElement *adder, *tee, *queue_speaker;
     GstElement *audioconvert_speaker, *audioresample_speaker;
-    GstElement *audioconvert_record, *audioresample_record, *opusenc_hp, *oggmux_hp, *filesink_hp;
 
     GstCaps* caps_rtp = NULL;
     GstCaps* caps_audio = NULL;
@@ -178,9 +164,6 @@ int run_receiver(ReceiverParams* params) {
     GstPad* adder_sink2 = NULL;
     GstPad* src_pad = NULL;
 
-    char* recording_dir = NULL;
-    char* record_file_microphone = NULL;
-    char* record_file_headphones = NULL;
     int result = 1;
 
     g_mutex_init(&context.error_lock);
@@ -192,12 +175,6 @@ int run_receiver(ReceiverParams* params) {
     if (params->device_id) g_printerr("  Device ID: %s\n", params->device_id);
     g_printerr("  Native Gain: %.2f\n", params->nativegain);
     g_printerr("  Echo Gain: %.2f\n", params->echogain);
-
-    recording_dir = create_recording_directory();
-    record_file_microphone = g_strdup_printf("%s%cmicrophone.ogg", recording_dir, G_DIR_SEPARATOR);
-    record_file_headphones = g_strdup_printf("%s%cheadphones.ogg", recording_dir, G_DIR_SEPARATOR);
-    g_printerr("  Recording microphone to: %s\n", record_file_microphone);
-    g_printerr("  Recording headphones to: %s\n", record_file_headphones);
 
     context.loop = g_main_loop_new(NULL, FALSE);
     context.pipeline = gst_pipeline_new("receiver-pipeline");
@@ -226,34 +203,15 @@ int run_receiver(ReceiverParams* params) {
     capsfilter2 = create_and_add_element(GST_BIN(context.pipeline), "capsfilter", "caps-echo");
     volume2 = create_and_add_element(GST_BIN(context.pipeline), "volume", "volume-echo");
 
-    udpsrc3 = create_and_add_element(GST_BIN(context.pipeline), "udpsrc", "udpsrc-record");
-    rtpjitterbuffer3 = create_and_add_element(GST_BIN(context.pipeline), "rtpjitterbuffer", "jitterbuffer-record");
-    rtpL16depay3 = create_and_add_element(GST_BIN(context.pipeline), "rtpL16depay", "depay-record");
-    audioconvert3 = create_and_add_element(GST_BIN(context.pipeline), "audioconvert", "convert-record");
-
-    opusenc_mic = create_and_add_element(GST_BIN(context.pipeline), "opusenc", "opus-encoder-mic");
-    oggmux_mic = create_and_add_element(GST_BIN(context.pipeline), "oggmux", "ogg-muxer-mic");
-    filesink_mic = create_and_add_element(GST_BIN(context.pipeline), "filesink", "file-sink-mic");
-
     adder = create_and_add_element(GST_BIN(context.pipeline), "adder", "mixer");
     tee = create_and_add_element(GST_BIN(context.pipeline), "tee", "tee");
     queue_speaker = create_and_add_element(GST_BIN(context.pipeline), "queue", "queue-speaker");
-    queue_record = create_and_add_element(GST_BIN(context.pipeline), "queue", "queue-record");
 
     audioconvert_speaker = create_and_add_element(GST_BIN(context.pipeline), "audioconvert", "convert-speaker");
     audioresample_speaker = create_and_add_element(GST_BIN(context.pipeline), "audioresample", "resample-speaker");
-    audioconvert_record = create_and_add_element(GST_BIN(context.pipeline), "audioconvert", "convert-record-hp");
-    audioresample_record = create_and_add_element(GST_BIN(context.pipeline), "audioresample", "resample-record-hp");
-
-    opusenc_hp = create_and_add_element(GST_BIN(context.pipeline), "opusenc", "opus-encoder-hp");
-    oggmux_hp = create_and_add_element(GST_BIN(context.pipeline), "oggmux", "ogg-muxer-hp");
-    filesink_hp = create_and_add_element(GST_BIN(context.pipeline), "filesink", "file-sink-hp");
-
     if (!udpsrc1 || !rtpjitterbuffer1 || !rtpL16depay1 || !audioconvert1 || !capsfilter1 || !volume1 || !udpsrc2 ||
-        !rtpjitterbuffer2 || !rtpL16depay2 || !audioconvert2 || !capsfilter2 || !volume2 || !udpsrc3 ||
-        !rtpjitterbuffer3 || !rtpL16depay3 || !audioconvert3 || !opusenc_mic || !oggmux_mic || !filesink_mic ||
-        !adder || !tee || !queue_speaker || !queue_record || !audioconvert_speaker || !audioresample_speaker ||
-        !audioconvert_record || !audioresample_record || !opusenc_hp || !oggmux_hp || !filesink_hp) {
+        !rtpjitterbuffer2 || !rtpL16depay2 || !audioconvert2 || !capsfilter2 || !volume2 ||
+        !adder || !tee || !queue_speaker || !audioconvert_speaker || !audioresample_speaker) {
         goto cleanup;
     }
 
@@ -285,17 +243,8 @@ int run_receiver(ReceiverParams* params) {
     g_object_set(G_OBJECT(capsfilter2), "caps", caps_audio, NULL);
     g_object_set(G_OBJECT(volume2), "volume", params->echogain, NULL);
 
-    g_object_set(G_OBJECT(udpsrc3), "port", params->record_port, "address", params->bind_address, "reuse", FALSE, "caps", caps_rtp, NULL);
-    g_object_set(G_OBJECT(rtpjitterbuffer3), "latency", 5, "drop-on-latency", TRUE, NULL);
-
     gst_caps_unref(caps_rtp);
     gst_caps_unref(caps_audio);
-
-    g_object_set(G_OBJECT(opusenc_mic), "bitrate", 128000, NULL);
-    g_object_set(G_OBJECT(filesink_mic), "location", record_file_microphone, "sync", FALSE, "async", FALSE, NULL);
-
-    g_object_set(G_OBJECT(opusenc_hp), "bitrate", 128000, NULL);
-    g_object_set(G_OBJECT(filesink_hp), "location", record_file_headphones, "sync", FALSE, "async", FALSE, NULL);
 
     // clang-format off
     if (params->device_type == DEVICE_TYPE_STDIO) {
@@ -313,10 +262,6 @@ int run_receiver(ReceiverParams* params) {
         g_printerr("Error: Failed to link the echo input chain.\n");
         goto cleanup;
     }
-    if (!gst_element_link_many(udpsrc3, rtpjitterbuffer3, rtpL16depay3, audioconvert3, opusenc_mic, oggmux_mic, filesink_mic, NULL)) {
-        g_printerr("Error: Failed to link the microphone recording chain.\n");
-        goto cleanup;
-    }
     if (!gst_element_link(adder, tee)) {
         g_printerr("Error: Failed to link the receiver mixer.\n");
         goto cleanup;
@@ -325,8 +270,7 @@ int run_receiver(ReceiverParams* params) {
         g_printerr("Error: Failed to link the speaker output chain.\n");
         goto cleanup;
     }
-    if (!gst_element_link_many(tee, queue_record, audioconvert_record, audioresample_record, opusenc_hp, oggmux_hp, filesink_hp, NULL)) {
-        g_printerr("Error: Failed to link the headphones recording chain.\n");
+    if (params->recording && !wav_recording_add(context.pipeline, tee, params->recording_dir, params->bind_address, params->record_port)) {
         goto cleanup;
     }
     // clang-format on
@@ -399,7 +343,7 @@ cleanup:
     if (has_runtime_error(&context)) {
         result = 1;
     }
-    lifecycle_finish(&context, result == 0, TRUE);
+    lifecycle_finish(&context, result == 0, params->recording);
     if (params->device_type == DEVICE_TYPE_STDIO) {
         g_printerr("stdio speaker queue overruns: %" G_GUINT64_FORMAT "\n", get_speaker_queue_overruns(&speaker_stats));
     }
@@ -428,9 +372,6 @@ cleanup:
     if (context.loop) g_main_loop_unref(context.loop);
 
     // Free allocated resources, clear synchronization primitives and return
-    g_free(recording_dir);
-    g_free(record_file_microphone);
-    g_free(record_file_headphones);
     g_mutex_clear(&speaker_stats.lock);
     g_mutex_clear(&context.error_lock);
 

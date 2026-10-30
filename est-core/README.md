@@ -37,7 +37,23 @@ Receiver mode:
     [--native-gain <GAIN>] [--echo-gain <GAIN>] [--help]
 ```
 
-Each peer runs one sender and one receiver. Start both senders before the receivers so the receiver streams are available when playback and recording begin. The sender applies native delay, echo delay, and peer-branch packet loss. The receiver applies native and echo gain and records `microphone.ogg` and `headphones.ogg` under `~/effectstreamer`.
+Each peer runs one sender and one receiver. Start both senders before the receivers so the receiver streams are available when playback and recording begin. The sender applies native delay, echo delay, and peer-branch packet loss. The receiver applies native and echo gain and records `microphone.wav` and `headphones.wav` under `~/effectstreamer`.
+
+Recordings are mono, 48 kHz, signed 16-bit little-endian PCM WAV. Set `--recording-dir <directory>` on the receiver to choose their destination. Set `--recording none` on both roles to omit recording and the recording-only RTP branch. The default is `--recording wav`; managed applications use a unique directory per attempt. Existing microphone/playback taps and ordinary start/stop mechanics are retained, without saved alignment offsets, sample-count sidecars, gap logs or calibration.
+
+Standalone RTP ports retain their defaults: sender `--peer-port 9004`, receiver `--listen-port 9004`, and both roles `--echo-port 9005 --record-port 9006`. Receivers additionally accept `--bind-address` (default `0.0.0.0`) and refuse port sharing. Assign unique port sets when running multiple participants on one machine, and keep server-hosted internal RTP on loopback/private interfaces.
+
+### Native device setup utilities
+
+```bash
+./est-core --list-devices --device-type alsa
+./est-core --mode test-input --device-type alsa --device-id default --test-duration-ms 1000
+./est-core --mode test-output --device-type alsa --device-id default --test-file /path/to/P501.wav
+```
+
+Use `wasapi2` on Windows. Discovery emits JSON `{inputs,outputs}` with backend-native IDs, labels and default indicators, including devices hidden by desktop audio services. The explicit `default` choice uses the ALSA `default` route or the WASAPI2 system default; on ALSA this is not a promise that the first hardware device is the OS default. Availability is checked by opening the route. Omitted experiment device IDs retain first-matching-native-device discovery.
+
+Input checks emit finite JSON access/peak feedback without audible monitoring or recording. Output checks decode the selected WAV through the same native sink as the experiment. Checks release their devices before exiting; a failed open emits `{ok:false,error:...}` and a nonzero exit code. Successful playback still requires the participant to confirm that they heard the sample. No additional audio-analysis files are saved.
 
 For ALSA device IDs, use `arecord -l` for sources and `aplay -l` for sinks. For example, card 0, device 1 maps to `hw:0,1`. WASAPI2 endpoint IDs can normally be omitted and auto-detected.
 
@@ -141,6 +157,9 @@ gcc -o est-core \
     est-src/platform/linux.c \
     est-src/control/control.c \
     est-src/lifecycle.c \
+    est-src/recording/wav.c \
+    est-src/device/discovery.c \
+    est-src/device/devicecheck.c \
     est-deps/cJSON/cJSON.c \
     $(pkg-config --cflags --libs gstreamer-1.0) \
     -Wl,-rpath-link,$LIBRARY_PATH \
@@ -172,6 +191,9 @@ x86_64-w64-mingw32-gcc -o est-core.exe \
     est-src/platform/windows.c \
     est-src/control/control.c \
     est-src/lifecycle.c \
+    est-src/recording/wav.c \
+    est-src/device/discovery.c \
+    est-src/device/devicecheck.c \
     est-deps/cJSON/cJSON.c \
     $(pkg-config --cflags --libs gstreamer-1.0)
 ```

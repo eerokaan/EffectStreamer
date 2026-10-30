@@ -190,11 +190,11 @@ int run_sender(SenderParams* params) {
     queue2 = create_and_add_element(GST_BIN(context.pipeline), "queue", "queue-echo");
     udpsink2 = create_and_add_element(GST_BIN(context.pipeline), "udpsink", "udpsink-echo");
 
-    queue3 = create_and_add_element(GST_BIN(context.pipeline), "queue", "queue-record");
-    udpsink3 = create_and_add_element(GST_BIN(context.pipeline), "udpsink", "udpsink-record");
+    queue3 = params->recording ? create_and_add_element(GST_BIN(context.pipeline), "queue", "queue-record") : NULL;
+    udpsink3 = params->recording ? create_and_add_element(GST_BIN(context.pipeline), "udpsink", "udpsink-record") : NULL;
 
     if (!audioconvert || !audioresample || !capsfilter || !rtpL16pay || !tee || !gate || !queue1 ||
-        (is_packetloss_enabled(packetloss_type) && !estnetsim1) || !udpsink1 || !queue2 || !udpsink2 || !queue3 || !udpsink3) {
+        (is_packetloss_enabled(packetloss_type) && !estnetsim1) || !udpsink1 || !queue2 || !udpsink2 || (params->recording && (!queue3 || !udpsink3))) {
         goto cleanup;
     }
 
@@ -202,10 +202,10 @@ int run_sender(SenderParams* params) {
     g_object_set(G_OBJECT(rtpL16pay), "pt", 96, NULL);
     g_object_set(G_OBJECT(queue1), "max-size-buffers", (guint)0, "max-size-bytes", (guint)0, "max-size-time", (guint64)0, "min-threshold-time", nativedelay, NULL);
     g_object_set(G_OBJECT(queue2), "max-size-buffers", (guint)0, "max-size-bytes", (guint)0, "max-size-time", (guint64)0, "min-threshold-time", echodelay, NULL);
-    g_object_set(G_OBJECT(queue3), "max-size-buffers", (guint)0, "max-size-bytes", (guint)0, "max-size-time", (guint64)0, "min-threshold-time", (guint64)0, NULL);
+    if (queue3) g_object_set(G_OBJECT(queue3), "max-size-buffers", (guint)0, "max-size-bytes", (guint)0, "max-size-time", (guint64)0, "min-threshold-time", (guint64)0, NULL);
     g_object_set(G_OBJECT(udpsink1), "host", params->peerip, "port", params->peer_port, "sync", FALSE, NULL);
     g_object_set(G_OBJECT(udpsink2), "host", "127.0.0.1", "port", params->echo_port, "sync", FALSE, NULL);
-    g_object_set(G_OBJECT(udpsink3), "host", "127.0.0.1", "port", params->record_port, "sync", FALSE, NULL);
+    if (udpsink3) g_object_set(G_OBJECT(udpsink3), "host", "127.0.0.1", "port", params->record_port, "sync", FALSE, NULL);
     
     if (is_packetloss_enabled(packetloss_type)) {
         gst_util_set_object_arg(G_OBJECT(estnetsim1), "packetloss-type", packetloss_type);
@@ -245,7 +245,7 @@ int run_sender(SenderParams* params) {
         g_printerr("Error: Failed to link the echo branch.\n");
         goto cleanup;
     }
-    if (!gst_element_link_many(tee, queue3, udpsink3, NULL)) {
+    if (params->recording && !gst_element_link_many(tee, queue3, udpsink3, NULL)) {
         g_printerr("Error: Failed to link the recording branch.\n");
         goto cleanup;
     }

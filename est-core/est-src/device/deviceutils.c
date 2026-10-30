@@ -14,6 +14,7 @@ static void clear_audio_backend(AudioBackend* backend) {
 }
 
 static void configure_host_source(GstElement* source, DeviceType device_type, const char* device_id) {
+    if (device_type == DEVICE_TYPE_WASAPI2 && g_strcmp0(device_id, "default") == 0) device_id = NULL;
     // clang-format off
     if (device_type == DEVICE_TYPE_WASAPI2) {
         g_object_set(
@@ -37,6 +38,7 @@ static void configure_host_source(GstElement* source, DeviceType device_type, co
 }
 
 static void configure_host_sink(GstElement* sink, DeviceType device_type, const char* device_id) {
+    if (device_type == DEVICE_TYPE_WASAPI2 && g_strcmp0(device_id, "default") == 0) device_id = NULL;
     // clang-format off
     if (device_type == DEVICE_TYPE_WASAPI2) {
         g_object_set(
@@ -113,57 +115,6 @@ GstElement* create_and_add_element(GstBin* bin, const char* factory_name, const 
     }
     
     return element;
-}
-
-char* get_first_audio_device(DeviceType device_type, const char* mode) {
-    GstDeviceMonitor* monitor;
-    GList* devices;
-    gchar* found_id = NULL;
-    const char* expected_api = get_device_type_name(device_type);
-    const char* device_class = is_sender_mode(mode) ? "Audio/Source" : "Audio/Sink";
-
-    if (device_type != DEVICE_TYPE_ALSA && device_type != DEVICE_TYPE_WASAPI2) {
-        return NULL;
-    }
-
-    monitor = gst_device_monitor_new();
-    gst_device_monitor_add_filter(monitor, device_class, NULL);
-
-    if (!gst_device_monitor_start(monitor)) {
-        g_printerr("Error: Failed to start GStreamer device monitor for %s devices.\n", expected_api);
-        gst_object_unref(monitor);
-        return NULL;
-    }
-
-    devices = gst_device_monitor_get_devices(monitor);
-    for (GList* item = devices; item != NULL; item = item->next) {
-        GstDevice* device = GST_DEVICE(item->data);
-        GstStructure* properties = gst_device_get_properties(device);
-        const gchar* api;
-        const gchar* id;
-
-        if (!properties) continue;
-
-        api = gst_structure_get_string(properties, "device.api");
-        id = gst_structure_get_string(properties, "device.id");
-        if (!id && device_type == DEVICE_TYPE_WASAPI2) id = gst_structure_get_string(properties, "device.actual-id");
-        if (!id && device_type == DEVICE_TYPE_ALSA) id = gst_structure_get_string(properties, "device.path");
-
-        if (api && id && g_strcmp0(api, expected_api) == 0) {
-            found_id = g_strdup(id);
-            g_printerr("Found %s %s device: %s\n", expected_api, is_sender_mode(mode) ? "source" : "sink", id);
-            gst_structure_free(properties);
-            break;
-        }
-
-        gst_structure_free(properties);
-    }
-
-    g_list_free_full(devices, (GDestroyNotify)gst_object_unref);
-    gst_device_monitor_stop(monitor);
-    gst_object_unref(monitor);
-
-    return found_id;
 }
 
 gboolean create_audio_source(DeviceType device_type, const char* device_id, AudioBackend* backend) {

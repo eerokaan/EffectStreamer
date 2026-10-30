@@ -9,6 +9,8 @@
 #include <limits.h>
 #include <math.h>
 #include "effectstreamer.h"
+#include "device/discovery.h"
+#include "device/devicecheck.h"
 
 enum {
     OPTION_PEERIP = 1 << 0,
@@ -52,6 +54,12 @@ static void print_usage(const char* prog_name) {
     fprintf(stderr, "  --record-port             Local microphone recording port (default: 9006)\n");
     fprintf(stderr, "  --bind-address            Input bind address (receiver only, default: 0.0.0.0)\n");
     fprintf(stderr, "  --control                 none (default), or ndjson for managed native audio; incompatible with stdio\n");
+    fprintf(stderr, "  --recording               wav (default) or none; use the same policy for sender and receiver\n");
+    fprintf(stderr, "  --recording-dir           WAV destination directory (default: ~/effectstreamer)\n");
+    fprintf(stderr, "  --list-devices            Native device discovery as JSON (no --mode required)\n");
+    fprintf(stderr, "  --mode test-input         Finite native input-access/level check\n");
+    fprintf(stderr, "  --mode test-output        Native playback test; requires --test-file <WAV>\n");
+    fprintf(stderr, "  --test-duration-ms        Input check duration, 1-10000 ms (default: 1000)\n");
     fprintf(stderr, "  --native-delay            Additional native queue delay in milliseconds (sender mode only, default: 0)\n");
     fprintf(stderr, "  --native-gain             Native gain from 0.0 to 1.0 (receiver mode only, default: 1.0)\n");
     fprintf(stderr, "  --echo-delay              Additional echo queue delay in milliseconds (sender mode only, default: 0)\n");
@@ -171,6 +179,11 @@ int main(int argc, char* argv[]) {
     int peer_port = 9004, listen_port = 9004, echo_port = 9005, record_port = 9006;
     const char* bind_address = "0.0.0.0";
     gboolean managed = FALSE;
+    gboolean recording = TRUE;
+    const char* recording_dir = NULL;
+    gboolean list_devices = FALSE, duration_supplied = FALSE;
+    const char* test_file = NULL;
+    int test_duration = 1000;
     
     DeviceType device_type_parsed;
 
@@ -197,6 +210,11 @@ int main(int argc, char* argv[]) {
         OPT_RECORD_PORT,
         OPT_BIND_ADDRESS,
         OPT_CONTROL,
+        OPT_RECORDING,
+        OPT_RECORDING_DIR,
+        OPT_LIST_DEVICES,
+        OPT_TEST_FILE,
+        OPT_TEST_DURATION,
         OPT_NATIVEDELAY,
         OPT_ECHODELAY,
         OPT_NATIVEGAIN,
@@ -222,6 +240,11 @@ int main(int argc, char* argv[]) {
         {"record-port", required_argument, 0, OPT_RECORD_PORT},
         {"bind-address", required_argument, 0, OPT_BIND_ADDRESS},
         {"control", required_argument, 0, OPT_CONTROL},
+        {"recording", required_argument, 0, OPT_RECORDING},
+        {"recording-dir", required_argument, 0, OPT_RECORDING_DIR},
+        {"list-devices", no_argument, 0, OPT_LIST_DEVICES},
+        {"test-file", required_argument, 0, OPT_TEST_FILE},
+        {"test-duration-ms", required_argument, 0, OPT_TEST_DURATION},
         {"native-delay", required_argument, 0, OPT_NATIVEDELAY},
         {"echo-delay", required_argument, 0, OPT_ECHODELAY},
         {"native-gain", required_argument, 0, OPT_NATIVEGAIN},
@@ -240,6 +263,23 @@ int main(int argc, char* argv[]) {
     opterr = 0;
     while ((option_code = getopt_long(argc, argv, "", long_options, NULL)) != -1) {
         switch (option_code) {
+            case OPT_LIST_DEVICES: list_devices = TRUE; break;
+            case OPT_TEST_FILE: test_file = optarg; break;
+            case OPT_TEST_DURATION:
+                duration_supplied = TRUE;
+                if (!parse_int_option(optarg, "--test-duration-ms", &test_duration)) return 1;
+                if (test_duration < 1 || test_duration > 10000) {fprintf(stderr, "Error: --test-duration-ms must be 1 to 10000\n");return 1;}
+                break;
+            case OPT_RECORDING:
+                if (strcmp(optarg, "wav") && strcmp(optarg, "none")) {
+                    fprintf(stderr, "Error: Invalid --recording (expected wav or none)\n"); return 1;
+                }
+                recording = !strcmp(optarg, "wav");
+                break;
+            case OPT_RECORDING_DIR:
+                if (!optarg[0]) {fprintf(stderr, "Error: --recording-dir must not be empty\n"); return 1;}
+                recording_dir = optarg;
+                break;
             case OPT_CONTROL:
                 if (strcmp(optarg, "none") && strcmp(optarg, "ndjson")) {
                     fprintf(stderr, "Error: Invalid --control (expected none or ndjson)\n"); return 1;
@@ -344,12 +384,13 @@ int main(int argc, char* argv[]) {
         print_usage(argv[0]);
         return 0;
     }
-    if (!mode) {
+    gboolean utility_mode = g_strcmp0(mode, "test-input") == 0 || g_strcmp0(mode, "test-output") == 0;
+    if (!mode && !list_devices) {
         fprintf(stderr, "Error: --mode parameter is required\n");
         print_usage(argv[0]);
         return 1;
     }
-    if (!is_sender_mode(mode) && !is_receiver_mode(mode)) {
+    if (!is_sender_mode(mode) && !is_receiver_mode(mode) && !utility_mode && !list_devices) {
         fprintf(stderr, "Error: Invalid mode '%s' (expected sender or receiver)\n", mode);
         print_usage(argv[0]);
         return 1;
@@ -387,6 +428,16 @@ int main(int argc, char* argv[]) {
     }
 
     // Validate parsed arguments: Sender/Receiver
+    if (list_devices || utility_mode) {
+        if (device_type_parsed == DEVICE_TYPE_STDIO) {fprintf(stderr, "Error: Device checks require a native backend\n");return 1;}
+        if (managed || supplied_options || (list_devices && mode)) {fprintf(stderr, "Error: Invalid options for device utility\n");return 1;}
+        if (g_strcmp0(mode, "test-output") == 0 && (!test_file || !g_file_test(test_file, G_FILE_TEST_IS_REGULAR))) {
+            fprintf(stderr, "Error: --test-file must name an existing WAV\n");return 1;
+        }
+    }
+    if ((test_file && g_strcmp0(mode, "test-output")) || (duration_supplied && g_strcmp0(mode, "test-input"))) {
+        fprintf(stderr, "Error: --test-file/--test-duration-ms requires the matching device utility mode\n");return 1;
+    }
     if (managed && device_type_parsed == DEVICE_TYPE_STDIO) {
         fprintf(stderr, "Error: NDJSON control is incompatible with stdio PCM\n"); return 1;
     }
@@ -426,6 +477,10 @@ int main(int argc, char* argv[]) {
     }
 
     // Validate parsed arguments: Device III
+    if (list_devices || utility_mode) {
+        exit_code = list_devices ? print_native_devices(device_type_parsed) : run_device_check(device_type_parsed, device_id ? device_id : "default", mode, test_file, test_duration);
+        gst_deinit();return exit_code;
+    }
     if (device_type_parsed != DEVICE_TYPE_STDIO && !device_id) {
         device_id_auto_detected = get_first_audio_device(device_type_parsed, mode);
 
@@ -453,6 +508,8 @@ int main(int argc, char* argv[]) {
             .device_id = device_id,
             .peerip = peerip,
             .managed = managed,
+            .recording = recording,
+            .recording_dir = recording_dir,
             .peer_port = peer_port,
             .echo_port = echo_port,
             .record_port = record_port,
@@ -471,6 +528,8 @@ int main(int argc, char* argv[]) {
             .device_id = device_id,
             .nativegain = nativegain,
             .managed = managed,
+            .recording = recording,
+            .recording_dir = recording_dir,
             .echogain = echogain,
             .listen_port = listen_port,
             .echo_port = echo_port,
