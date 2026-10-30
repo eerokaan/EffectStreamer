@@ -7,8 +7,10 @@ import ComponentHeader from "@/components/header";
 import ComponentScale from "@/components/scale";
 import useStoreComponentScale from "@/stores/component-scale";
 import useStoreRoot from "@/stores/root";
+import { useRuntime } from "@/runtime/context";
 
 function ViewListeningSpeakingTestEvaluation() {
+    const runtime = useRuntime();
     const { scaleIndex, setScaleIndex, scaleValues } = useStoreComponentScale();
     const { currentView, conditionScaleOffset, setConditionScaleOffset, conditionListeningSpeakingTestRole } = useStoreRoot();
 
@@ -26,7 +28,7 @@ function ViewListeningSpeakingTestEvaluation() {
     const hasSelection = scaleValues[scaleName] != null;
 
     const handleScaleTransfer = () => {
-        window.appApi.ipcRenderer.invoke("ipc:viewChangeRequest", {
+        return runtime.dispatch("submitRating", {
             currentView: currentView,
             scaleValues: scaleValues
         });

@@ -70,15 +70,7 @@ class EffectStreamerCore {
                 });
 
                 // prettier-ignore
-                for (const client of recordingContext.clients) {
-                    this.clientRegistry.emitToSocket(client.socketId, "est-event:coreStartRequest", {
-                        contextKey: recordingContext.contextKey,
-                        component: "receiver",
-                        testType: recordingContext.scope.testType,
-                        nativeGain: currentCondition.nativeGain,
-                        echoGain: currentCondition.echoGain
-                    });
-                }
+                void this.state.mediaAdapter.prepare({ session: this.state, attempt: recordingContext, condition: currentCondition, component: "receiver" });
             }
         }
 
@@ -92,19 +84,22 @@ class EffectStreamerCore {
             recordingContext.sockets.receiverReady.add(client.participantId);
 
             if (recordingContext.sockets.receiverReady.size >= recordingContext.clients.length) {
-                recordingContext.status = "running";
-                this.state.attempts.find(attempt => attempt.attemptId === recordingContext.contextKey).status = "running";
-                clearTimeout(recordingContext.startupTimeout);
-
-                console.log("[Server] Recording context running: " + recordingContext.contextKey);
-
-                // prettier-ignore
-                this.clientRegistry.emitToAll("est-event:recordingStateUpdateRequest", {
-                    contextKey: recordingContext.contextKey,
-                    testType: recordingContext.scope.testType,
-                    status: "running"
-                });
+                recordingContext.status = "startingMedia";
+                void this.state.mediaAdapter.start({ session: this.state, attempt: recordingContext });
             }
+        }
+    }
+
+    handleMediaStarted(socket, data) {
+        const client = this.clientRegistry.fetchClient(socket.id);
+        const context = this.state.recordingContexts.get(data.contextKey);
+        if (!client || !context || context.status !== "startingMedia") return;
+        if (data.success === false) {context.interrupted = true;this.recordingContextStopCommit(context);return;}
+        context.sockets.mediaStarted.add(client.participantId);
+        if (context.sockets.mediaStarted.size === context.clients.length) {
+            context.status = "running";
+            this.state.attempts.find(attempt => attempt.attemptId === context.contextKey).status = "running";
+            clearTimeout(context.startupTimeout);
         }
     }
 
@@ -213,6 +208,7 @@ class EffectStreamerCore {
             sockets: {
                 senderReady: new Set(),
                 receiverReady: new Set(),
+                mediaStarted: new Set(),
                 stopped: new Set(),
                 viewChangePending: new Set()
             },
@@ -232,7 +228,7 @@ class EffectStreamerCore {
 
         // Enter sender startup handling with a timeout guard
         recordingContext.startupTimeout = setTimeout(() => {
-            if (recordingContext.status === "startingSender" || recordingContext.status === "startingReceiver") {
+            if (["startingSender", "startingReceiver", "startingMedia"].includes(recordingContext.status)) {
                 console.log("[Server] Recording context startup timed out: " + recordingContext.contextKey);
                 this.recordingContextStopCommit(recordingContext);
             }
@@ -248,36 +244,7 @@ class EffectStreamerCore {
         });
 
         // Start sender components with peer and condition settings
-        for (const client of clients) {
-            let peerClient = null;
-
-            for (const registeredClient of clients) {
-                if (registeredClient.clientId !== client.clientId) {
-                    peerClient = registeredClient;
-                    break;
-                }
-            }
-
-            this.clientRegistry.emitToSocket(client.socketId, "est-event:coreStartRequest", {
-                contextKey,
-                component: "sender",
-                testType,
-                core: {
-                    ipAddress: peerClient.ipAddress,
-                    delay: {
-                        native: currentCondition.nativeDelay,
-                        echo: currentCondition.echoDelay
-                    },
-                    packetloss: {
-                        type: currentCondition.packetlossType,
-                        ratio: currentCondition.packetlossRatio,
-                        seed: currentCondition.packetlossSeed,
-                        burstModel: currentCondition.packetlossBurstModel,
-                        burstRatio: currentCondition.packetlossBurstRatio
-                    }
-                }
-            });
-        }
+        void this.state.mediaAdapter.prepare({ session: this.state, attempt: recordingContext, condition: currentCondition, component: "sender" });
 
         return true;
     }
@@ -306,6 +273,7 @@ class EffectStreamerCore {
         if (
             recordingContext.status === "startingSender" ||
             recordingContext.status === "startingReceiver" ||
+            recordingContext.status === "startingMedia" ||
             recordingContext.status === "running"
         ) {
             this.recordingContextStopCommit(recordingContext);
@@ -320,6 +288,7 @@ class EffectStreamerCore {
         if (
             recordingContext.status !== "startingSender" &&
             recordingContext.status !== "startingReceiver" &&
+            recordingContext.status !== "startingMedia" &&
             recordingContext.status !== "running"
         ) {
             return;
@@ -337,11 +306,7 @@ class EffectStreamerCore {
             testType: recordingContext.scope.testType,
             status: "stopping"
         });
-        this.clientRegistry.emitToAll("est-event:coreStopRequest", {
-            contextKey: recordingContext.contextKey,
-            testType: recordingContext.scope.testType,
-            upload: true
-        });
+        void this.state.mediaAdapter.stop({ session: this.state, attempt: recordingContext, reason: recordingContext.interrupted ? "interrupted" : "completed" });
     }
 
     // prettier-ignore

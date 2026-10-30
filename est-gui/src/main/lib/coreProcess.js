@@ -12,15 +12,14 @@ function getOperatingSystem() {
     return null;
 }
 
-function getCoreSpawnOptions(component) {
-    const base = path.join(process.resourcesPath, "est-core");
+function getCoreSpawnOptions(component, { base = path.join(process.resourcesPath, "est-core") } = {}) {
     const platform = getOperatingSystem();
     const stdio = component === "sender" ? ["pipe", "ignore", "pipe"] : ["pipe", "pipe", "pipe"];
 
     if (platform === "linux") {
         const gstLib = path.join(base, "gst-lib", "x86_64-linux-gnu", "lib");
         return {
-            executable: path.join(base, "est-core"),
+            executable: process.env.EST_CORE_EXECUTABLE || path.join(base, "est-core"),
             options: {
                 stdio,
                 env: {
@@ -34,7 +33,7 @@ function getCoreSpawnOptions(component) {
     if (platform === "windows") {
         const gstLib = path.join(base, "gst-lib", "x86_64-windows", "lib");
         return {
-            executable: path.join(base, "est-core.exe"),
+            executable: process.env.EST_CORE_EXECUTABLE || path.join(base, "est-core.exe"),
             options: {
                 stdio,
                 env: {
@@ -49,13 +48,13 @@ function getCoreSpawnOptions(component) {
     throw new Error("Unsupported platform: " + process.platform);
 }
 
-function spawnCore(component, args, { deadline = null, onSpawn = () => {}, onFatal = () => {} } = {}) {
+function spawnCore(component, args, { deadline = null, onSpawn = () => {}, onFatal = () => {}, spawnOptions = null } = {}) {
     if (component !== "sender" && component !== "receiver") {
         throw new Error("Unsupported est-core component: " + component);
     }
     if (deadline != null && Date.now() >= deadline) throw new Error("Timed out before starting est-core " + component);
 
-    const { executable, options } = getCoreSpawnOptions(component);
+    const { executable, options } = spawnOptions || getCoreSpawnOptions(component);
     const child = spawn(executable, args, options);
     let resolveExit;
     let rejectReady;
@@ -215,4 +214,4 @@ function isLittleEndian() {
 }
 
 const startManagedCore = managedCore.startCore;
-export { getOperatingSystem, isLittleEndian, markCoreStarted, spawnCore, stopCore, startManagedCore };
+export { getOperatingSystem, getCoreSpawnOptions, isLittleEndian, markCoreStarted, spawnCore, stopCore, startManagedCore };

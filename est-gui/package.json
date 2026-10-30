@@ -7,11 +7,13 @@
     "author": "Eero Kaan",
     "company": "Quality and Usability Lab | TU Berlin",
     "scripts": {
+        "test": "vitest",
         "dev:format": "prettier --write .",
         "dev:lint": "eslint --cache --fix .",
         "dev:run": "electron-vite dev -- --no-sandbox",
         "dev:preview": "electron-vite preview -- --no-sandbox",
         "build:run": "electron-vite build",
+        "build:web": "vite build --config vite.web.config.mjs",
         "build:win": "npm run build:run && electron-builder --win",
         "build:linux": "npm run build:run && electron-builder --linux"
     },
@@ -52,6 +54,7 @@
         "prettier-plugin-tailwindcss": "^0.7.2",
         "react": "^19.2.1",
         "react-dom": "^19.2.1",
-        "vite": "^7.2.6"
+        "vite": "^7.2.6",
+        "vitest": "^5.0.5"
     }
 }

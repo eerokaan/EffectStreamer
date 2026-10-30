@@ -3,8 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import useStoreComponentFooter from "@/stores/component-footer";
 import useStoreRoot from "@/stores/root";
+import { useRuntime } from "@/runtime/context";
 
 function ComponentFooter({ onNext, disabled }) {
+    const runtime = useRuntime();
     const { isWaitingForPeer, setIsWaitingForPeer, isWaitingForUpload, isWaitingForRecording } = useStoreComponentFooter();
     const { currentView } = useStoreRoot();
 
@@ -24,6 +26,7 @@ function ComponentFooter({ onNext, disabled }) {
     const requestNextView = async () => {
         setIsWaitingForPeer(true);
 
+        try {
         if (onNext) {
             const success = await onNext();
             if (success === false) {
@@ -31,10 +34,11 @@ function ComponentFooter({ onNext, disabled }) {
             }
         }
         else {
-            window.appApi.ipcRenderer.invoke("ipc:viewChangeRequest", {
+            await runtime.dispatch("nextView", {
                 currentView: currentView
             });
         }
+        } catch (error) { setIsWaitingForPeer(false); runtime.onError(error); }
     };
 
     return (

@@ -37,6 +37,7 @@ class ClientRegistry {
             client.currentView = data.currentView;
             client.viewData = data;
         }
+        else if (eventName === "est-event:viewChangeResponse" && client && data?.showDialog) client.viewData = { ...client.viewData, showDialog: true };
         const scoped = data && typeof data === "object" ? { ...data, sessionId: this.state.sessionId, attemptId: data.attemptId ?? this.state.recordingContextActive, participantId: client?.participantId } : data;
         this.io.to(socketId).emit(eventName, scoped);
     }

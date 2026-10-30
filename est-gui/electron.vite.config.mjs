@@ -15,7 +15,9 @@ export default defineConfig({
         }
     },
     renderer: {
+        publicDir: resolve(__dirname, "public"),
         build: {
+            commonjsOptions: { include: [/node_modules/, /est-common/] },
             rollupOptions: {
                 input: {
                     windowMain: resolve(__dirname, "./src/renderer/windowMain.html")
@@ -23,7 +25,7 @@ export default defineConfig({
             }
         },
         resolve: {
-            alias: [{ find: "@", replacement: resolve(__dirname, "./src/renderer/windowMain") }]
+            alias: [{ find: "@", replacement: resolve(__dirname, "./src/renderer/windowMain") }, { find: "@runtime-platform", replacement: resolve(__dirname, "./src/renderer/windowMain/runtime/electron.js") }]
         },
         plugins: [react(), tailwindcss()]
     }

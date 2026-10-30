@@ -7,6 +7,7 @@ const { SessionFiles } = require("./SessionFiles.js");
 const { ViewFlow } = require("./ViewFlow.js");
 const { ExperimentFlow } = require("./ExperimentFlow.js");
 const { EffectStreamerCore } = require("./EffectStreamerCore.js");
+const { LocalMediaAdapter } = require("../media/LocalMediaAdapter.js");
 
 class ExperimentSession extends ServerState {
     constructor({ participants, config, io, root, store, enrollments, onChange = () => {} }) {
@@ -33,6 +34,7 @@ class ExperimentSession extends ServerState {
         this.sessionFiles = new SessionFiles({ state: this, config, root });
         this.sessionFiles.createFolderStructure();
         this.clientRegistry = new ClientRegistry({ state: this, io, views });
+        this.mediaAdapter = new LocalMediaAdapter(this.clientRegistry);
         this.viewFlow = new ViewFlow({ state: this, config });
         this.effectStreamerCore = new EffectStreamerCore({ state: this, config, clientRegistry: this.clientRegistry, sessionFiles: this.sessionFiles });
         this.experimentFlow = new ExperimentFlow({ state: this, config, views, viewFlow: this.viewFlow, clientRegistry: this.clientRegistry, sessionFiles: this.sessionFiles, effectStreamerCore: this.effectStreamerCore });
@@ -47,7 +49,7 @@ class ExperimentSession extends ServerState {
             revision: this.revision, participantId, sessionId: this.sessionId, role: client.role,
             phase: this.phase, currentView: client.currentView,
             setupRequired: this.config.audioSetup.enabled, setupComplete: client.setupComplete,
-            attemptId: this.recordingContextActive, viewData: client.viewData, outcome: this.outcome
+            attemptId: this.recordingContextActive, viewData: { ...client.viewData, recordingStatus: this.recordingContexts.get(this.recordingContextActive)?.status ?? null }, outcome: this.outcome
         };
     }
 
@@ -109,6 +111,9 @@ class ExperimentSession extends ServerState {
             }
             else if (envelope.type === "mediaStopped") {
                 this.effectStreamerCore.handleCoreStopResponse(socket, { ...payload, contextKey: envelope.attemptId });
+            }
+            else if (envelope.type === "mediaStarted") {
+                this.effectStreamerCore.handleMediaStarted(socket, { ...payload, contextKey: envelope.attemptId });
             }
             else if (envelope.type === "recordingsFinalized") {
                 if (!Array.isArray(payload.manifests) || payload.manifests.some(manifest => manifest.attemptId !== envelope.attemptId)) throw new Error("Invalid recording attempt scope");

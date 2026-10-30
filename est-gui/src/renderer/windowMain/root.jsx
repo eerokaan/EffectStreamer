@@ -27,13 +27,14 @@ const viewMap = {
 };
 
 function Root() {
-    const { currentView } = useStoreRoot();
-    const View = viewMap[currentView];
+    const { currentView, runtimeError } = useStoreRoot();
+    const View = viewMap[currentView] || ViewWaiting;
 
     return (
         <>
             <ComponentDevicePicker />
             <div className="flex min-h-screen flex-col p-12">
+                {runtimeError && <p role="alert" className="mb-4 text-red-700">{runtimeError}</p>}
                 <View></View>
             </div>
         </>

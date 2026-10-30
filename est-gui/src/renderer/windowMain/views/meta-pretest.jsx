@@ -3,17 +3,19 @@ import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
 import ComponentPretestForm from "@/components/pretestform";
 import useStoreRoot from "@/stores/root";
+import { useRuntime } from "@/runtime/context";
 
 function ViewPretest() {
+    const runtime = useRuntime();
     const { currentView, pretestForm } = useStoreRoot();
     const formRef = useRef(null);
     const pretestFormKey = JSON.stringify(pretestForm ?? []);
 
     const handleFormSubmit = async (data) => {
-        window.appApi.ipcRenderer.invoke("ipc:pretestSaveRequest", {
+        await runtime.dispatch("pretest", {
             formData: data
         });
-        window.appApi.ipcRenderer.invoke("ipc:viewChangeRequest", {
+        await runtime.dispatch("nextView", {
             currentView
         });
     };

@@ -1,7 +1,5 @@
 import { isLittleEndian, stopCore } from "./coreProcess";
 import { MessageChannelMain } from "electron";
-import fs from "fs";
-import path from "path";
 
 const audioBlockBytes = 128 * Float32Array.BYTES_PER_ELEMENT;
 const captureCreditWindow = 4;
@@ -89,39 +87,9 @@ function appendBounded(state, key, values, sampleCount = values?.length || 0) {
     }
 }
 
-function percentile(values, ratio) {
-    if (values.length === 0) return null;
-    const sorted = values.slice().sort((a, b) => a - b);
-    return sorted[Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * ratio))];
-}
-
-function distribution(values) {
-    if (values.length === 0) return { p50: null, p95: null, min: null, max: null };
-    return {
-        p50: percentile(values, 0.5),
-        p95: percentile(values, 0.95),
-        min: Math.min(...values),
-        max: Math.max(...values)
-    };
-}
-
-function coreSummary(record) {
-    if (!record) return { started: false };
-    return {
-        started: true,
-        readyAt: record.readyAt,
-        exitCode: record.exitCode,
-        signalCode: record.signalCode,
-        graceful: record.graceful,
-        stopTimedOut: record.stopTimedOut,
-        runtimeError: record.runtimeError
-    };
-}
-
 class AudioTransport {
-    constructor({ window, diagnosticsDirectory, requestRendererControl, onFatal }) {
+    constructor({ window, requestRendererControl, onFatal }) {
         this.window = window;
-        this.diagnosticsDirectory = diagnosticsDirectory;
         this.requestRendererControl = requestRendererControl;
         this.onFatal = onFatal;
         this.session = null;
@@ -436,17 +404,17 @@ class AudioTransport {
         return state.finalStatsPromise;
     }
 
-    async stop({ writeDiagnostics = true } = {}) {
+    async stop() {
         const session = this.session;
         if (!session) return;
         if (session.stopPromise) return session.stopPromise;
         if (!session.active) return;
 
-        session.stopPromise = this.stopSession(session, writeDiagnostics);
+        session.stopPromise = this.stopSession(session);
         return session.stopPromise;
     }
 
-    async stopSession(session, writeDiagnostics) {
+    async stopSession(session) {
         let failure = null;
         const attempt = async (operation) => {
             try {
@@ -470,7 +438,6 @@ class AudioTransport {
             await attempt(() => this.requestFinalStats(session.playback));
             await attempt(() => this.requestRendererControl("stop-condition", { contextKey: session.contextKey }));
             session.endedAt = new Date().toISOString();
-            if (writeDiagnostics) await attempt(() => this.writeDiagnostics(session));
         }
         finally {
             session.endedAt ||= new Date().toISOString();
@@ -551,64 +518,6 @@ class AudioTransport {
         }
     }
 
-    async writeDiagnostics(session) {
-        const capture = session.capture;
-        const playback = session.playback;
-        const diagnostics = {
-            contextKey: session.contextKey,
-            startedAt: session.startedAt,
-            endedAt: session.endedAt,
-            devices: {
-                source: session.devices.source.label,
-                sink: session.devices.sink.label
-            },
-            audio: {
-                format: "F32LE",
-                channels: 1,
-                sampleRate: 48000,
-                quantumFrames: 128,
-                contextSampleRate: session.audioContext?.sampleRate ?? null,
-                baseLatency: session.audioContext?.baseLatency ?? null,
-                outputLatency: session.audioContext?.outputLatency ?? null
-            },
-            capture: {
-                blocksCaptured: capture.stats.blocksCaptured || 0,
-                blocksReceivedByMain: capture.blocksReceived,
-                blocksWrittenToCore: capture.blocksWritten,
-                framesWrittenToCore: capture.blocksWritten * 128,
-                creditStarvedFrames: capture.stats.creditStarvedFrames || 0,
-                backpressureDroppedFrames: capture.backpressureDroppedBlocks * 128,
-                invalidBlocks: capture.invalidBlocks,
-                sequenceGaps: capture.sequenceGaps
-            },
-            playback: {
-                blocksFromCore: playback.blocksFromCore,
-                blocksSentToWorklet: playback.blocksSent,
-                framesSentToWorklet: playback.blocksSent * 128,
-                creditDroppedFrames: playback.creditDroppedBlocks * 128,
-                trailingBytes: playback.trailingBytes,
-                underrunEvents: playback.stats.underrunEvents || 0,
-                underrunFrames: playback.stats.underrunFrames || 0,
-                overrunEvents: playback.stats.overrunEvents || 0,
-                overrunFrames: playback.stats.overrunFrames || 0,
-                hardResyncs: playback.stats.hardResyncs || 0,
-                sequenceGaps: playback.stats.sequenceGaps || 0,
-                occupancyFrames: distribution(playback.occupancySamples),
-                correctionPpm: distribution(playback.correctionSamples)
-            },
-            core: {
-                sender: coreSummary(session.sender),
-                receiver: coreSummary(session.receiver)
-            }
-        };
-        const filePath = path.join(this.diagnosticsDirectory, "audio-transport.json");
-        const temporaryPath = filePath + ".tmp-" + process.pid;
-        const contents = JSON.stringify(diagnostics, null, 4) + "\n";
-
-        await fs.promises.mkdir(this.diagnosticsDirectory, { recursive: true });
-        await fs.promises.writeFile(temporaryPath, contents, "utf8");
-        await fs.promises.rename(temporaryPath, filePath);
-    }
 }
 
 export default AudioTransport;

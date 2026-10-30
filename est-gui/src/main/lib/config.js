@@ -65,13 +65,7 @@ async function readGuiConfig(configPath = getGuiConfigPath()) {
 }
 
 function getAudioDeviceIds(config) {
-    const source = config.client.audioDevices?.source;
-    const sink = config.client.audioDevices?.sink;
-
-    return {
-        source: typeof source === "string" ? source : "",
-        sink: typeof sink === "string" ? sink : ""
-    };
+    return clientConfig.normalizeAudioConfig(config).devices;
 }
 
 function validateDeviceId(value, name) {
@@ -87,6 +81,7 @@ async function saveAudioDeviceIds(configPath, deviceIds) {
     const currentConfig = await readGuiConfig(configPath);
     const nextConfig = {
         ...currentConfig,
+        ...(currentConfig.audio.backend === "native" ? { audio: { ...currentConfig.audio, devices: { source, sink } } } : {}),
         client: {
             ...currentConfig.client,
             audioDevices: {
