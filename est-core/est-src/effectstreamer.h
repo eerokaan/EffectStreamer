@@ -27,11 +27,19 @@
 #include <string.h>
 
 /* Common structures */
+typedef struct CoreControl CoreControl;
 typedef struct {
     GMainLoop* loop;
     GstElement* pipeline;
     gboolean runtime_error;
     GMutex error_lock;
+    CoreControl* control;
+    GstElement* gate;
+    gboolean started;
+    gboolean stopping;
+    gboolean eos_received;
+    guint stop_timeout;
+    gint media_reported;
 } AppContext;
 
 typedef enum {
@@ -51,6 +59,10 @@ typedef struct {
     DeviceType device_type;
     const char* device_id;
     const char* peerip;
+    gboolean managed;
+    int peer_port;
+    int echo_port;
+    int record_port;
     int nativedelay;
     int echodelay;
     const char* packetloss_type;
@@ -65,7 +77,12 @@ typedef struct {
     DeviceType device_type;
     const char* device_id;
     double nativegain;
+    gboolean managed;
     double echogain;
+    int listen_port;
+    int echo_port;
+    int record_port;
+    const char* bind_address;
 } ReceiverParams;
 
 /* Function declarations */

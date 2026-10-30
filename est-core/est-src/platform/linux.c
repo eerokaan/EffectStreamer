@@ -8,8 +8,19 @@
 #include <poll.h>
 #include <unistd.h>
 #include "receiverstdin_internal.h"
+#include "control/control.h"
 
 G_STATIC_ASSERT(PLATFORM_LINUX);
+
+int control_read_stdin(char* buffer, unsigned int size) {
+    struct pollfd fd = {STDIN_FILENO, POLLIN | POLLHUP, 0};
+    int result = poll(&fd, 1, 50);
+    if (result == 0 || (result < 0 && errno == EINTR)) return -2;
+    if (result < 0) return -1;
+    ssize_t length = read(STDIN_FILENO, buffer, size);
+    if (length < 0 && (errno == EINTR || errno == EAGAIN)) return -2;
+    return (int)length;
+}
 
 struct ReceiverStdinPlatform {
     int cancel_pipe[2];

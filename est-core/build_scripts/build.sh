@@ -26,8 +26,9 @@ link_flags=()
 if [[ "$target" == linux ]]; then
     link_flags=("-Wl,-rpath-link,$lib" '-Wl,-rpath,$ORIGIN/gst-lib/x86_64-linux-gnu/lib')
 fi
-"$compiler" -Wall -Wextra -I"$root/est-src" -I"$root/est-src/stdin" \
+"$compiler" -Wall -Wextra -I"$root/est-src" -I"$root/est-src/stdin" -I"$root/est-deps/cJSON" \
     "$root/est-src/main.c" "$root/est-src/modes/sender.c" "$root/est-src/modes/receiver.c" \
     "$root/est-src/stdin/receiverstdin.c" "$root/est-src/device/deviceutils.c" \
-    "$root/est-src/platform/$platform.c" "${gst_flags[@]}" "${link_flags[@]}" -o "$output"
+    "$root/est-src/platform/$platform.c" "$root/est-src/control/control.c" "$root/est-src/lifecycle.c" \
+    "$root/est-deps/cJSON/cJSON.c" "${gst_flags[@]}" "${link_flags[@]}" -o "$output"
 echo "Built $output (GStreamer $(pkg-config --modversion gstreamer-1.0))"

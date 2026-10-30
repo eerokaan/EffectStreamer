@@ -21,10 +21,13 @@ enum {
     OPTION_PACKETLOSS_SEED = 1 << 7,
     OPTION_PACKETLOSS_BURST_MODEL = 1 << 8,
     OPTION_PACKETLOSS_BURST_RATIO = 1 << 9,
+    OPTION_PEER_PORT = 1 << 10,
+    OPTION_LISTEN_PORT = 1 << 11,
+    OPTION_BIND_ADDRESS = 1 << 12,
     SENDER_OPTIONS = OPTION_PEERIP | OPTION_NATIVE_DELAY | OPTION_ECHO_DELAY | OPTION_PACKETLOSS_TYPE |
                      OPTION_PACKETLOSS_RATIO | OPTION_PACKETLOSS_SEED | OPTION_PACKETLOSS_BURST_MODEL |
-                     OPTION_PACKETLOSS_BURST_RATIO,
-    RECEIVER_OPTIONS = OPTION_NATIVE_GAIN | OPTION_ECHO_GAIN,
+                      OPTION_PACKETLOSS_BURST_RATIO | OPTION_PEER_PORT,
+    RECEIVER_OPTIONS = OPTION_NATIVE_GAIN | OPTION_ECHO_GAIN | OPTION_LISTEN_PORT | OPTION_BIND_ADDRESS,
 };
 
 static void print_usage(const char* prog_name) {
@@ -43,6 +46,12 @@ static void print_usage(const char* prog_name) {
     fprintf(stderr, "  --device-type             Required backend: 'alsa', 'wasapi2', or 'stdio'\n");
     fprintf(stderr, "  --device-id               Optional ALSA/WASAPI2 backend device ID; invalid with stdio\n");
     fprintf(stderr, "  --peerip                  IP address of the peer receiver (sender mode only)\n");
+    fprintf(stderr, "  --peer-port               Peer receiver port (sender only, default: 9004)\n");
+    fprintf(stderr, "  --listen-port             Peer input port (receiver only, default: 9004)\n");
+    fprintf(stderr, "  --echo-port               Local echo port (default: 9005)\n");
+    fprintf(stderr, "  --record-port             Local microphone recording port (default: 9006)\n");
+    fprintf(stderr, "  --bind-address            Input bind address (receiver only, default: 0.0.0.0)\n");
+    fprintf(stderr, "  --control                 none (default), or ndjson for managed native audio; incompatible with stdio\n");
     fprintf(stderr, "  --native-delay            Additional native queue delay in milliseconds (sender mode only, default: 0)\n");
     fprintf(stderr, "  --native-gain             Native gain from 0.0 to 1.0 (receiver mode only, default: 1.0)\n");
     fprintf(stderr, "  --echo-delay              Additional echo queue delay in milliseconds (sender mode only, default: 0)\n");
@@ -111,6 +120,15 @@ static DeviceType parse_device_type(const char* value) {
     return DEVICE_TYPE_UNKNOWN;
 }
 
+static gboolean parse_port(const char* value, const char* name, int* out) {
+    if (!parse_int_option(value, name, out)) return FALSE;
+    if (*out < 1 || *out > 65535) {
+        fprintf(stderr, "Error: Invalid value for %s: expected 1 to 65535\n", name);
+        return FALSE;
+    }
+    return TRUE;
+}
+
 static gboolean is_valid_packetloss_type(const char* value) {
     return strcmp(value, "none") == 0 || strcmp(value, "random") == 0 || strcmp(value, "bursty") == 0;
 }
@@ -120,6 +138,9 @@ static gboolean is_valid_packetloss_burst_model(const char* value) {
 }
 
 static const char* get_first_option_name(guint supplied_options) {
+    if (supplied_options & OPTION_PEER_PORT) return "--peer-port";
+    if (supplied_options & OPTION_LISTEN_PORT) return "--listen-port";
+    if (supplied_options & OPTION_BIND_ADDRESS) return "--bind-address";
     if (supplied_options & OPTION_PEERIP) return "--peerip";
     if (supplied_options & OPTION_NATIVE_DELAY) return "--native-delay";
     if (supplied_options & OPTION_ECHO_DELAY) return "--echo-delay";
@@ -147,6 +168,9 @@ int main(int argc, char* argv[]) {
     char* device_id = NULL;
     char* device_id_auto_detected = NULL;
     const char* peerip = NULL;
+    int peer_port = 9004, listen_port = 9004, echo_port = 9005, record_port = 9006;
+    const char* bind_address = "0.0.0.0";
+    gboolean managed = FALSE;
     
     DeviceType device_type_parsed;
 
@@ -167,6 +191,12 @@ int main(int argc, char* argv[]) {
         OPT_DEVICE_TYPE,
         OPT_DEVICE_ID,
         OPT_PEERIP,
+        OPT_PEER_PORT,
+        OPT_LISTEN_PORT,
+        OPT_ECHO_PORT,
+        OPT_RECORD_PORT,
+        OPT_BIND_ADDRESS,
+        OPT_CONTROL,
         OPT_NATIVEDELAY,
         OPT_ECHODELAY,
         OPT_NATIVEGAIN,
@@ -186,6 +216,12 @@ int main(int argc, char* argv[]) {
         {"device-type", required_argument, 0, OPT_DEVICE_TYPE},
         {"device-id", required_argument, 0, OPT_DEVICE_ID},
         {"peerip", required_argument, 0, OPT_PEERIP},
+        {"peer-port", required_argument, 0, OPT_PEER_PORT},
+        {"listen-port", required_argument, 0, OPT_LISTEN_PORT},
+        {"echo-port", required_argument, 0, OPT_ECHO_PORT},
+        {"record-port", required_argument, 0, OPT_RECORD_PORT},
+        {"bind-address", required_argument, 0, OPT_BIND_ADDRESS},
+        {"control", required_argument, 0, OPT_CONTROL},
         {"native-delay", required_argument, 0, OPT_NATIVEDELAY},
         {"echo-delay", required_argument, 0, OPT_ECHODELAY},
         {"native-gain", required_argument, 0, OPT_NATIVEGAIN},
@@ -204,6 +240,33 @@ int main(int argc, char* argv[]) {
     opterr = 0;
     while ((option_code = getopt_long(argc, argv, "", long_options, NULL)) != -1) {
         switch (option_code) {
+            case OPT_CONTROL:
+                if (strcmp(optarg, "none") && strcmp(optarg, "ndjson")) {
+                    fprintf(stderr, "Error: Invalid --control (expected none or ndjson)\n"); return 1;
+                }
+                managed = !strcmp(optarg, "ndjson");
+                break;
+            case OPT_PEER_PORT:
+                supplied_options |= OPTION_PEER_PORT;
+                if (!parse_port(optarg, "--peer-port", &peer_port)) return 1;
+                break;
+            case OPT_LISTEN_PORT:
+                supplied_options |= OPTION_LISTEN_PORT;
+                if (!parse_port(optarg, "--listen-port", &listen_port)) return 1;
+                break;
+            case OPT_ECHO_PORT:
+                if (!parse_port(optarg, "--echo-port", &echo_port)) return 1;
+                break;
+            case OPT_RECORD_PORT:
+                if (!parse_port(optarg, "--record-port", &record_port)) return 1;
+                break;
+            case OPT_BIND_ADDRESS:
+                supplied_options |= OPTION_BIND_ADDRESS;
+                if (!g_hostname_is_ip_address(optarg)) {
+                    fprintf(stderr, "Error: Invalid --bind-address\n"); return 1;
+                }
+                bind_address = optarg;
+                break;
             case OPT_MODE:
                 mode = optarg;
                 break;
@@ -324,6 +387,9 @@ int main(int argc, char* argv[]) {
     }
 
     // Validate parsed arguments: Sender/Receiver
+    if (managed && device_type_parsed == DEVICE_TYPE_STDIO) {
+        fprintf(stderr, "Error: NDJSON control is incompatible with stdio PCM\n"); return 1;
+    }
     if (is_sender_mode(mode) && (supplied_options & RECEIVER_OPTIONS)) {
         fprintf(stderr,
                 "Error: %s is only supported in receiver mode\n",
@@ -386,6 +452,10 @@ int main(int argc, char* argv[]) {
             .device_type = device_type_parsed,
             .device_id = device_id,
             .peerip = peerip,
+            .managed = managed,
+            .peer_port = peer_port,
+            .echo_port = echo_port,
+            .record_port = record_port,
             .nativedelay = nativedelay,
             .echodelay = echodelay,
             .packetloss_type = packetloss_type,
@@ -400,7 +470,12 @@ int main(int argc, char* argv[]) {
             .device_type = device_type_parsed,
             .device_id = device_id,
             .nativegain = nativegain,
-            .echogain = echogain
+            .managed = managed,
+            .echogain = echogain,
+            .listen_port = listen_port,
+            .echo_port = echo_port,
+            .record_port = record_port,
+            .bind_address = bind_address
         };
         exit_code = run_receiver(&params);
     }

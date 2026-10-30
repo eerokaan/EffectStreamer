@@ -41,6 +41,10 @@ Each peer runs one sender and one receiver. Start both senders before the receiv
 
 For ALSA device IDs, use `arecord -l` for sources and `aplay -l` for sinks. For example, card 0, device 1 maps to `hw:0,1`. WASAPI2 endpoint IDs can normally be omitted and auto-detected.
 
+Managed native hosts can add `--control ndjson`. Standard input/output then contain only version-1 NDJSON requests/replies/events; diagnostic logs remain on stderr. `--control none` is the standalone default. Never enable NDJSON with `--device-type stdio`, which retains raw F32LE PCM pipes.
+
+After the `control-ready` event, send `{ "version": 1, "type": "request", "id": "start-1", "command": "audio.start", "payload": {} }`. `audio.stop` or `shutdown` requests EOS and a bounded graceful exit; stdin EOF has the same stop behavior. Wait for `recording-finalized` and successful process exit before collecting native recordings. `media-ready` indicates an observed media buffer, not merely control readiness or a start acknowledgement. The shared Node host is `@effectstreamer/common/core-process`.
+
 ## Compilation
 
 As the EffectStreamer Core uses GStreamer internally, the following paragraphs will lay out how to compile GStreamer and other prerequisites, as well as compiling and running EffectStreamer Core itself.
@@ -128,12 +132,16 @@ cp -a $SDK/lib/x86_64-linux-gnu/* gst-lib/x86_64-linux-gnu/lib/
 gcc -o est-core \
     -Iest-src \
     -Iest-src/stdin \
+    -Iest-deps/cJSON \
     est-src/main.c \
     est-src/modes/sender.c \
     est-src/modes/receiver.c \
     est-src/stdin/receiverstdin.c \
     est-src/device/deviceutils.c \
     est-src/platform/linux.c \
+    est-src/control/control.c \
+    est-src/lifecycle.c \
+    est-deps/cJSON/cJSON.c \
     $(pkg-config --cflags --libs gstreamer-1.0) \
     -Wl,-rpath-link,$LIBRARY_PATH \
     -Wl,-rpath,'$ORIGIN/gst-lib/x86_64-linux-gnu/lib'
@@ -155,12 +163,16 @@ cp -a $SDK/lib/* gst-lib/x86_64-windows/lib/
 x86_64-w64-mingw32-gcc -o est-core.exe \
     -Iest-src \
     -Iest-src/stdin \
+    -Iest-deps/cJSON \
     est-src/main.c \
     est-src/modes/sender.c \
     est-src/modes/receiver.c \
     est-src/stdin/receiverstdin.c \
     est-src/device/deviceutils.c \
     est-src/platform/windows.c \
+    est-src/control/control.c \
+    est-src/lifecycle.c \
+    est-deps/cJSON/cJSON.c \
     $(pkg-config --cflags --libs gstreamer-1.0)
 ```
 

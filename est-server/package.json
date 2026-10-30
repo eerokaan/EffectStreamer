@@ -7,6 +7,7 @@
     "author": "Eero Kaan",
     "company": "Quality and Usability Lab | TU Berlin",
     "scripts": {
+        "test": "node --test test/*.test.js",
         "dev:format": "prettier --write .",
         "dev:lint": "eslint --cache --fix .",
         "dev:run": "EST_SERVER_TYPE=harness node ./src/index.js",
@@ -14,6 +15,7 @@
         "build:win": "TARGET_OS=win ./build_scripts/build.sh"
     },
     "dependencies": {
+        "@effectstreamer/common": "file:../est-common",
         "express": "^5.2.1",
         "socket.io": "^4.8.3"
     },

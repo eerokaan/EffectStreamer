@@ -9,8 +9,21 @@
 #include <io.h>
 #include <windows.h>
 #include "receiverstdin_internal.h"
+#include "control/control.h"
 
 G_STATIC_ASSERT(PLATFORM_WINDOWS);
+
+int control_read_stdin(char* buffer, unsigned int size) {
+    HANDLE input = GetStdHandle(STD_INPUT_HANDLE);
+    DWORD available = 0, length = 0;
+    if (GetFileType(input) == FILE_TYPE_PIPE) {
+        if (!PeekNamedPipe(input, NULL, 0, NULL, &available, NULL)) return GetLastError() == ERROR_BROKEN_PIPE ? 0 : -1;
+        if (!available) {Sleep(20);return -2;}
+        if (size > available) size = available;
+    }
+    if (!ReadFile(input, buffer, size, &length, NULL)) return GetLastError() == ERROR_BROKEN_PIPE ? 0 : -1;
+    return (int)length;
+}
 
 struct ReceiverStdinPlatform {
     GCond thread_ready;

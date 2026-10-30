@@ -3,6 +3,7 @@ const path = require("path");
 const fs = require("fs");
 const net = require("net");
 const configManagerPretestForm = require("./configManagerPretestForm.js");
+const { normalizeDeployment, publicBootstrap } = require("./deploymentConfig.js");
 const { configError, validateObject, validateKnownKeys, normalizeString, normalizeNumeric } = require("../utils/validation.js");
 
 const intMax = 2147483647;
@@ -24,7 +25,7 @@ const numericConditionFields = {
 // =======================================
 
 function loadConfig() {
-    const configPath = path.join(os.homedir(), "effectstreamer", "config-server.json");
+    const configPath = process.env.EST_CONFIG_PATH || path.join(os.homedir(), "effectstreamer", "config-server.json");
     let configFile = null;
     let parsedConfig = null;
 
@@ -44,16 +45,21 @@ function loadConfig() {
         throw new Error("Unable to parse " + configPath + " as JSON: " + error.message);
     }
 
+    return normalizeConfig(parsedConfig);
+}
+
+function normalizeConfig(parsedConfig) {
     // Validate step: Enforce the known top-level keys
     validateObject(parsedConfig, "config");
-    validateKnownKeys(parsedConfig, ["server", "tests", "conditions", "pretestForm"], "config");
+    validateKnownKeys(parsedConfig, ["server", "tests", "conditions", "pretestForm", "deployment", "audioSetup", "sessions", "recordings", "remote", "prolific"], "config");
 
     // Return step
     return {
         server: normalizeServerConfig(parsedConfig.server),
         tests: normalizeTestsConfig(parsedConfig.tests),
         conditions: normalizeConditionsConfig(parsedConfig.conditions),
-        pretestForm: configManagerPretestForm.normalizeConfig(parsedConfig.pretestForm)
+        pretestForm: configManagerPretestForm.normalizeConfig(parsedConfig.pretestForm),
+        ...normalizeDeployment(parsedConfig)
     };
 }
 
@@ -158,4 +164,4 @@ function normalizeSingularCondition(condition, conditionPath) {
     return normalizedCondition;
 }
 
-module.exports = { loadConfig };
+module.exports = { loadConfig, normalizeConfig, publicBootstrap };

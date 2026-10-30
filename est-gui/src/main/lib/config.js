@@ -2,6 +2,7 @@ import { app } from "electron";
 import fs from "fs";
 import net from "net";
 import path from "path";
+import clientConfig from "@effectstreamer/common/client-config";
 
 const configFileName = "config-gui.json";
 const clientIdPattern = /^[A-Za-z0-9_-]{1,64}$/;
@@ -14,13 +15,7 @@ function validateConfig(config, configPath) {
     if (!config || typeof config !== "object" || Array.isArray(config)) {
         throw new Error("The GUI configuration must contain a JSON object: " + configPath);
     }
-    if (!config.server || typeof config.server.ipAddress !== "string" || config.server.ipAddress.trim().length === 0 || config.server.ipAddress.length > 255) {
-        throw new Error("Missing or invalid server configuration in " + configPath);
-    }
-    const serverPort = Number(config.server.port);
-    if (!Number.isInteger(serverPort) || serverPort < 1 || serverPort > 65535) {
-        throw new Error("Missing or invalid server port in " + configPath);
-    }
+    const url = clientConfig.serverUrl(config.server);
     if (!config.client || typeof config.client.identity !== "string" || !clientIdPattern.test(config.client.identity.trim())) {
         throw new Error("Missing or invalid client configuration in " + configPath);
     }
@@ -36,9 +31,11 @@ function validateConfig(config, configPath) {
         ...config,
         server: {
             ...config.server,
-            ipAddress: config.server.ipAddress.trim(),
-            port: serverPort
+            url,
+            ipAddress: config.server.ipAddress?.trim(),
+            port: config.server.port == null ? undefined : Number(config.server.port)
         },
+        audio: clientConfig.normalizeAudioConfig(config),
         client: {
             ...config.client,
             identity: config.client.identity.trim(),

@@ -1,6 +1,7 @@
 import { spawn } from "child_process";
 import { StringDecoder } from "string_decoder";
 import path from "path";
+import managedCore from "@effectstreamer/common/core-process";
 
 const coreReadyTimeoutMs = 10000;
 const coreStopTimeoutMs = 5000;
@@ -213,4 +214,5 @@ function isLittleEndian() {
     return bytes[0] === 0xff;
 }
 
-export { getOperatingSystem, isLittleEndian, markCoreStarted, spawnCore, stopCore };
+const startManagedCore = managedCore.startCore;
+export { getOperatingSystem, isLittleEndian, markCoreStarted, spawnCore, stopCore, startManagedCore };

@@ -6,6 +6,7 @@
 
 #include "effectstreamer.h"
 #include "receiverstdin.h"
+#include "lifecycle.h"
 
 typedef struct {
     GMutex lock;
@@ -78,11 +79,12 @@ static gboolean emit_ready(AppContext* context) {
 static gboolean bus_call(GstBus* bus, GstMessage* msg, gpointer data) {
     AppContext* context = (AppContext*)data;
     (void)bus;
+    lifecycle_bus(context, msg);
 
     switch (GST_MESSAGE_TYPE(msg)) {
         case GST_MESSAGE_EOS:
             g_printerr("End of receiver stream\n");
-            g_main_loop_quit(context->loop);
+            lifecycle_eos(context);
             break;
 
         case GST_MESSAGE_ERROR:
@@ -273,17 +275,17 @@ int run_receiver(ReceiverParams* params) {
     );
     // clang-format on
 
-    g_object_set(G_OBJECT(udpsrc1), "port", 9004, "caps", caps_rtp, NULL);
+    g_object_set(G_OBJECT(udpsrc1), "port", params->listen_port, "address", params->bind_address, "reuse", FALSE, "caps", caps_rtp, NULL);
     g_object_set(G_OBJECT(rtpjitterbuffer1), "latency", 5, "drop-on-latency", TRUE, NULL);
     g_object_set(G_OBJECT(capsfilter1), "caps", caps_audio, NULL);
     g_object_set(G_OBJECT(volume1), "volume", params->nativegain, NULL);
 
-    g_object_set(G_OBJECT(udpsrc2), "port", 9005, "caps", caps_rtp, NULL);
+    g_object_set(G_OBJECT(udpsrc2), "port", params->echo_port, "address", params->bind_address, "reuse", FALSE, "caps", caps_rtp, NULL);
     g_object_set(G_OBJECT(rtpjitterbuffer2), "latency", 5, "drop-on-latency", TRUE, NULL);
     g_object_set(G_OBJECT(capsfilter2), "caps", caps_audio, NULL);
     g_object_set(G_OBJECT(volume2), "volume", params->echogain, NULL);
 
-    g_object_set(G_OBJECT(udpsrc3), "port", 9006, "caps", caps_rtp, NULL);
+    g_object_set(G_OBJECT(udpsrc3), "port", params->record_port, "address", params->bind_address, "reuse", FALSE, "caps", caps_rtp, NULL);
     g_object_set(G_OBJECT(rtpjitterbuffer3), "latency", 5, "drop-on-latency", TRUE, NULL);
 
     gst_caps_unref(caps_rtp);
@@ -355,14 +357,15 @@ int run_receiver(ReceiverParams* params) {
         goto cleanup;
     }
 
+    lifecycle_prepare(&context, params->managed, NULL, audioconvert_speaker);
     state_change = gst_element_set_state(context.pipeline, GST_STATE_PLAYING);
-    if (state_change != GST_STATE_CHANGE_FAILURE) {
+    if (state_change != GST_STATE_CHANGE_FAILURE && !params->managed) {
         state_change = gst_element_get_state(context.pipeline, &current_state, NULL, GST_CLOCK_TIME_NONE);
     }
     if (print_startup_errors(bus)) {
         record_runtime_error(&context);
     }
-    if (state_change == GST_STATE_CHANGE_FAILURE || current_state != GST_STATE_PLAYING || has_runtime_error(&context)) {
+    if (state_change == GST_STATE_CHANGE_FAILURE || (!params->managed && current_state != GST_STATE_PLAYING) || has_runtime_error(&context)) {
         g_printerr("Error: Receiver pipeline failed during startup.\n");
         goto cleanup;
     }
@@ -374,7 +377,7 @@ int run_receiver(ReceiverParams* params) {
             goto cleanup;
         }
     }
-    if (!emit_ready(&context)) {
+    if (!params->managed && !emit_ready(&context)) {
         if (!print_startup_errors(bus)) g_printerr("Error: Receiver pipeline failed during startup.\n");
         goto cleanup;
     }
@@ -396,6 +399,7 @@ cleanup:
     if (has_runtime_error(&context)) {
         result = 1;
     }
+    lifecycle_finish(&context, result == 0, TRUE);
     if (params->device_type == DEVICE_TYPE_STDIO) {
         g_printerr("stdio speaker queue overruns: %" G_GUINT64_FORMAT "\n", get_speaker_queue_overruns(&speaker_stats));
     }

@@ -1,4 +1,9 @@
 {
+    "audio": {
+        "backend": "native",
+        "devices": { "source": "default", "sink": "default" },
+        "recordingDir": null
+    },
     "server": {
         "ipAddress": "127.0.0.1",
         "port": "3000"

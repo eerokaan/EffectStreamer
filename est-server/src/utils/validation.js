@@ -7,7 +7,7 @@ function isObject(value) {
 }
 
 function validateObject(value, configPath) {
-    if (!value) {
+    if (!isObject(value)) {
         configError(configPath, "must be an object");
     }
 }
