@@ -60,6 +60,33 @@ test("waiting expiry offers only its server-selected early-exit code", async t =
     time += config.sessions.pairingTimeoutMs + 1;prolific.expireWaiting();
     assert.deepEqual(await prolific.completion(record.participantId), { url: "https://app.prolific.com/submissions/complete?cc=WAIT", code: "WAIT", outcome: "waitingTimeout" });
 });
+test('abandoned pre-setup admissions expire durably and release HTTP admission capacity',async t=>{
+    const {createCoordinator}=require('../src/server.js');const raw=rawConfig();raw.sessions={pairingTimeoutMs:1000,maxWaitingParticipants:1};
+    const root=fs.mkdtempSync('/tmp/opencode/est-admission-expiry-'),app=createCoordinator({config:normalizeConfig(raw),root});await app.ready;
+    let time=1000;app.enrollments.now=()=>time;app.prolific.now=()=>time;
+    app.server.listen(0,'127.0.0.1');await once(app.server,'listening');const url='http://127.0.0.1:'+app.server.address().port;
+    t.after(async()=>{await app.close();fs.rmSync(root,{recursive:true,force:true});});
+    const enroll=id=>fetch(url+'/api/enrollment',{method:'POST',headers:{'content-type':'application/json','user-agent':desktop.userAgent},body:JSON.stringify({query:query(id),device:desktop})});
+    const first=await enroll('abandoned');assert.equal(first.status,201);const credentials=await first.json();
+    assert.equal((await enroll('blocked')).status,503);
+    time=2001;assert.equal((await enroll('replacement')).status,201);
+    const record=app.enrollments.get(credentials.participantId);assert.equal(record.readyAt,null);assert.equal(record.outcome,'waitingTimeout');
+    assert.equal(new EnrollmentStore(root).get(record.participantId).outcome,'waitingTimeout');
+    assert.equal((await app.prolific.completion(record.participantId)).code,'WAIT');
+});
+test('valid pre-pair progress renews inactivity but cannot extend the ready-queue deadline',async t=>{
+    const {AdmissionFlow}=require('../src/services/AdmissionFlow.js');let time=1000;
+    const f=fixture(t,rawConfig(),{now:()=>time});f.enrollments.now=()=>time;
+    const person=await f.prolific.enroll({query:query('active'),device:desktop});
+    const admission=new AdmissionFlow({config:f.config,enrollments:f.enrollments,prolific:f.prolific,registry:{sessions:new Map(),getForParticipant:()=>null}});t.after(()=>admission.close());
+    time+=f.config.sessions.pairingTimeoutMs-1;
+    await admission.dispatch(person.participantId,{version:1,requestId:randomUUID(),participantId:person.participantId,sessionId:null,attemptId:null,type:'setupComplete',payload:{inputUsable:true,playbackConfirmed:true}});
+    assert.equal(f.enrollments.get(person.participantId).admissionLastActiveAt,time);
+    time+=2;f.prolific.expireWaiting();const record=f.enrollments.get(person.participantId);assert.equal(record.outcome,null);
+    record.pretestComplete=true;f.enrollments.ready(record.participantId,time);const queuedAt=time;
+    record.admissionLastActiveAt=queuedAt+f.config.sessions.pairingTimeoutMs;
+    time=queuedAt+f.config.sessions.pairingTimeoutMs+1;f.prolific.expireWaiting();assert.equal(record.outcome,'waitingTimeout');
+});
 test("authenticated pre-pair setup and questionnaire stage before capacity-aware pairing", async t => {
     const { createCoordinator } = require("../src/server.js");const { io: connect } = require("socket.io-client");
     const raw = rawConfig();raw.pretestForm = [{ name: "age", type: "input", inputType: "number", label: "Age", validation: { valueType: "integer", min: 18 } }];

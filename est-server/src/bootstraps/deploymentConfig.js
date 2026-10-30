@@ -28,7 +28,7 @@ function normalizeDeployment(raw) {
     const recordings=section(raw,'recordings',{maxConditionSeconds:600,maxBytesPerParticipant:134217728,uploadTimeoutMs:600000,chunkBytes:1048576});
     for (const key of Object.keys(recordings)) recordings[key]=integer(recordings[key],'recordings.'+key,1,key==='chunkBytes'?4194304:2147483647);
     if (recordings.maxConditionSeconds*48000*2*2+88>recordings.maxBytesPerParticipant) configError('recordings.maxBytesPerParticipant','must hold both WAV tracks for maxConditionSeconds');
-    const remote=section(raw,'remote',{coreExecutable:'/opt/effectstreamer/core/est-core',internalPortRange:[40000,49999],icePortRange:[50000,59999],playbackDrainMs:250,iceServers:[],turnSecret:'',turnUrls:[],startupTimeoutMs:30000,stopTimeoutMs:7000,jitterMs:20,opusBitrate:128000,rtpFrames:128});
+    const remote=section(raw,'remote',{coreExecutable:process.platform==='win32'?'core/est-core.exe':'core/est-core',internalPortRange:[40000,49999],icePortRange:[50000,59999],playbackDrainMs:250,iceServers:[],turnSecret:'',turnUrls:[],startupTimeoutMs:30000,stopTimeoutMs:7000,jitterMs:20,opusBitrate:128000,rtpFrames:128});
     remote.coreExecutable=normalizeString(remote.coreExecutable,'remote.coreExecutable');
     remote.internalPortRange=range(remote.internalPortRange,'remote.internalPortRange');
     remote.icePortRange=range(remote.icePortRange,'remote.icePortRange');
@@ -40,6 +40,7 @@ function normalizeDeployment(raw) {
     remote.opusBitrate=integer(remote.opusBitrate,'remote.opusBitrate',6000,510000);
     remote.rtpFrames=integer(remote.rtpFrames,'remote.rtpFrames',1,480);
     if (typeof remote.turnSecret !== 'string' || !Array.isArray(remote.turnUrls) || remote.turnUrls.some(url=>typeof url !== 'string' || !/^turns?:[^\s]+$/.test(url))) configError('remote','invalid TURN settings');
+    if (remote.turnUrls.length && !remote.turnSecret.trim()) configError('remote.turnSecret','TURN URLs require a nonempty shared secret (or EST_TURN_SECRET override)');
     if (!Array.isArray(remote.iceServers)) configError('remote.iceServers','must be an array');
     remote.iceServers=remote.iceServers.map(server=>{
         validateObject(server,'remote.iceServers'); validateKnownKeys(server,['urls','username','credential'],'remote.iceServers');

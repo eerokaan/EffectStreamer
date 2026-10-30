@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createRuntime as browserRuntime } from '../src/renderer/windowMain/runtime/browser.js';
 import { createRuntime as electronRuntime } from '../src/renderer/windowMain/runtime/electron.js';
 import { createSessionClient } from '../src/renderer/windowMain/runtime/session-client.js';
+import { BrowserDevices } from '../src/renderer/windowMain/audio/browser-devices.js';
 
 function transport() {
     const listeners=new Map();const sent=[];
@@ -57,5 +58,21 @@ describe('shared participant runtime',()=>{
         const client=createSessionClient({transport:socket,participantId:'p-1',onCommand:command=>commands.push(command)});
         socket.receive('est-event:snapshot',snapshot);commands.length=0;socket.receive('connect');
         expect(commands).toEqual([{type:'reconnected',snapshot}]);client.dispose();
+    });
+    it('a fresh browser invalidates persisted setup even between attempts',async()=>{
+        const socket=transport(),devices=new BrowserDevices({mediaDevices:{}});
+        const runtime=browserRuntime({devices,initialize:async()=>({config:{mode:'remote',setupRequired:true},credentials:{participantId:'p-1'},url:'https://example.test'}),transportFactory:()=>socket});
+        await runtime.bootstrap();socket.receive('est-event:snapshot',{...snapshot,setupRequired:true,setupComplete:true});
+        expect(socket.sent.map(value=>value.message.type)).toContain('setupInvalidated');
+        await runtime.dispose();
+    });
+    it('device invalidation between attempts revokes approval but a valid reconnect does not',async()=>{
+        const socket=transport(),devices=new BrowserDevices({mediaDevices:{}});
+        devices.tested={sourceId:'default',sinkId:'default'};devices.context={state:'running',sampleRate:48000,async close(){}};
+        const runtime=browserRuntime({devices,initialize:async()=>({config:{mode:'remote',setupRequired:true},credentials:{participantId:'p-1'},url:'https://example.test'}),transportFactory:()=>socket});
+        await runtime.bootstrap();socket.receive('est-event:snapshot',{...snapshot,setupRequired:true,setupComplete:true});
+        socket.receive('connect');expect(socket.sent).toEqual([]);
+        devices.changed();expect(socket.sent.map(value=>value.message.type)).toEqual(['setupInvalidated']);
+        await runtime.dispose();
     });
 });

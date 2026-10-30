@@ -122,6 +122,14 @@ class ExperimentSession extends ServerState {
             else if (envelope.type === "ready" && this.recovery) {
                 await this.recoveryPolicy.reconnected(participantId, { ready: true });
             }
+            else if (envelope.type === "setupInvalidated") {
+                if (this.phase !== "ended") {
+                    client.setupComplete = false;this.enrollments.get(participantId).setupComplete = false;
+                    this.enrollments.save();this.gates.viewChange.clear();
+                    const context = this.recordingContexts.get(this.recordingContextActive);
+                    if (context && ["startingSender", "startingReceiver", "startingMedia", "running"].includes(context.status)) await this.recoveryPolicy.disconnected(participantId, "media");
+                }
+            }
             else if (envelope.type === "setupComplete") {
                 if (payload.inputUsable !== true || payload.playbackConfirmed !== true) throw new Error("Device test and playback confirmation required");
                 if (this.recordingContextActive && !this.recovery) throw new Error("Cannot change setup during an active attempt");

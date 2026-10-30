@@ -8,7 +8,10 @@ export function connectRuntimeStores(runtime) {
     runtime.onError = error => useStoreRoot.setState({ runtimeError: error.message });
     return runtime.subscribe(snapshot => {
         const changedView = previous?.currentView !== snapshot.currentView;
-        useStoreRoot.setState({ ...snapshot.viewData, currentView: snapshot.currentView, snapshot, runtimeError: null });
+        const repeatedNotice = !changedView && previous?.viewData?.showDialog === true &&
+            previous.viewData.conditionListeningSpeakingTestIndex === snapshot.viewData?.conditionListeningSpeakingTestIndex;
+        const showDialog = snapshot.viewData?.showDialog === true && (!repeatedNotice || useStoreRoot.getState().showDialog);
+        useStoreRoot.setState({ ...snapshot.viewData, showDialog, currentView: snapshot.currentView, snapshot, runtimeError: null });
         if (changedView) {
             useStoreComponentFooter.getState().resetStates();
             useStoreComponentScale.getState().resetStates();

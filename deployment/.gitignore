@@ -1,0 +1,6 @@
+.env
+est-server.config.json
+# Keep the legacy private configuration ignored during migration.
+config-server.json
+turnserver.local.conf
+turn-certs/

@@ -22,7 +22,13 @@ async function initializeBrowser() {
 }
 export function createRuntime({ initialize = initializeBrowser, transportFactory, devices, media, recordings } = {}) {
     const browserDevices = devices || new BrowserDevices();
-    let runtime, session, scope, generation, initialized;
+    let runtime, session, scope, generation, initialized, invalidatingSetup;
+    const invalidateSetup = () => {
+        const snapshot = runtime.snapshot();
+        if (!snapshot?.setupRequired || !snapshot.setupComplete || snapshot.phase === "ended") return Promise.resolve();
+        invalidatingSetup ||= runtime.dispatch("setupInvalidated", {}).finally(() => {invalidatingSetup = null;});
+        return invalidatingSetup;
+    };
     const failure = error => {
         runtime.onError?.(error);
         if (scope) void runtime.dispatch("mediaFailed", { message: error.message, generation }, { scope }).catch(error => runtime.onError?.(error));
@@ -33,6 +39,9 @@ export function createRuntime({ initialize = initializeBrowser, transportFactory
             if (command.type === "remoteSignal") return session?.applySignal(command.signal);
             if (command.type === "reconnected" || command.type === "requestResume") {
                 const snapshot = command.snapshot || runtime.snapshot();
+                // A new page has credentials, not the old page's gesture-authorized
+                // context or tested routes. A signaling reconnect can keep both.
+                if (!browserDevices.setupReady?.()) await invalidateSetup();
                 if (!snapshot.sessionId || (!snapshot.attemptId && !snapshot.viewData?.recovery && !browserRecordings.pending?.size)) return;
                 if (snapshot.phase === "interrupted" || snapshot.phase === "ended") {
                     if (scope) await browserRecordings.finalize?.({ scope, status: "interrupted" }).catch(() => {});
@@ -79,6 +88,6 @@ export function createRuntime({ initialize = initializeBrowser, transportFactory
         async dispose() {await browserRecordings.dispose?.();await session?.stop();await browserDevices.dispose?.();}
     };
     runtime = createParticipantRuntime({ initialize: async () => {initialized = await initialize();browserDevices.testAsset = initialized.config.testAsset;return initialized;}, transportFactory, devices: browserDevices, media: browserMedia, recordings: browserRecordings });
-    browserDevices.onInvalidated = () => {if (session?.generation) failure(new Error("Audio devices changed; repeat device setup before retrying"));};
+    browserDevices.onInvalidated = () => {void invalidateSetup().catch(error => runtime.onError?.(error));};
     return runtime;
 }

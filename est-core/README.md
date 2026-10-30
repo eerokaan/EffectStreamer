@@ -20,7 +20,7 @@ The following impairment arguments are supported:
 
 ## Usage
 
-`--device-type` is required. Linux accepts `alsa` and `stdio`; Windows accepts `wasapi2` and `stdio`. `--device-id` is optional for host backends and is invalid for `stdio`. If a host device ID is omitted, the first matching source in sender mode or sink in receiver mode is selected. Device IDs are backend identifiers such as ALSA `hw:0,1` or a WASAPI2 endpoint ID, not display labels.
+`--device-type` is required. Linux accepts `alsa`, `stdio` and `webrtc`; Windows accepts `wasapi2`, `stdio` and `webrtc`. `--device-id` is optional for host backends and invalid for `stdio`/`webrtc`. If a host device ID is omitted, the first matching source in sender mode or sink in receiver mode is selected; use explicit `default` for the backend default route. Device IDs are backend identifiers such as ALSA `hw:0,1` or a WASAPI2 endpoint ID, not display labels.
 
 ```
 Sender mode:
@@ -77,6 +77,21 @@ The internal RTP/L16 sender now targets 128 mono frames per packet (`--rtp-frame
 
 The build additionally links GStreamer SDP/WebRTC and needs matching Opus, RTP, libnice, DTLS and SRTP runtime plugins. For source SDKs referencing host metadata such as Linux libdrm, supply `EST_PKG_CONFIG_EXTRA_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig` if that dependency is already installed. Do not point Windows cross-compilation at Linux metadata. `EST_BUILD_TEST_PEER=1` additionally builds an isolated `.build/<target>/webrtc-peer` offerer for integration tests; it is not part of the shipped application.
 
+### Standalone signaling reference
+
+From the repository root, with the matching runtime environment (or a staged core):
+
+```bash
+node est-core/examples/webrtc-host.cjs /absolute/path/to/est-core \
+    --mode sender --device-type webrtc --control ndjson --recording none \
+    --peerip 127.0.0.1 --peer-port 45004 --echo-port 45005 \
+    --ice-min-port 50000 --ice-max-port 50099
+```
+
+Open `http://127.0.0.1:8080`, click Connect and allow audio. This single-peer loopback reference demonstrates offer/answer, server ICE events and explicit start; a receiver example uses `--mode receiver --listen-port 45004 --echo-port 45005` and another `PORT`. Feed its private RTP inputs using the existing sender topology. It is not an Internet study server, multi-peer mixer, or authentication example. Use `est-server` for public admission/ownership/TLS/TURN. A bare core binary cannot negotiate a browser without such a host.
+
+`build_scripts/stage-runtime.cjs` packages a source core and matching SDK shared libraries, required plugins, scanner and an explicitly supplied custom `EST_NETSIM_PLUGIN` into a new directory; it refuses to overwrite resources. Existing runtime archives remain untouched. See [deployment/README.md](../deployment/README.md) for inputs, matching Linux/Windows layouts, license obligations and packaged acceptance.
+
 As the EffectStreamer Core uses GStreamer internally, the following paragraphs will lay out how to compile GStreamer and other prerequisites, as well as compiling and running EffectStreamer Core itself.
 
 There are two important factors to consider, before starting:
@@ -87,16 +102,8 @@ There are two important factors to consider, before starting:
 ### Step 1) Prepare Ubuntu
 
 ```
-sudo -i
-cd ~
-
-dpkg --add-architecture i386
-echo "check_certificate=off" >> ~/.wgetrc
-
-apt-get -y update
-apt-get -y upgrade
-apt-get -y install python3 python3-venv git
-apt-get -y install build-essential meson gcc-mingw-w64-x86-64-posix
+sudo apt-get update
+sudo apt-get install python3 python3-venv git build-essential meson gcc-mingw-w64-x86-64-posix
 ```
 
 ### Step 2) Build GStreamer SDK

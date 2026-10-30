@@ -5,23 +5,27 @@ const { randomBytes, randomUUID, createHash } = require("node:crypto");
 function tokenHash(token) { return createHash("sha256").update(token).digest("hex"); }
 
 class EnrollmentStore {
-    constructor(root) {
+    constructor(root, { now = Date.now } = {}) {
         fs.mkdirSync(root, { recursive: true });
         this.file = path.join(root, "enrollments.json");
         this.participants = new Map();
+        this.now = now;
         if (fs.existsSync(this.file)) {
             for (const participant of JSON.parse(fs.readFileSync(this.file, "utf8"))) this.participants.set(participant.participantId, participant);
+            let migrated = false;
+            for (const person of this.participants.values()) if (!person.sessionId && !person.outcome && person.admissionLastActiveAt == null) {person.admissionLastActiveAt = this.now();migrated = true;}
+            if (migrated) this.save();
         }
     }
 
-    admit({ identity, ipAddress = null, operatingSystem = null, recruitment = null }) {
+    admit({ identity, ipAddress = null, operatingSystem = null, recruitment = null }, { allowTerminalIdentity = false } = {}) {
         if (typeof identity !== "string" || !identity.trim() || identity.length > 256) throw new Error("Invalid enrollment identity");
-        if ([...this.participants.values()].some(participant => participant.identity === identity)) throw new Error("Submission already enrolled; use reconnect credentials");
+        if ([...this.participants.values()].some(participant => participant.identity === identity && (!allowTerminalIdentity || !participant.outcome))) throw new Error("Submission already enrolled; use reconnect credentials");
         const reconnectToken = randomBytes(32).toString("base64url");
         const participant = {
             participantId: randomUUID(), identity, ipAddress, operatingSystem, recruitment,
             tokenHash: tokenHash(reconnectToken), sessionId: null, setupComplete: false, pretestComplete: false, outcome: null,
-            currentView: "viewWelcome", revision: 0, readyAt: null, readyOrder: null
+            currentView: "viewWelcome", revision: 0, readyAt: null, readyOrder: null, admissionLastActiveAt: this.now()
         };
         this.participants.set(participant.participantId, participant);
         try { this.save(); }

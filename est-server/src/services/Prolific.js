@@ -13,7 +13,9 @@ class Prolific {
     }
     async verifyToken(token, query) {
         if (typeof token !== "string" || token.length > 16384) throw new Error("A Prolific secured URL token is required");
-        const jose = await import("jose");
+        // Node 22+ can require ESM; a static dependency lets ncc embed the
+        // verifier in the SEA instead of leaving an unavailable lazy JS chunk.
+        const jose = require("jose");
         this.keys ||= this.jwks ? jose.createLocalJWKSet(this.jwks) : jose.createRemoteJWKSet(new URL("https://api.prolific.com/.well-known/study/jwks.json"), { timeoutDuration: 5000, cacheMaxAge: 86400000 });
         const { payload } = await jose.jwtVerify(token, this.keys, { algorithms: ["RS256"], issuer: "https://www.prolific.com", requiredClaims: ["iat", "exp", "aud", "sub", "prolific"], currentDate: new Date(this.now()) });
         const expected = new URL(this.config.prolific.externalStudyUrl);
@@ -38,8 +40,9 @@ class Prolific {
         return this.enrollments.admit({ identity, recruitment });
     }
     expireWaiting() {
+        if (this.config.deployment.mode !== "remote") return false;
         let changed = false;
-        for (const person of this.enrollments.participants.values()) if (!person.sessionId && !person.outcome && person.readyAt != null && this.now() > person.readyAt + this.config.sessions.pairingTimeoutMs) {
+        for (const person of this.enrollments.participants.values()) if (!person.sessionId && !person.outcome && this.now() > (person.readyAt ?? person.admissionLastActiveAt) + this.config.sessions.pairingTimeoutMs) {
             person.outcome = "waitingTimeout";person.currentView = "viewEnding";person.revision = (person.revision || 0) + 1;changed = true;
         }
         if (changed) this.enrollments.save();return changed;

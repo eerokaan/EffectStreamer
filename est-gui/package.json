@@ -9,6 +9,7 @@
     "scripts": {
         "test": "vitest",
         "test:audio-browser": "playwright test --config playwright.audio.config.mjs",
+        "test:e2e": "playwright test --config playwright.config.mjs",
         "dev:format": "prettier --write .",
         "dev:lint": "eslint --cache --fix .",
         "dev:run": "electron-vite dev -- --no-sandbox",

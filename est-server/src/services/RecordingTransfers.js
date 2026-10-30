@@ -172,10 +172,10 @@ class RecordingTransfers {
         });
     }
 
-    commit(participant, id) {
-        return this.locked(id, async () => {
+    async commit(participant, id) {
+        const { session, manifest, receipt } = await this.locked(id, async () => {
             const record = await this.load(id), { session } = this.authorize(participant, record);
-            if (record.receipt) { await this.onReceipt(session, record.manifest, record.receipt); return record.receipt; }
+            if (record.receipt) return { session, manifest: record.manifest, receipt: record.receipt };
             const destination = this.destination(session, record.manifest), temporary = this.partPath(id);
             // A crash after publish but before receipt persistence reconciles the already stored WAV.
             const published = (await byteLength(destination)) > 0;
@@ -187,9 +187,13 @@ class RecordingTransfers {
             await syncDirectory(path.dirname(destination));
             record.receipt = { recordingId: id, sha256: record.manifest.sha256, stored: true };
             await atomicJson(this.metadataPath(id), record);
-            await this.onReceipt(session, record.manifest, record.receipt);
-            return record.receipt;
+            return { session, manifest: record.manifest, receipt: record.receipt };
         });
+        // Session actions can register manifests under this recording lock.
+        // Release it before joining the session queue, including receipt retries.
+        // Still await reconciliation before acknowledging the client.
+        await this.onReceipt(session, manifest, receipt);
+        return receipt;
     }
 }
 module.exports = { RecordingTransfers, validateWav };

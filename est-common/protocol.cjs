@@ -1,7 +1,7 @@
 // Browser-safe contracts: this entry must not import Node modules.
 const PROTOCOL_VERSION = 1;
 const RECORDING_TRACKS = Object.freeze(['microphone', 'headphones']);
-const ACTIONS = Object.freeze(['ready', 'setupComplete', 'pretest', 'submitRating', 'nextView', 'stopCondition', 'leave',
+const ACTIONS = Object.freeze(['ready', 'setupComplete', 'setupInvalidated', 'pretest', 'submitRating', 'nextView', 'stopCondition', 'leave',
     'mediaPrepared', 'mediaStarted', 'mediaStopped', 'mediaFailed', 'recordingsFinalized', 'signal', 'resume']);
 const EVENTS = Object.freeze(Object.fromEntries(['snapshot', 'action', 'mediaCommand', 'mediaResult', 'signal', 'recordingRequest', 'recordingReceipt'].map(name => [name, 'est-event:' + name])));
 

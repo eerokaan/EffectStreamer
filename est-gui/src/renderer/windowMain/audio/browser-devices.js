@@ -4,7 +4,7 @@ export class BrowserDevices {
         this.testAsset = testAsset; this.testDurationMs = testDurationMs; this.onInvalidated = onInvalidated;
         this.testTimeoutMs = testTimeoutMs;
         this.selection = { sourceId: "default", sinkId: "default" }; this.active = false;
-        this.changed = () => {this.invalidate();this.onInvalidated();};
+        this.changed = () => this.invalidate();
         mediaDevices?.addEventListener?.("devicechange", this.changed);
     }
     element() {
@@ -17,7 +17,11 @@ export class BrowserDevices {
         if (active) {this.active = true;this.activeOwner = owner;}
         else if (this.activeOwner === owner) {this.active = false;this.activeOwner = null;}
     }
-    invalidate() { this.tested = null; }
+    invalidate() { this.tested = null;this.onInvalidated(); }
+    setupReady() {
+        return this.context?.state === "running" && this.context.sampleRate === 48000 &&
+            this.tested?.sourceId === this.selection.sourceId && this.tested?.sinkId === this.selection.sinkId;
+    }
     async authorizeContext() {
         if (!this.AudioContext) throw new Error("Web Audio is unavailable");
         this.context ||= new this.AudioContext({ sampleRate: 48000 });

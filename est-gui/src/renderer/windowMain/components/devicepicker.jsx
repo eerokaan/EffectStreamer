@@ -17,7 +17,10 @@ function ComponentDevicePicker() {
     const [peak, setPeak] = useState(0);
     const [processing, setProcessing] = useState(null);
 
-    useEffect(() => { if (snapshot?.setupRequired && !snapshot.setupComplete) setOpen(true); }, [snapshot?.setupRequired, snapshot?.setupComplete, setOpen]);
+    useEffect(() => {
+        if (snapshot?.phase === "ended") setOpen(false);
+        else if (snapshot?.setupRequired && !snapshot.setupComplete) setOpen(true);
+    }, [snapshot?.phase, snapshot?.setupRequired, snapshot?.setupComplete, setOpen]);
     function invalidate() { setTested(null); setHeard(false); setVerified(false); runtime.devices.invalidate?.(); }
     async function refreshDevices() {
         setLoading(true); setError(null); invalidate();

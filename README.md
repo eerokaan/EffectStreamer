@@ -12,13 +12,28 @@ The test procedure implemented in EffectStreamer follows the ITU-T Recommendatio
 
 **EffectStreamer consists of three main parts, which are explained in detail in these README files:** The [**est-core**](./est-core/README.md), [**est-gui**](./est-gui/README.md) and [**est-server**](./est-server/README.md).
 
-`est-core` is the heart of EffectStreamer - a self-contained executable available for both Linux and Windows machines that houses the RTP streaming, impairment, mixing, and recording logic. Standalone deployments can capture and play audio through ALSA or WASAPI2. In local Electron deployments, `est-core` instead acts as a low-latency audio-stream proxy: it reads raw microphone PCM from `stdin` and writes playback PCM to `stdout`.
+`est-core` owns RTP streaming, impairment, mixing and native PCM/WAV recording. Local participants use ALSA on Linux or WASAPI2 on Windows directly; raw PCM stdio remains an optional external-host backend. Standalone WebRTC runs require a signaling host; see the [reference example](est-core/examples/webrtc-host.cjs).
 
-`est-gui` is the participant-facing interface of EffectStreamer - an Electron application available for both Linux and Windows machines that serves as a testing harness, bundling `est-core` to facilitate the actual conversations. It captures and plays audio through browser `AudioWorklet` interfaces, streams raw PCM to and from its `est-core` child processes, guides participants through the conversation tests (_Short Conversation Tests_ and _Listening/Speaking Tests_), and collects their evaluations on the respective rating scales.
+`est-gui` provides one shared React participant frontend. Electron supplies local native devices/processes/files; the browser supplies remote WebRTC and in-memory WAV recording. Both use the same SCT/LST views, questionnaires, ratings and server-owned session flow. Remote participants install nothing.
 
 `est-server` is the orchestrating backbone of EffectStreamer - a central server application that drives the experiment flow and enforces consistent test behaviour across all connected participants. It acts as the authoritative state manager, commanding each participant's `est-gui` to display the appropriate view at any given time, as well as instructing the bundled `est-core` instances to start streaming with the correct impairment attribute values. Beyond coordinating the experiment in real time, `est-server` also collects all evaluation data, including rating scale responses and recorded audio files. The exact conditions to be tested are defined in a central configuration file on the server side, making `est-server` the single source of truth for the entire experiment.
 
-All three components are distributed as fully freestanding executables, requiring no additional dependencies to be installed on the host system. This allows all components to be deployed and run out of the box on both Linux and Windows machines.
+Remote deployments isolate each two-person pair in a worker with four server-hosted cores and two unidirectional browser connections per participant. Stable A/B roles are separate from Prolific identifiers. One coordinator serves the frontend, API, Socket.IO and chunk uploads at one HTTPS origin; public WebRTC media additionally needs reachable ICE/TURN endpoints, not just an HTTPS proxy.
+
+## Running experiments
+
+- **Local:** build/package native Linux or Windows clients, copy the server/GUI example configurations, configure `client-a`/`client-b` LAN addresses, and start the coordinator before both clients. See [server](est-server/README.md) and [GUI](est-gui/README.md) instructions. Audio setup is server-optional locally.
+- **Remote:** follow [deployment/README.md](deployment/README.md) for standalone server/core/runtime packaging, DNS/TLS/TURN, Prolific URLs and operational limits. Audio setup is mandatory. Desktop/laptop Chrome, Edge, Firefox and Safari are the supported targets; phones/tablets are excluded. Automated Chromium/Firefox results do not establish real Safari/Edge or physical-device acceptance; see the [verification checklist](deployment/README.md#verification).
+
+Both modes save `microphone.wav` and `headphones.wav` as 48 kHz mono S16LE PCM. Local taps are the core microphone and playback mix; remote taps are the original microphone stream before Opus encoding and the received decoded playback stream. They do not represent physical sound at the ears, system output-volume changes, or hardware processing. Recordings keep ordinary existing-style start/stop semantics: no extra offsets, sample-count sidecars, gap logs, synchronization, calibration or timing-analysis dataset is added.
+
+Remote transport uses Opus/SRTP; experimental packet loss is applied to private internal L16/RTP, not encrypted Internet packets. Internal packetization targets 128 mono frames, with preserved partial packets at EOS/discontinuities. Internet delay and WebRTC concealment are additional effects, so equal impairment settings do not promise equal local/remote perceptual results or calibrated boundaries.
+
+## Disconnection and collection
+
+If a remote participant disconnects, EffectStreamer stops the active condition, marks that attempt incomplete, and allows a configurable reconnection window. After successful recovery, the pair retries the interrupted condition from the beginning; otherwise, the session ends through the configured early-exit path without replacing either participant. Recordings are collected after each condition and retained in browser memory until the server confirms storage, but closing or reloading the page can lose recordings that have not yet been uploaded.
+
+Only a matching durable storage receipt releases client bytes. Coordinator restart ends active conversations through the technical-failure path; already-stopped upload contexts can reconcile using persisted credentials, manifests, deadlines and receipts when the scientific configuration is unchanged.
 
 ## Contact Info
 

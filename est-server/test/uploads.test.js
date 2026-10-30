@@ -127,3 +127,23 @@ test('authenticated HTTP uploads retry a lost final acknowledgement before relea
     assert.equal(receipt.stored,true);assert.equal(released,1);assert.equal(lost,true);
     assert.deepEqual(session.attempts[0].receipts,[receipt]);
 });
+test('commit and duplicate recording announcement both finish without holding each others locks',async t=>{
+    const {createCoordinator}=require('../src/server.js'),{normalizeConfig}=require('../src/bootstraps/configManager.js'),{localConfig}=require('./fixtures/config.js');
+    const {randomUUID}=require('node:crypto');const root=fs.mkdtempSync('/tmp/opencode/est-upload-locks-');
+    const app=createCoordinator({config:normalizeConfig(localConfig()),root});await app.ready;
+    t.after(async()=>{await app.close();fs.rmSync(root,{recursive:true,force:true});});
+    const people=['client-a','client-b'].map(identity=>app.enrollments.admit({identity}));
+    const session=app.registry.createPair(people.map(person=>app.enrollments.get(person.participantId))),person=people[0];
+    session.clientsData.get(person.participantId).socketId='lock-test';session.clientsSocketRegistry.set('lock-test',person.participantId);
+    session.recordingContextActive='attempt-lock';session.attempts.push({attemptId:'attempt-lock',status:'uploading'});
+    const bytes=wave(),manifest={recordingId:randomUUID(),sessionId:session.sessionId,participantId:person.participantId,attemptId:'attempt-lock',track:'microphone',filename:'microphone.wav',source:'browser-memory',contentType:'audio/wav',byteLength:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex'),status:'complete'};
+    await app.transfers.register(person,[manifest]);await app.transfers.append(person,manifest.recordingId,0,bytes.subarray(0,32));await app.transfers.append(person,manifest.recordingId,32,bytes.subarray(32));
+    for(let retry=0;retry<2;retry++){
+        const committing=app.transfers.commit(person,manifest.recordingId);
+        const announcing=session.dispatch(person.participantId,{version:1,requestId:randomUUID(),participantId:person.participantId,sessionId:session.sessionId,attemptId:'attempt-lock',type:'recordingsFinalized',payload:{manifests:[manifest]}});
+        let timer;const result=await Promise.race([Promise.all([committing,announcing]),new Promise(resolve=>{timer=setTimeout(()=>resolve(null),1000);})]);clearTimeout(timer);
+        assert.notEqual(result,null,'commit/reannouncement deadlocked');
+        assert.deepEqual(session.attempts[0].receipts,[result[0]]);assert.equal(result[0].stored,true);
+        assert.deepEqual(fs.readFileSync(path.join(session.sessionDir,'attempts','attempt-lock',person.participantId,'microphone.wav')),bytes);
+    }
+});

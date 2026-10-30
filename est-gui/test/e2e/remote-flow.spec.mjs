@@ -64,9 +64,11 @@ for (const recover of [false,true]) test("public Prolific entry pairs the defaul
         }
         await next();await bothView("viewShortConversationTestEvaluation");await next();await bothView("viewListeningSpeakingTestExplanation");
         await next();await running();
-        expect(await Promise.all(pages.map(page => page.evaluate(() => window.runtime.snapshot().viewData.conditionListeningSpeakingTestRole)))).toEqual(["speaker", "listener"]);
+        const slots=await Promise.all(pages.map(page=>page.evaluate(()=>window.runtime.snapshot().role)));
+        expect([...slots].sort()).toEqual(['a','b']);
+        expect(await Promise.all(pages.map(page => page.evaluate(() => window.runtime.snapshot().viewData.conditionListeningSpeakingTestRole)))).toEqual(slots.map(role=>role==='a'?'speaker':'listener'));
         await next();await bothView("viewListeningSpeakingTestEvaluation");await next();await running();
-        expect(await Promise.all(pages.map(page => page.evaluate(() => window.runtime.snapshot().viewData.conditionListeningSpeakingTestRole)))).toEqual(["listener", "speaker"]);
+        expect(await Promise.all(pages.map(page => page.evaluate(() => window.runtime.snapshot().viewData.conditionListeningSpeakingTestRole)))).toEqual(slots.map(role=>role==='a'?'listener':'speaker'));
         await next();await bothView("viewListeningSpeakingTestEvaluation");await next();await bothView("viewEnding");
         expect(session.attempts).toHaveLength(recover?4:3);expect(session.attempts.filter(attempt=>attempt.status==='completed')).toHaveLength(3);expect(session.attempts.every(attempt => attempt.receipts.length === 4)).toBe(true);
         for (const page of pages) {await page.waitForFunction(() => window.runtime.recordings.pending.size === 0);expect(await page.evaluate(() => window.errors)).toEqual([]);expect(await page.evaluate(()=>window.runtime.snapshot().viewData.completion)).toEqual({outcome:'completed',code:'FINISH',url:'https://app.prolific.com/submissions/complete?cc=FINISH'});}

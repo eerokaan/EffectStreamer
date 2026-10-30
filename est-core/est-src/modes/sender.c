@@ -133,7 +133,7 @@ int run_sender(SenderParams* params) {
     GstState current_state = GST_STATE_NULL;
 
     GstElement *audioconvert, *audioresample, *capsfilter;
-    GstElement *rtpL16pay, *tee, *gate, *packetizer;
+    GstElement *rtpL16pay, *tee, *gate, *packetizer, *pacer = NULL;
     GstElement *queue1, *estnetsim1, *udpsink1;
     GstElement *queue2, *udpsink2;
     GstElement *queue3, *udpsink3;
@@ -194,6 +194,7 @@ int run_sender(SenderParams* params) {
     gate = create_and_add_element(GST_BIN(context.pipeline), "valve", "audio-gate");
     context.preparation_volume = create_and_add_element(GST_BIN(context.pipeline), "volume", "preparation-mute");
     packetizer = create_and_add_element(GST_BIN(context.pipeline), "audiobuffersplit", "rtp-frame-split");
+    if (params->device_type == DEVICE_TYPE_WEBRTC) pacer = create_and_add_element(GST_BIN(context.pipeline), "identity", "rtp-frame-pacer");
 
     // clang-format off
     queue1 = create_and_add_element(GST_BIN(context.pipeline), "queue", "queue-peer");
@@ -208,13 +209,17 @@ int run_sender(SenderParams* params) {
     udpsink3 = params->recording ? create_and_add_element(GST_BIN(context.pipeline), "udpsink", "udpsink-record") : NULL;
 
     if (!audioconvert || !audioresample || !capsfilter || !rtpL16pay || !tee || !gate || !context.preparation_volume || !packetizer || !queue1 ||
-        (is_packetloss_enabled(packetloss_type) && !estnetsim1) || !udpsink1 || !queue2 || !udpsink2 || (params->recording && (!queue3 || !udpsink3))) {
+        (params->device_type == DEVICE_TYPE_WEBRTC && !pacer) || (is_packetloss_enabled(packetloss_type) && !estnetsim1) || !udpsink1 || !queue2 || !udpsink2 || (params->recording && (!queue3 || !udpsink3))) {
         goto cleanup;
     }
 
     // clang-format off
     g_object_set(G_OBJECT(rtpL16pay), "pt", 96, NULL);
     g_object_set(packetizer, "output-buffer-size", (guint)(params->rtp_frames * 2), "strict-buffer-size", FALSE, NULL);
+    // Decoded Opus arrives in multi-packet blocks. Clock each split PCM buffer
+    // before the impairment branches instead of bursting a whole block into
+    // their small RTP jitterbuffers. Do not clock after the configured delays.
+    if (pacer) g_object_set(pacer, "sync", TRUE, NULL);
     g_object_set(G_OBJECT(queue1), "max-size-buffers", (guint)0, "max-size-bytes", (guint)0, "max-size-time", (guint64)0, "min-threshold-time", nativedelay, NULL);
     g_object_set(G_OBJECT(queue2), "max-size-buffers", (guint)0, "max-size-bytes", (guint)0, "max-size-time", (guint64)0, "min-threshold-time", echodelay, NULL);
     if (queue3) g_object_set(G_OBJECT(queue3), "max-size-buffers", (guint)0, "max-size-bytes", (guint)0, "max-size-time", (guint64)0, "min-threshold-time", (guint64)0, NULL);
@@ -241,7 +246,8 @@ int run_sender(SenderParams* params) {
     gst_caps_unref(caps);
 
     // clang-format off
-    if (!gst_element_link_many(get_audio_backend_last(&source_backend), context.preparation_volume, audioconvert, audioresample, capsfilter, gate, packetizer, rtpL16pay, tee, NULL)) {
+    if (!gst_element_link_many(get_audio_backend_last(&source_backend), context.preparation_volume, audioconvert, audioresample, capsfilter, gate, packetizer, NULL) ||
+        !(pacer ? gst_element_link_many(packetizer, pacer, rtpL16pay, tee, NULL) : gst_element_link_many(packetizer, rtpL16pay, tee, NULL))) {
         g_printerr("Error: Failed to link the sender audio source chain.\n");
         goto cleanup;
     }

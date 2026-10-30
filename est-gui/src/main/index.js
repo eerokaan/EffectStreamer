@@ -1,8 +1,8 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { electronApp, optimizer } from "@electron-toolkit/utils";
-import fs from "node:fs";
 import path from "node:path";
 import { getGuiConfigPath, readGuiConfig, saveAudioDeviceIds } from "@/main/lib/config";
+import { loadLocalEnrollment } from "@/main/lib/enrollment";
 import { getOperatingSystem, getCoreSpawnOptions } from "@/main/lib/coreProcess";
 import { NativeAudioRuntime } from "@/main/audio/native";
 import { StdioAudioRuntime } from "@/main/audio/stdio";
@@ -34,17 +34,7 @@ async function bootstrap() {
         const publicConfig = await response.json();
         if (publicConfig.mode !== "local") throw new Error("This native client requires a local deployment; use the study URL for remote experiments");
         const credentialsPath = configPath + ".enrollment.json";
-        let saved;
-        try { saved = JSON.parse(await fs.promises.readFile(credentialsPath, "utf8")); }
-        catch (error) { if (error.code !== "ENOENT") throw error; }
-        if (!saved || saved.url !== url || saved.identity !== config.client.identity) {
-            const admitted = await fetch(url + "/api/enrollment", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ identity: config.client.identity, ipAddress: config.client.ipAddress, operatingSystem: getOperatingSystem() }) });
-            if (!admitted.ok) throw new Error((await admitted.json()).error || "Participant admission failed");
-            saved = { url, identity: config.client.identity, credentials: await admitted.json() };
-            const temporary = credentialsPath + ".tmp-" + process.pid;
-            await fs.promises.writeFile(temporary, JSON.stringify(saved), { mode: 0o600 });
-            await fs.promises.rename(temporary, credentialsPath);
-        }
+        const saved = await loadLocalEnrollment({ url, identity: config.client.identity, ipAddress: config.client.ipAddress, operatingSystem: getOperatingSystem(), credentialsPath });
         const base = app.isPackaged ? path.join(process.resourcesPath, "est-core") : path.join(app.getAppPath(), "build", process.platform === "win32" ? "win" : "linux");
         const spawnOptions = getCoreSpawnOptions("receiver", { base });
         const options = { config, executable: spawnOptions.executable, env: spawnOptions.options.env,

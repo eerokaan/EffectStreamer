@@ -2,6 +2,7 @@ import { spawn } from "child_process";
 import { StringDecoder } from "string_decoder";
 import path from "path";
 import managedCore from "@effectstreamer/common/core-process";
+import {coreEnvironment} from "@effectstreamer/common/core-environment";
 
 const coreReadyTimeoutMs = 10000;
 const coreStopTimeoutMs = 5000;
@@ -16,35 +17,8 @@ function getCoreSpawnOptions(component, { base = path.join(process.resourcesPath
     const platform = getOperatingSystem();
     const stdio = component === "sender" ? ["pipe", "ignore", "pipe"] : ["pipe", "pipe", "pipe"];
 
-    if (platform === "linux") {
-        const gstLib = path.join(base, "gst-lib", "x86_64-linux-gnu", "lib");
-        return {
-            executable: process.env.EST_CORE_EXECUTABLE || path.join(base, "est-core"),
-            options: {
-                stdio,
-                env: {
-                    ...process.env,
-                    LD_LIBRARY_PATH: gstLib + (process.env.LD_LIBRARY_PATH ? ":" + process.env.LD_LIBRARY_PATH : ""),
-                    GST_PLUGIN_PATH: path.join(gstLib, "gstreamer-1.0")
-                }
-            }
-        };
-    }
-    if (platform === "windows") {
-        const gstLib = path.join(base, "gst-lib", "x86_64-windows", "lib");
-        return {
-            executable: process.env.EST_CORE_EXECUTABLE || path.join(base, "est-core.exe"),
-            options: {
-                stdio,
-                env: {
-                    ...process.env,
-                    PATH: path.join(base, "gst-lib", "x86_64-windows", "bin") + ";" + process.env.PATH,
-                    GST_PLUGIN_PATH: path.join(gstLib, "gstreamer-1.0")
-                }
-            }
-        };
-    }
-
+    const executable = process.env.EST_CORE_EXECUTABLE || path.join(base, platform === 'windows' ? 'est-core.exe' : 'est-core');
+    if (platform === "linux" || platform === "windows") return {executable, options: {stdio, env: coreEnvironment({executable})}};
     throw new Error("Unsupported platform: " + process.platform);
 }
 

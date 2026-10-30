@@ -70,6 +70,30 @@ test('replacement sockets and duplicate actions count only once toward a view ba
     await action(session,b);
     assert.equal(session.snapshot(a.participantId).currentView,'viewShortConversationTestExplanation');
 });
+test('local clients can start a fresh run after an ended pair without reopening old results',async t=>{
+    const app=await fixture(t),a=await app.enroll('client-a'),b=await app.enroll('client-b');
+    await app.join(a);await app.join(b);const original=app.registry.getForParticipant(a.participantId);
+    const renew=async(identity,credentials)=>{
+        const response=await fetch(app.url+'/api/enrollment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({identity,ipAddress:'127.0.0.1',operatingSystem:'linux',reconnectToken:credentials.reconnectToken})});
+        assert.equal(response.status,201,await response.clone().text());return response.json();
+    };
+    assert.deepEqual(await renew('client-a',a),a,'relaunching during an unfinished run must resume, not replace it');
+    await app.recovery.end(original,'technicalFailure');const oldManifest=await fs.promises.readFile(path.join(original.sessionDir,'session.json'),'utf8');
+    const nextA=await renew('client-a',a),nextB=await renew('client-b',b);assert.notEqual(nextA.participantId,a.participantId);
+    await app.join(nextA);await app.join(nextB);const next=app.registry.getForParticipant(nextA.participantId);
+    assert.notEqual(next.sessionId,original.sessionId);assert.equal(next.phase,'experiment');assert.deepEqual([...next.clientsData.values()].map(person=>person.role),['a','b']);
+    assert.equal(app.registry.getForParticipant(a.participantId),original);assert.equal(original.outcome,'technicalFailure');
+    assert.equal(app.enrollments.authenticate(a.reconnectToken).participantId,a.participantId);
+    assert.equal(await fs.promises.readFile(path.join(original.sessionDir,'session.json'),'utf8'),oldManifest);
+    await assert.rejects(app.enroll('client-a'),/201/,'a duplicate live label must still be rejected');
+});
+test('local run renewal does not allow a terminal remote identity to enroll again',async t=>{
+    const raw=remoteConfig();raw.deployment.allowDevelopmentAdmission=true;const app=await fixture(t,raw);
+    const a=await app.enroll('client-a'),b=await app.enroll('client-b');const session=app.registry.createPair([a,b].map(person=>app.enrollments.get(person.participantId)));
+    await app.recovery.end(session,'technicalFailure');
+    const response=await fetch(app.url+'/api/enrollment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({identity:'client-a',reconnectToken:a.reconnectToken})});
+    assert.equal(response.status,409);assert.equal(app.registry.getForParticipant(a.participantId).outcome,'technicalFailure');
+});
 test('another session, participant, stale view or stale attempt cannot change experiment state',async(t)=>{
     const app=await fixture(t);
     const a=await app.enroll('client-a'),b=await app.enroll('client-b');await app.join(a);await app.join(b);

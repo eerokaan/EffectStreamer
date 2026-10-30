@@ -16,19 +16,7 @@ linux:
     target:
         - AppImage
     category: Utility
-    extraResources:
-        - from: "build/linux"
-          to: "est-core"
-          filter:
-              - "est-core"
-              - "gst-lib/**/*"
 
 win:
     target:
         - nsis
-    extraResources:
-        - from: "build/win"
-          to: "est-core"
-          filter:
-              - "est-core.exe"
-              - "gst-lib/**/*"

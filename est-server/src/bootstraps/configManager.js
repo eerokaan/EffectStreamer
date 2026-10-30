@@ -45,6 +45,12 @@ function loadConfig() {
         throw new Error("Unable to parse " + configPath + " as JSON: " + error.message);
     }
 
+    if (process.env.EST_TURN_SECRET !== undefined) {
+        validateObject(parsedConfig, 'config');
+        parsedConfig.remote ??= {};
+        validateObject(parsedConfig.remote, 'remote');
+        parsedConfig.remote.turnSecret = process.env.EST_TURN_SECRET;
+    }
     return normalizeConfig(parsedConfig);
 }
 

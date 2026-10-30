@@ -4,13 +4,15 @@
 
 This is the EffectStreamer Server – it orchestrates the entire experiment; managing state, coordinating all connected participants, collecting evaluation data, and serving as the single source of truth via a central configuration file.
 
-The server writes session data to `~/effectstreamer`. Each experiment run receives a new `session_####` directory containing submitted forms, scale results, condition settings, transferred audio recordings, and audio transport diagnostics inside `condition_####` subdirectories.
+The server writes to `~/effectstreamer/sessions` (override with `EST_RESULTS_ROOT`). Each pair has a UUID directory with `session.json`, condition settings/forms/ratings, and immutable recording attempts under `attempts/<attemptId>/<participantId>/{microphone,headphones}.wav`. `enrollments.json` stores stable identities and hashed reconnect credentials; durable chunk/receipt bookkeeping allows retries. No audio transport/timing-analysis sidecars are written.
 
 EffectStreamer Server is distributed as a standalone Node.js executable and should be started before the GUI clients connect.
 
 ## The configuration file
 
 Before starting the server, copy the `config-server.example.json` config file to `~/effectstreamer/config-server.json` and adjust it for your needs. The path is based on the current OS user's home directory on Linux and Windows.
+
+Set `EST_CONFIG_PATH` to select another mounted JSON file. `config-server.remote.example.json` is the remote starting point; replace study IDs/codes/DNS and provide a private TURN secret before deployment. For remote same-origin hosting, `EST_WEB_ROOT` overrides the adjacent packaged `web` directory (development default `../est-gui/out/web`). A missing explicitly configured web build prevents startup.
 
 On Linux for example, the initial setup can be performed with:
 
@@ -182,6 +184,27 @@ For `select`, `label` is what participants see and `value` is what is saved. The
 
 ## Usage
 
+`EST_SERVER_TYPE=server` runs the coordinator directly; `harness` supervises it with bounded restart delay, and `media-worker` is private child IPC entry, not a public service. Remote media workers execute the same SEA binary without requiring external Node. Relative `remote.coreExecutable` resolves beside the server executable in a distribution, not relative to the caller's working directory. On Windows select `core/est-core.exe`.
+
+### Local and remote controls
+
+| Section | Operational policy |
+| --- | --- |
+| `deployment` | `mode: local|remote`, explicit `maxActivePairs` (default 1), development admission opt-in only. One coordinator, no distributed matchmaking. |
+| `audioSetup` | Local optional, remote mandatory; default route selections and P.501 input/playback/confirmation gates. |
+| `sessions` | FIFO after setup/pretest, 5-minute waiting timeout, 60-second reconnect grace, one retry, 100 unpaired admissions by default. |
+| `recordings` | Default maximum 600 seconds/134217728 bytes per participant, 1 MiB HTTP chunks, 10-minute upload deadline. Bounds must hold both WAVs. |
+| `remote` | Core path, disjoint private/public port ranges, 128-frame internal RTP, Opus 128000 bit/s, 20 ms WebRTC jitter target, 250 ms bounded playback drain, 30-second startup/7-second stop deadlines. These are not end-to-end delay guarantees. |
+| `prolific` | Study ID, all four completion codes, optional secured URLs; answers plus matching durable WAV receipts gate normal completion. |
+
+Browser entry: `https://study.example.org/?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}`. Raw identifiers are recorded as unverified, never used as paths or A/B role selectors. Set `secureUrls`, exact `externalStudyUrl`, `workspaceId` and optional `organisationId` for Prolific's RS256 `prolific_token` verification against its fixed JWKS endpoint. The token lifetime/issuer/audience/query/subject/identifier claims are checked. No Prolific API payment or rejection calls are made. The researcher configures completed/technicalFailure/partnerLeft/waitingTimeout codes and their meaning in Prolific. A successful return link and copyable code come only from server-owned outcome state.
+
+Use `EST_TURN_SECRET` for an environment-secret override, shared with coturn; the secret never appears in public bootstrap. Authenticated per-attempt preparation issues expiring HMAC TURN credentials scoped to the session. `turnUrls` should include reachable UDP, TCP and TLS endpoints. HTTPS is not a media relay. See [deployment networking](../deployment/README.md).
+
+Before joining the ready queue, remote admissions expire after `sessions.pairingTimeoutMs` without a successful setup/questionnaire/navigation action (default five minutes). Progress renews this inactivity window; once queued, the original FIFO waiting deadline is not extended by repeated actions. Expiration persists `waitingTimeout`, releases admission capacity, and never permits normal completion or duplicate Prolific reenrollment.
+
+For another local laboratory run, finish/end the current session, then close and relaunch both Electron clients. Each launch uses its saved credentials to resume an unfinished session or obtain a new participant enrollment after a terminal one. The machine labels remain `client-a`/`client-b`; old session directories, tokens and outcomes remain intact. Do not delete enrollment/results files between runs. Remote Prolific submissions remain terminal and cannot use this local renewal path.
+
 ### Linux
 
 Make the server executable and start it with:
@@ -202,7 +225,7 @@ est-server.exe
 
 ## Compilation
 
-EffectStreamer Server is packaged as a Node.js SEA executable. The build first bundles the JavaScript application with `ncc`, then injects the generated SEA blob into a Node.js executable with `postject`.
+The build bundles the coordinator and worker entry with `ncc` and injects a SEA blob with `postject`. It stages a source-built core, matching runtime and production web frontend in a new distribution; an existing destination is never overwritten. Required inputs: matching `SDK`, `EST_NETSIM_PLUGIN`, target `.build` core and `est-gui/out/web`. Set `EST_DISTRIBUTION_DIR` for another new output directory. Build from Linux using the commands in [deployment/README.md](../deployment/README.md); do not use the old tracked core/runtime archives as source-build evidence.
 
 ### Linux
 
@@ -213,7 +236,7 @@ npm install
 npm run build:linux
 ```
 
-The Linux executable will be written to `est-server/dist`. The configuration file is always loaded from `~/effectstreamer/config-server.json`.
+The Linux distribution is written to `est-server/dist/linux`. Transfer the whole directory, not just the executable. The default configuration path remains `~/effectstreamer/config-server.json`, overridable with `EST_CONFIG_PATH`.
 
 ### Windows
 
@@ -224,4 +247,4 @@ npm install
 npm run build:win
 ```
 
-The Windows executable will be written to `est-server/dist`. The configuration file is always loaded from the current user's home directory at `effectstreamer/config-server.json`.
+The Windows distribution is written to `est-server/dist/win` with `est-server.exe`, `core/est-core.exe`, matching DLLs and `web/`. Cross-building it is not a Windows runtime/device acceptance result. Use the matching Node target version and run the installer/package smoke checks on Windows before release.

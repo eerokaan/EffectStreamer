@@ -11,8 +11,8 @@
         "dev:format": "prettier --write .",
         "dev:lint": "eslint --cache --fix .",
         "dev:run": "EST_SERVER_TYPE=harness node ./src/index.js",
-        "build:linux": "TARGET_OS=linux ./build_scripts/build.sh",
-        "build:win": "TARGET_OS=win ./build_scripts/build.sh"
+        "build:linux": "TARGET_OS=linux bash ./build_scripts/build.sh",
+        "build:win": "TARGET_OS=win bash ./build_scripts/build.sh"
     },
     "dependencies": {
         "@effectstreamer/common": "file:../est-common",

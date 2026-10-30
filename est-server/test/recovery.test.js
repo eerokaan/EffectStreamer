@@ -100,6 +100,16 @@ test('a departure after completion cannot replace an already-issued final outcom
     assert.equal(a.session.outcome,'technicalFailure');
     assert.ok(a.people.every(person=>f.enrollments.get(person.participantId).outcome==='technicalFailure'));
 });
+test('invalidating setup between attempts blocks progression until the routes are tested again',async t=>{
+    const f=fixture(t),a=f.pair('setup-lost');await Promise.allSettled(a.session.mediaOperations);
+    a.session.recordingContextActive=null;const person=a.people[0],client=a.session.clientsData.get(person.participantId);
+    client.currentView='viewListeningSpeakingTestExplanation';a.session.gates.viewChange.add(a.people[1].participantId);
+    const dispatch=(type,payload)=>a.session.dispatch(person.participantId,{version:1,requestId:require('node:crypto').randomUUID(),participantId:person.participantId,sessionId:a.session.sessionId,attemptId:null,type,payload});
+    await dispatch('setupInvalidated',{});
+    assert.equal(client.setupComplete,false);assert.equal(f.enrollments.get(person.participantId).setupComplete,false);assert.equal(a.session.gates.viewChange.size,0);
+    await assert.rejects(dispatch('nextView',{currentView:client.currentView}),/setup/i);
+    await dispatch('setupComplete',{inputUsable:true,playbackConfirmed:true});assert.equal(client.setupComplete,true);
+});
 test('a bounded worker failure can retry after its children stop even when graceful drain reports an error',async t=>{
     const f=fixture(t),a=f.pair('worker-error');a.session.mediaAdapter.stop=async()=>{throw new Error('Core failed after children were reaped');};
     await f.recovery.disconnected(a.people[0].participantId,'worker');await Promise.allSettled(a.session.mediaOperations);

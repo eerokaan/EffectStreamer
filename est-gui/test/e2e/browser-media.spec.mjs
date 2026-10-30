@@ -9,7 +9,7 @@ const { createCoordinator } = require("../../../est-server/src/server.js");
 const { normalizeConfig } = require("../../../est-server/src/bootstraps/configManager.js");
 const { remoteConfig } = require("../../../est-server/test/fixtures/config.js");
 
-test("real browser peers negotiate, record distinct PCM taps, upload by receipt, and close cleanly", async ({ browser }) => {
+test("real browser peers negotiate, record distinct PCM taps, upload by receipt, and close cleanly", async ({ browser }, testInfo) => {
     const root = await fs.mkdtemp("/tmp/opencode/est-browser-media-");
     const raw = remoteConfig(); raw.remote = { coreExecutable: process.env.EST_CORE_EXECUTABLE || path.resolve("../est-core/.build/linux/est-core"), internalPortRange: [35100, 35199], icePortRange: [47000, 47499], playbackDrainMs: 20, startupTimeoutMs: 20000 };
     const app = createCoordinator({ config: normalizeConfig(raw), root });
@@ -85,6 +85,8 @@ test("real browser peers negotiate, record distinct PCM taps, upload by receipt,
             });
             expect(result.microphoneLive).toBe("live");expect(result.playbackLive).toBe("live");expect(result.peak).toBeGreaterThan(.01);
         }
+        // Observe sustained content, not just the first audible codec packet.
+        await new Promise(resolve=>setTimeout(resolve,3000));
         session.attempts[0].status='stopping';
         await session.mediaAdapter.stop({ reason: "completed" });await Promise.all(pages.map(page => page.waitForFunction(() => window.stopped)));
         await Promise.all(pages.map(page=>page.waitForFunction(()=>window.recordings.pending.size===0)));
@@ -97,7 +99,15 @@ test("real browser peers negotiate, record distinct PCM taps, upload by receipt,
             const own=index?880:440,peer=index?440:880;
             expect(power(mic,own)).toBeGreaterThan(power(mic,peer)*10);
             expect(power(play,peer)).toBeGreaterThan(power(play,own)*10);
+            // The source is continuous. Ignore ordinary start/drain edges, but
+            // no interior 100-ms window may turn into silence at zero loss.
+            const frames=(play.length-44)/2;
+            for(let start=24000;start+4800<frames-24000;start+=4800){
+                let energy=0;for(let n=0;n<4800;n++){const sample=play.readInt16LE(44+2*(start+n))/32768;energy+=sample*sample;}
+                expect(Math.sqrt(energy/4800),'continuous zero-loss playback, participant '+index+' window '+start).toBeGreaterThan(.01);
+            }
         }
     }
+    catch(error){await fs.cp(root,testInfo.outputPath('synthetic-audio-failure'),{recursive:true});throw error;}
     finally {await context.close();await app.close();await vite.close();await fs.rm(root, { recursive: true, force: true });}
 });

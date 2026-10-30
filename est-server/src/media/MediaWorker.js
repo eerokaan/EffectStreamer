@@ -2,6 +2,7 @@ const { EventEmitter } = require("node:events");
 const { randomUUID } = require("node:crypto");
 const { startCore } = require("@effectstreamer/common/core-process");
 const { identifier } = require("@effectstreamer/common");
+const { coreEnvironment } = require("@effectstreamer/common/core-environment");
 
 function iceArguments(servers) {
     const args = [];
@@ -19,7 +20,7 @@ function iceArguments(servers) {
 }
 class MediaWorker extends EventEmitter {
     constructor({ config, env = process.env }) {
-        super(); this.config = config; this.env = env; this.children = new Map(); this.state = "idle"; this.stopping = false;
+        super(); this.config = config; this.env = coreEnvironment({executable: config.coreExecutable, env}); this.children = new Map(); this.state = "idle"; this.stopping = false;
     }
     async prepare({ sessionId, attemptId, participants, condition, endpoints, ice = this.config.iceServers }) {
         if (this.children.size || this.preparing) throw new Error("Worker already owns an attempt");

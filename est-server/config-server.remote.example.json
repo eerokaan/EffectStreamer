@@ -1,0 +1,33 @@
+{
+    "deployment": { "mode": "remote", "maxActivePairs": 1, "allowDevelopmentAdmission": false },
+    "audioSetup": { "enabled": true, "testAsset": "P501_C_german_f1_FB_48k.wav" },
+    "sessions": { "pairingTimeoutMs": 300000, "reconnectGraceMs": 60000, "maxRetries": 1, "maxWaitingParticipants": 100 },
+    "recordings": { "maxConditionSeconds": 600, "maxBytesPerParticipant": 134217728, "uploadTimeoutMs": 600000, "chunkBytes": 1048576 },
+    "server": { "ipAddress": "127.0.0.1", "port": 3000 },
+    "remote": {
+        "coreExecutable": "core/est-core",
+        "internalPortRange": [40000, 49999],
+        "icePortRange": [50000, 59999],
+        "playbackDrainMs": 250,
+        "startupTimeoutMs": 30000,
+        "stopTimeoutMs": 7000,
+        "jitterMs": 20,
+        "opusBitrate": 128000,
+        "rtpFrames": 128,
+        "iceServers": [{ "urls": "stun:turn.example.org:3478" }],
+        "turnUrls": ["turn:turn.example.org:3478?transport=udp", "turn:turn.example.org:3478?transport=tcp", "turns:turn.example.org:5349?transport=tcp"],
+        "turnSecret": ""
+    },
+    "prolific": {
+        "enabled": true,
+        "studyId": "REPLACE_WITH_STUDY_ID",
+        "completionCodes": { "completed": "REPLACE_SUCCESS", "technicalFailure": "REPLACE_TECHNICAL", "partnerLeft": "REPLACE_PARTNER", "waitingTimeout": "REPLACE_WAITING" },
+        "secureUrls": false,
+        "externalStudyUrl": "https://study.example.org/",
+        "workspaceId": "",
+        "organisationId": null
+    },
+    "tests": { "short-conversation-test": true, "listening-speaking-test": true },
+    "conditions": { "baseline": [{ "nativeDelay": 0, "nativeGain": 1, "echoDelay": 20, "echoGain": 0.002 }], "random": [] },
+    "pretestForm": [{ "name": "age", "type": "input", "inputType": "number", "label": "Alter", "required": true, "validation": { "valueType": "integer", "min": 18 } }]
+}

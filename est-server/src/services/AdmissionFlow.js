@@ -34,6 +34,7 @@ class AdmissionFlow {
             if (payload.inputUsable !== true || payload.playbackConfirmed !== true) throw new Error("Device test and playback confirmation required");
             person.setupComplete = true;
         }
+        else if (envelope.type === "setupInvalidated") {person.setupComplete = false;}
         else if (envelope.type === "pretest") {
             if (person.currentView !== "viewPretest") throw new Error("Invalid pretest view");
             person.formData = validatePretestAnswers(this.config.pretestForm, payload.formData);person.pretestComplete = true;
@@ -50,6 +51,7 @@ class AdmissionFlow {
         }
         else if (envelope.type === "leave") {person.outcome = "partnerLeft";person.currentView = "viewEnding";}
         else throw new Error("Action is not available before pairing");
+        person.admissionLastActiveAt = this.prolific.now();
         person.revision = (person.revision || 0) + 1;this.enrollments.save();
         this.requests.set(envelope.requestId, id);if (this.requests.size > 1024) this.requests.delete(this.requests.keys().next().value);
         this.publish();this.match();
