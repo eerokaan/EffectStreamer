@@ -1,7 +1,13 @@
+# ===== DIRECTORIES ===============
 node_modules/
-build/linux/gst-lib/
-build/win/gst-lib/
-dist/
+build/**/gst-lib/
 out/
+
+# ===== PARTIAL DIRECTORIES ===============
+dist/*
+!dist/EffectStreamer*.AppImage
+!dist/EffectStreamer*.exe
+
+# ===== FILES ===============
 .DS_Store
 .eslintcache

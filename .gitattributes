@@ -1,6 +1,13 @@
-est-core/dist/** filter=lfs diff=lfs merge=lfs -text
-est-gui/build/linux/est-core filter=lfs diff=lfs merge=lfs -text
-est-gui/build/linux/gst-lib.zip filter=lfs diff=lfs merge=lfs -text
-est-gui/build/win/est-core.exe filter=lfs diff=lfs merge=lfs -text
-est-gui/build/win/gst-lib.zip filter=lfs diff=lfs merge=lfs -text
+# ===== EffectStreamer Core: Executable binaries ===============
+est-core/dist/est-core* filter=lfs diff=lfs merge=lfs -text
+
+# ===== EffectStreamer Server: Executable binaries ===============
+est-server/dist/est-server* filter=lfs diff=lfs merge=lfs -text
+
+# ===== EffectStreamer GUI: Executable binaries, GStreamer and runtime assets ===============
+est-gui/dist/EffectStreamer* filter=lfs diff=lfs merge=lfs -text
+
+est-gui/build/linux/** filter=lfs diff=lfs merge=lfs -text
+est-gui/build/win/** filter=lfs diff=lfs merge=lfs -text
+
 est-gui/src/renderer/windowMain/assets/img/** filter=lfs diff=lfs merge=lfs -text

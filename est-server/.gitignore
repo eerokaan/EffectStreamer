@@ -1,5 +1,11 @@
+# ===== DIRECTORIES ===============
 node_modules/
-dist/
 out/
+
+# ===== PARTIAL DIRECTORIES ===============
+dist/*
+!dist/est-server*
+
+# ===== FILES ===============
 .DS_Store
 .eslintcache

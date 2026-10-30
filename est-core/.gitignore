@@ -1,3 +1,10 @@
+# ===== DIRECTORIES ===============
 gst-sdk/
 gst-lib/
+
+# ===== PARTIAL DIRECTORIES ===============
+dist/*
+!dist/est-core*
+
+# ===== FILES ===============
 .DS_Store
