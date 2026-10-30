@@ -15,9 +15,10 @@ function ComponentDevicePicker() {
     const [tested, setTested] = useState(null);
     const [heard, setHeard] = useState(false);
     const [peak, setPeak] = useState(0);
+    const [processing, setProcessing] = useState(null);
 
     useEffect(() => { if (snapshot?.setupRequired && !snapshot.setupComplete) setOpen(true); }, [snapshot?.setupRequired, snapshot?.setupComplete, setOpen]);
-    function invalidate() { setTested(null); setHeard(false); setVerified(false); }
+    function invalidate() { setTested(null); setHeard(false); setVerified(false); runtime.devices.invalidate?.(); }
     async function refreshDevices() {
         setLoading(true); setError(null); invalidate();
         try {
@@ -33,9 +34,10 @@ function ComponentDevicePicker() {
         setLoading(true); setError(null); setHeard(false);
         try {
             const selection = { sourceId, sinkId };
-            const result = await runtime.devices.test(selection);
+            const result = await runtime.devices.test(selection, { onLevel: setPeak });
             if (!result.inputUsable || !result.playbackComplete) throw new Error("Input check or test playback did not complete");
             setPeak(result.peak || 0); setTested(selection);
+            setProcessing(result.processing || null);
         }
         catch (error) { setTested(null); setError(error.message); }
         finally { setLoading(false); }
@@ -60,6 +62,11 @@ function ComponentDevicePicker() {
                 </DialogHeader>
                 <FieldGroup>
                     <Button variant="outline" onClick={refreshDevices} disabled={loading || activeCondition}><RefreshCwIcon />Load / refresh devices</Button>
+                    {runtime.devices.mediaDevices?.selectAudioOutput && <Button variant="outline" disabled={loading || activeCondition} onClick={async () => {
+                        invalidate();setError(null);
+                        try {const chosen = await runtime.devices.chooseOutput();setSinks([...sinks.filter(device => device.id !== chosen.id), chosen]);setSinkId(chosen.id);}
+                        catch (error) {setError(error.message);}
+                    }}>Grant permission / choose output</Button>}
                     <Field>
                         <FieldLabel>Microphone</FieldLabel>
                         <Select value={sourceId} onValueChange={value => {setSourceId(value);invalidate();}} disabled={loading || activeCondition}>
@@ -76,7 +83,9 @@ function ComponentDevicePicker() {
                         </Select>
                     </Field>
                     <Button onClick={testDevices} disabled={loading || activeCondition || !sourceId || !sinkId}>Check input and play P.501 sample</Button>
-                    {tested && <><label>Input peak <meter min="0" max="1" value={peak} /></label><label><input type="checkbox" checked={heard} onChange={event => setHeard(event.target.checked)} /> I heard the test sample through the selected output.</label></>}
+                    {(loading || tested) && <label>Input peak <meter min="0" max="1" value={peak} /></label>}
+                    {processing && <FieldDescription>Requested audio processing off. Browser reports: {Object.entries(processing).map(([key, value]) => key + ": " + (value === "unknown" ? "unknown" : value ? "enabled" : "off")).join("; ")}.</FieldDescription>}
+                    {tested && <label><input type="checkbox" checked={heard} onChange={event => setHeard(event.target.checked)} /> I heard the test sample through the selected output.</label>}
                     {error && <FieldError errors={[]}>{error}</FieldError>}
                 </FieldGroup>
                 <DialogFooter><Button onClick={saveDevices} disabled={loading || activeCondition || !tested || !heard}>{loading ? "Checking…" : "Continue"}</Button></DialogFooter>

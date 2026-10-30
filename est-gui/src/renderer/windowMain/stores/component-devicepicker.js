@@ -6,10 +6,10 @@ const useStoreComponentDevicePicker = storeCreate({
     initialized: false,
     verified: false,
     activeCondition: false,
-    sources: [],
-    sinks: [],
-    sourceId: "",
-    sinkId: "",
+    sources: [{ id: "default", label: "System / backend default microphone" }],
+    sinks: [{ id: "default", label: "System / backend default output" }],
+    sourceId: "default",
+    sinkId: "default",
     error: null
 });
 

@@ -11,3 +11,5 @@ dist/*
 # ===== FILES ===============
 .DS_Store
 .eslintcache
+test-results/
+playwright-report/

@@ -68,6 +68,11 @@ test("two workers own four core roles each, private endpoints, and reject foreig
 test("silent WebRTC preparation reaches media readiness without releasing experiment audio", { timeout: 20000 }, async t => {
     const { worker, owner } = await fixture(t, "silent");
     const { errors } = await peers(t, worker, owner);
+    await new Promise((resolve,reject)=>{
+        const timer=setTimeout(()=>{worker.off('readiness',check);reject(new Error('Silent preparation must flow before browser playout acknowledges readiness'));},2000);
+        function check(){if(worker.health().mediaReady===4){clearTimeout(timer);worker.off('readiness',check);resolve();}}
+        worker.on('readiness',check);check();
+    });
     await worker.ready(); assert.equal(worker.health().mediaReady, 4);
     await worker.start(); assert.equal(worker.health().state, "running");
     await worker.stop(); assert.equal(worker.health().children.length, 0); assert.deepEqual(errors, []);

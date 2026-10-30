@@ -28,7 +28,7 @@ class MediaWorker extends EventEmitter {
         participants.forEach(id => identifier(id, "participantId"));
         if (!Array.isArray(endpoints) || endpoints.length !== 6 || new Set(endpoints).size !== 6 || endpoints.some(port => !Number.isInteger(port) || port < 1024 || port > 65535)) throw new Error("Invalid worker endpoints");
         this.sessionId = sessionId; this.attemptId = attemptId; this.participants = [...participants]; this.generation = randomUUID();
-        this.state = "preparing"; this.stopping = false; this.stopPromise = null; this.failure = null; this.primed = false; this.preparing = true;
+        this.state = "preparing"; this.stopping = false; this.stopPromise = null; this.failure = null; this.primed = false; this.priming = null; this.preparing = true;
         let finishPreparation;
         this.preparationDone = new Promise(resolve => {finishPreparation = resolve;});
         try {
@@ -57,6 +57,9 @@ class MediaWorker extends EventEmitter {
                     record.connected = state === "connected";
                     if (state === "failed" || state === "disconnected") this.failed(new Error("WebRTC connection " + state));
                     this.emit("readiness");
+                    if (this.children.size === 4 && [...this.children.values()].every(child => child.connected) && !this.priming) {
+                        this.priming = this.ready();void this.priming.catch(error => this.failed(error));
+                    }
                 });
                 core.on("media-ready", () => { record.mediaReady = true; this.emit("readiness"); });
                 core.on("media-failed", error => this.failed(error instanceof Error ? error : new Error("Core media failed")));

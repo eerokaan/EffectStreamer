@@ -15,6 +15,7 @@ export function createSessionClient({ transport, participantId, onSnapshot = () 
     function command(value) { if (!disposed) void Promise.resolve(onCommand(value)).catch(onError); }
     listen(EVENTS.snapshot, accept);
     listen(EVENTS.mediaCommand, command);
+    listen(EVENTS.signal, value => command({ ...value, type: "remoteSignal", signal: value }));
     listen(EVENTS.recordingRequest, value => command({ ...value, type: "collectRecordings" }));
     listen("connect_error", onError);
     listen("disconnect", reason => command({ type: "disconnected", reason }));
@@ -30,12 +31,12 @@ export function createSessionClient({ transport, participantId, onSnapshot = () 
             return new Promise((resolve, reject) => {
                 const item = { reject, timer: setTimeout(() => { pending.delete(item); reject(new Error("Coordinator action timed out")); }, timeoutMs) };
                 pending.add(item);
-                transport.emit(["mediaPrepared", "mediaStarted", "mediaStopped", "mediaFailed", "recordingsFinalized"].includes(type) ? EVENTS.mediaResult : EVENTS.action, message, response => {
+                transport.emit(type === "signal" ? EVENTS.signal : ["mediaPrepared", "mediaStarted", "mediaStopped", "mediaFailed", "recordingsFinalized"].includes(type) ? EVENTS.mediaResult : EVENTS.action, message, response => {
                     if (!pending.delete(item)) return;
                     clearTimeout(item.timer);
                     if (response?.requestId !== message.requestId || response.ok !== true) { reject(new Error(response?.error || "Invalid coordinator acknowledgement")); return; }
                     if (response.snapshot) accept(response.snapshot);
-                    resolve(response.snapshot);
+                    resolve(type === "signal" ? response.signal : response.snapshot);
                 });
             });
         },

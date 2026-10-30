@@ -45,4 +45,11 @@ describe('shared participant runtime',()=>{
         expect(states).toEqual([]);socket.receive('est-event:snapshot',snapshot);expect(states).toEqual([snapshot]);
         client.dispose();socket.receive('est-event:snapshot',{...snapshot,revision:3});expect(states).toHaveLength(1);
     });
+    it('signals use their dedicated authenticated event and preserve answer acknowledgements',async()=>{
+        const socket=transport();let signal;
+        socket.emit=(event,message,ack)=>{signal={event,message};ack({ok:true,requestId:message.requestId,signal:{type:'answer',sdp:'answer'}});};
+        const client=createSessionClient({transport:socket,participantId:'p-1'});socket.receive('est-event:snapshot',snapshot);
+        expect(await client.dispatch('signal',{connectionId:'uplink',generation:'g-1',type:'offer',sdp:'offer'})).toEqual({type:'answer',sdp:'answer'});
+        expect(signal.event).toBe('est-event:signal');client.dispose();
+    });
 });

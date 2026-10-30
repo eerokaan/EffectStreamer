@@ -8,6 +8,7 @@
     "company": "Quality and Usability Lab | TU Berlin",
     "scripts": {
         "test": "vitest",
+        "test:audio-browser": "playwright test --config playwright.audio.config.mjs",
         "dev:format": "prettier --write .",
         "dev:lint": "eslint --cache --fix .",
         "dev:run": "electron-vite dev -- --no-sandbox",
@@ -39,6 +40,7 @@
     "devDependencies": {
         "@electron-toolkit/eslint-config": "^2.1.0",
         "@electron-toolkit/eslint-config-prettier": "^3.0.0",
+        "@playwright/test": "^1.64.1",
         "@vitejs/plugin-react": "^5.1.1",
         "electron": "^39.2.6",
         "electron-builder": "^26.0.12",
