@@ -8,15 +8,17 @@ class SessionFiles {
     // prettier-ignore
     constructor({
         state,
-        config
+        config,
+        root = path.join(os.homedir(), "effectstreamer")
     }) {
         this.state = state;
         this.config = config;
+        this.root = root;
     }
 
     createFolderStructure() {
         // Create the effectstreamer base directory
-        const effectstreamerDir = path.join(os.homedir(), "effectstreamer");
+        const effectstreamerDir = this.root;
         fs.mkdirSync(effectstreamerDir, { recursive: true });
 
         // Determine next session number (n+1 from existing directories) and create directory
@@ -26,7 +28,7 @@ class SessionFiles {
             .filter((number) => number != null);
         const sessionNumber = existing.length > 0 ? Math.max(...existing) + 1 : 1;
 
-        this.state.sessionDir = path.join(effectstreamerDir, formatSessionDirName(sessionNumber));
+        this.state.sessionDir = path.join(effectstreamerDir, this.state.sessionId || formatSessionDirName(sessionNumber));
         fs.mkdirSync(this.state.sessionDir);
 
         // Create condition directories

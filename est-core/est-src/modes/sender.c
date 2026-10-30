@@ -263,9 +263,9 @@ int run_sender(SenderParams* params) {
     if (state_change != GST_STATE_CHANGE_FAILURE && !params->managed) {
         state_change = gst_element_get_state(context.pipeline, &current_state, NULL, GST_CLOCK_TIME_NONE);
     }
-    if (print_startup_errors(bus)) {
-        record_runtime_error(&context);
-    }
+    // pop_filtered discards nonmatching messages, including an early EOS.
+    // The sync bus handler already records errors; drain only on failure.
+    if (has_runtime_error(&context)) print_startup_errors(bus);
     if (state_change == GST_STATE_CHANGE_FAILURE || (!params->managed && current_state != GST_STATE_PLAYING) || has_runtime_error(&context)) {
         g_printerr("Error: Sender pipeline failed during startup.\n");
         goto cleanup;

@@ -34,7 +34,8 @@ class Harness {
                 process.exit(0);
             }
 
-            console.log("[Harness] Server instance exited (code: " + code + ") - Restarting in 500ms");
+            if (code === 0) return;
+            console.log("[Harness] Server failed (code: " + code + ") - Restarting in 500ms");
             setTimeout(() => this.spawnServer(), 500);
         });
     }

@@ -1,6 +1,6 @@
 const { isObject } = require("../utils/validation.js");
-const { buildRecordingFilename } = require("../utils/filenames.js");
-const { getRoundSuffix, getExperimentCondition, getRecordingContextKey } = require("../utils/experiment.js");
+const { getRoundSuffix, getExperimentCondition } = require("../utils/experiment.js");
+const { randomUUID } = require("node:crypto");
 
 class EffectStreamerCore {
     // prettier-ignore
@@ -56,7 +56,7 @@ class EffectStreamerCore {
                 return;
             }
 
-            recordingContext.sockets.senderReady.add(socket.id);
+            recordingContext.sockets.senderReady.add(client.participantId);
 
             if (recordingContext.sockets.senderReady.size >= recordingContext.clients.length) {
                 const currentCondition = getExperimentCondition(this.config, recordingContext.scope.conditionIndex, this.state.conditionOrder);
@@ -89,10 +89,11 @@ class EffectStreamerCore {
                 return;
             }
 
-            recordingContext.sockets.receiverReady.add(socket.id);
+            recordingContext.sockets.receiverReady.add(client.participantId);
 
             if (recordingContext.sockets.receiverReady.size >= recordingContext.clients.length) {
                 recordingContext.status = "running";
+                this.state.attempts.find(attempt => attempt.attemptId === recordingContext.contextKey).status = "running";
                 clearTimeout(recordingContext.startupTimeout);
 
                 console.log("[Server] Recording context running: " + recordingContext.contextKey);
@@ -133,12 +134,14 @@ class EffectStreamerCore {
             return;
         }
 
+        if (data.success === false) recordingContext.interrupted = true;
         // Stop-response barrier: Enter upload handling after every client has stopped
-        recordingContext.sockets.stopped.add(socket.id);
+        recordingContext.sockets.stopped.add(client.participantId);
 
         if (recordingContext.sockets.stopped.size >= recordingContext.clients.length) {
             if (recordingContext.status === "stopping") {
                 recordingContext.status = "uploading";
+                this.state.attempts.find(attempt => attempt.attemptId === recordingContext.contextKey).status = recordingContext.interrupted ? "interrupted" : "uploading";
 
                 console.log("[Server] Recording context uploading: " + recordingContext.contextKey);
 
@@ -169,134 +172,6 @@ class EffectStreamerCore {
         console.log("[Server] Recording state update response from " + clientId + ": " + JSON.stringify(data));
     }
 
-    handleFileTransferRequest(socket, data) {
-        // Ignore requests with missing or invalid data
-        if (!isObject(data)) {
-            this.clientRegistry.logEventError(socket, "fileTransferRequest", "Data is missing or invalid");
-            return;
-        }
-
-        // Determine the client, the recording context and the allowed file names
-        const client = this.clientRegistry.fetchClient(socket.id);
-        const recordingContext = this.state.recordingContexts.get(data.contextKey);
-        const recordingFileNames = new Set(["microphone.ogg", "headphones.ogg", "audio-transport.json"]);
-
-        // Ignore requests from unknown clients
-        if (!client) {
-            this.clientRegistry.logEventError(socket, "fileTransferRequest", "Client is unknown (Perhaps ongoing shutdown?)");
-            return;
-        }
-
-        // Ignore requests for unknown recording contexts
-        if (!recordingContext) {
-            this.clientRegistry.logEventError(socket, "fileTransferRequest", "Recording context is unknown");
-            return;
-        }
-
-        // Ignore requests for already completed recording contexts
-        if (recordingContext.status === "completed") {
-            this.clientRegistry.logEventError(socket, "fileTransferRequest", "Recording context is already completed");
-            return;
-        }
-
-        // Ignore requests for recording contexts that are not ready for file transfer
-        if (recordingContext.status !== "stopping" && recordingContext.status !== "uploading") {
-            this.clientRegistry.logEventError(socket, "fileTransferRequest", "Recording context is not ready for file transfer");
-            return;
-        }
-
-        // Ignore requests with an unknown file name
-        if (!recordingFileNames.has(data.fileName)) {
-            this.clientRegistry.logEventError(socket, "fileTransferRequest", "The supplied file name is unknown");
-            return;
-        }
-
-        // Determine the file entry key and the recording context membership
-        const fileEntryKey = client.clientId + ":" + data.fileName;
-        const matchesRecordingContext = recordingContext.clients.some((recordingClient) => recordingClient.clientId === client.clientId);
-
-        // Ignore requests for files that do not belong to this recording context
-        if (!matchesRecordingContext) {
-            this.clientRegistry.logEventError(socket, "fileTransferRequest", "The supplied file does not belong to this recording context");
-            return;
-        }
-
-        // Track empty files as a failed transfer (e.g. failed recordings)
-        if (data.fileData == null) {
-            this.recordingFileTransferFailed(recordingContext, client, fileEntryKey, data.fileName, data.error);
-            return;
-        }
-
-        // Ignore requests for already received files
-        if (recordingContext.files.uploaded.has(fileEntryKey)) {
-            this.clientRegistry.logEventError(socket, "fileTransferRequest", "The supplied file was already received");
-            return;
-        }
-
-        // Track invalid file data as a failed transfer
-        let fileData = null;
-        try {
-            fileData = Buffer.from(data.fileData);
-        }
-        catch (error) {
-            this.recordingFileTransferFailed(recordingContext, client, fileEntryKey, data.fileName, "Invalid file data: " + error.message);
-            return;
-        }
-
-        // For newly received and healthy files
-        try {
-            const serverFilename = buildRecordingFilename(client.clientId, recordingContext.scope.testType, recordingContext.scope.roundSuffix, data.fileName);
-            this.sessionFiles.saveFile("conditionDir", serverFilename, fileData, recordingContext.scope.conditionIndex);
-        }
-        catch (error) {
-            this.recordingFileTransferFailed(recordingContext, client, fileEntryKey, data.fileName, "Unable to save file: " + error.message);
-            return;
-        }
-
-        // For newly received and healthy files: Track the file as received and clear previous failures
-        recordingContext.files.uploaded.add(fileEntryKey);
-        recordingContext.files.failed.delete(fileEntryKey);
-
-        // For newly received and healthy files: Enter upload handling
-        if (recordingContext.status === "stopping") {
-            recordingContext.status = "uploading";
-
-            // prettier-ignore
-            this.clientRegistry.emitToAll("est-event:recordingStateUpdateRequest", {
-                contextKey: recordingContext.contextKey,
-                testType: recordingContext.scope.testType,
-                status: "uploading"
-            });
-        }
-
-        this.recordingContextFinalizeUpload(recordingContext);
-    }
-
-    recordingFileTransferFailed(recordingContext, client, fileEntryKey, fileName, error) {
-        // Ignore failures for already received files
-        if (recordingContext.files.uploaded.has(fileEntryKey)) {
-            return;
-        };
-
-        // Track the file as failed and log the outcome
-        recordingContext.files.failed.add(fileEntryKey);
-        console.log("[Server] Recording file transfer failed for " + client.clientId + " (" + recordingContext.contextKey + "): " + fileName + (error ? " - " + error : ""));
-
-        // Enter upload handling
-        if (recordingContext.status === "stopping") {
-            recordingContext.status = "uploading";
-
-            // prettier-ignore
-            this.clientRegistry.emitToAll("est-event:recordingStateUpdateRequest", {
-                contextKey: recordingContext.contextKey,
-                testType: recordingContext.scope.testType,
-                status: "uploading"
-            });
-        }
-
-        this.recordingContextFinalizeUpload(recordingContext);
-    }
-
     recordingContextStart(testType) {
         // Reject unknown test types
         if (!this.config.tests[testType]) {
@@ -306,8 +181,8 @@ class EffectStreamerCore {
 
         // Determine the context key and the existing recording context
         const roundSuffix = getRoundSuffix(testType, this.state.conditionListeningSpeakingTestIndex);
-        const contextKey = getRecordingContextKey(this.state.conditionIndex, testType, roundSuffix);
-        const existingRecordingContext = this.state.recordingContexts.get(contextKey);
+        const contextKey = randomUUID();
+        const existingRecordingContext = this.state.recordingContexts.get(this.state.recordingContextActive);
 
         // Reuse the unfinished context for this condition instead of creating a duplicate
         if (existingRecordingContext && existingRecordingContext.status !== "completed") {
@@ -319,6 +194,7 @@ class EffectStreamerCore {
         // Determine the clients for the recording context
         const clients = Array.from(this.state.clientsData.values()).map((client) => ({
             clientId: client.clientId,
+            participantId: client.participantId,
             socketId: client.socketId,
             ipAddress: client.ipAddress
         }));
@@ -352,6 +228,7 @@ class EffectStreamerCore {
         // Store the recording context and mark it as active
         this.state.recordingContexts.set(contextKey, recordingContext);
         this.state.recordingContextActive = contextKey;
+        this.state.attempts.push({ attemptId: contextKey, testType, conditionIndex: this.state.conditionIndex, roundSuffix, status: "preparing" });
 
         // Enter sender startup handling with a timeout guard
         recordingContext.startupTimeout = setTimeout(() => {
@@ -416,7 +293,9 @@ class EffectStreamerCore {
         }
 
         // Track the socket as waiting for the view change
-        recordingContext.sockets.viewChangePending.add(socket.id);
+        const participant = this.clientRegistry.fetchClient(socket.id);
+        if (!participant) return { status: "pending" };
+        recordingContext.sockets.viewChangePending.add(participant.participantId);
 
         // Report completion for already completed recording contexts
         if (recordingContext.status === "completed") {
@@ -448,6 +327,7 @@ class EffectStreamerCore {
 
         // Enter stopping handling
         recordingContext.status = "stopping";
+        this.state.attempts.find(attempt => attempt.attemptId === recordingContext.contextKey).status = recordingContext.interrupted ? "interrupted" : "stopping";
         clearTimeout(recordingContext.startupTimeout);
         console.log("[Server] Recording context stopping: " + recordingContext.contextKey);
 
@@ -466,12 +346,13 @@ class EffectStreamerCore {
 
     // prettier-ignore
     recordingContextFinalizeUpload(recordingContext) {
-        const expectedFileEntryCount = recordingContext.clients.length * 3;
-        const completedFileEntryCount = recordingContext.files.uploaded.size + recordingContext.files.failed.size;
+        const expectedFileEntryCount = recordingContext.clients.length * 2;
+        const completedFileEntryCount = recordingContext.files.uploaded.size;
 
         // Ignore recording contexts with pending files or pending client stops
         if (
             completedFileEntryCount < expectedFileEntryCount ||
+            recordingContext.interrupted ||
             recordingContext.status === "completed" ||
             recordingContext.sockets.stopped.size < recordingContext.clients.length
         ) {
@@ -480,19 +361,17 @@ class EffectStreamerCore {
 
         // Enter completed handling
         recordingContext.status = "completed";
+        this.state.attempts.find(attempt => attempt.attemptId === recordingContext.contextKey).status = "completed";
         clearTimeout(recordingContext.startupTimeout);
 
         // Release the active recording context and log the outcome
         if (this.state.recordingContextActive === recordingContext.contextKey) {
             this.state.recordingContextActive = null;
         }
-        console.log("[Server] Recording context completed: " + recordingContext.contextKey + (recordingContext.files.failed.size > 0 ? " (with failures)" : ""));
+        console.log("[Server] Recording context completed: " + recordingContext.contextKey);
 
         // Notify the clients and hand over to the completion handler
-        this.clientRegistry.emitToAll("est-event:fileTransferResponse", {
-            contextKey: recordingContext.contextKey,
-            testType: recordingContext.scope.testType
-        });
+        // Cleanup is authorized only by individual durable receipts returned by HTTP.
         this.recordingContextCompletedHandler(recordingContext);
     }
 }

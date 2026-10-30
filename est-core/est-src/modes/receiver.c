@@ -306,9 +306,7 @@ int run_receiver(ReceiverParams* params) {
     if (state_change != GST_STATE_CHANGE_FAILURE && !params->managed) {
         state_change = gst_element_get_state(context.pipeline, &current_state, NULL, GST_CLOCK_TIME_NONE);
     }
-    if (print_startup_errors(bus)) {
-        record_runtime_error(&context);
-    }
+    if (has_runtime_error(&context)) print_startup_errors(bus);
     if (state_change == GST_STATE_CHANGE_FAILURE || (!params->managed && current_state != GST_STATE_PLAYING) || has_runtime_error(&context)) {
         g_printerr("Error: Receiver pipeline failed during startup.\n");
         goto cleanup;

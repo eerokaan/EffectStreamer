@@ -43,6 +43,7 @@ class ExperimentFlow {
             this.clientRegistry.logEventError(socket, "viewChangeRequest", "Requested view is unknown");
             return;
         }
+        if (client.currentView !== currentView.name) return;
 
         // Write scale data to file if applicable
         if (data.scaleValues) {
@@ -58,7 +59,7 @@ class ExperimentFlow {
 
         // Views with gated passing
         else if (currentView.passing === "gated") {
-            this.state.gates.viewChange.add(socket.id);
+            this.state.gates.viewChange.add(client.participantId);
 
             // Both clients now want to proceed
             if (this.state.gates.viewChange.size === 2) {
@@ -145,12 +146,9 @@ class ExperimentFlow {
         this.state.gates.viewChange.clear();
         if (!recordingContextStarted) return;
 
-        // For ending view: Schedule server shutdown after the ending view is shown
+        // Ending this pair never exits the shared coordinator.
         if (nextView.name === this.views.ending) {
-            setTimeout(() => {
-                console.log("[Server] Shutting down current server instance due to experiment completion");
-                process.exit();
-            }, 60000);
+            this.state.phase = "ended";
         }
     }
 
@@ -160,10 +158,10 @@ class ExperimentFlow {
         const nextView = this.viewFlow.getNextView(currentView);
 
         // Release clients waiting for recording completion
-        for (const socketId of recordingContext.sockets.viewChangePending) {
-            const client = this.clientRegistry.fetchClient(socketId);
+        for (const participantId of recordingContext.sockets.viewChangePending) {
+            const client = this.state.clientsData.get(participantId);
             if (client) {
-                this.clientRegistry.emitToSocket(socketId, "est-event:viewChangeResponse", this.viewFlow.getViewData(nextView, client));
+                this.clientRegistry.emitToSocket(client.socketId, "est-event:viewChangeResponse", this.viewFlow.getViewData(nextView, client));
             }
         }
 

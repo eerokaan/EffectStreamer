@@ -112,7 +112,7 @@ class ViewFlow {
 
         // Payload for lstMain and lstEval views
         if (view.name === views.lstMain || view.name === views.lstEval) {
-            const isClientA = client.clientId === "client-a";
+            const isClientA = client.role === "a";
             const isFirstLstRound = this.state.conditionListeningSpeakingTestIndex === 0;
             const conditionListeningSpeakingTestRole = isClientA === isFirstLstRound ? "speaker" : "listener";
 
@@ -135,7 +135,8 @@ class ViewFlow {
 
     getClientConditionAsset(client) {
         const conditionPadded = padNumber(this.state.conditionIndex + 1, 2);
-        return client.clientId + "/" + conditionPadded + ".png";
+        if (!["a", "b"].includes(client.role)) throw new Error("Missing A/B role slot");
+        return "client-" + client.role + "/" + conditionPadded + ".png";
     }
 }
 

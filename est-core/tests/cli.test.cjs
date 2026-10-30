@@ -1,6 +1,8 @@
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const dgram = require('node:dgram');
+const {spawnSync}=require('node:child_process');
+const {corePath}=require('./fixtures.cjs');
 const {runCli,allocatePorts,startProcess,waitForReady,feedRtp} = require('./fixtures.cjs');
 
 test('help preserves standalone modes and documents configurable ports',()=>{
@@ -18,6 +20,12 @@ test('port validation rejects invalid ranges and role-specific options before op
     }
     assert.match(runCli(['--mode','receiver','--device-type','stdio','--bind-address','bad']).stderr,/Invalid.*--bind-address/);
     assert.match(runCli(['--mode','receiver','--device-type','stdio','--device-id','browser-id']).stderr,/invalid with/);
+});
+test('sender exits gracefully when stdin closes before the first audio buffer',()=>{
+    for(let i=0;i<20;i++) {
+        const result=spawnSync(corePath(),['--mode','sender','--device-type','stdio','--peerip','127.0.0.1'],{encoding:'utf8',input:'',timeout:1500});
+        assert.equal(result.status,0,result.stderr+' '+result.error);
+    }
 });
 test('two silent-independent receivers bind distinct endpoint sets and release on EOF', {timeout:15000},async(t)=>{
     const ports=await allocatePorts(t,6);
@@ -51,5 +59,9 @@ test('sender sends L16 to the configured peer, echo, and recording endpoints', {
     const packets=await Promise.all(received);
     assert.ok(packets.every(packet=>(packet[1]&127)===96));
     for(const packet of packets) assert.ok(Math.abs(packet.readInt16BE(12)-8192)<=1);
-    assert.equal((await sender.exit).code,0);
+    let exitTimer;
+    try {
+        const result=await Promise.race([sender.exit,new Promise((_,reject)=>{exitTimer=setTimeout(()=>reject(new Error('Sender exit stalled after RTP delivery: '+sender.stderr)),4000);})]);
+        assert.equal(result.code,0,result.stderr);
+    } finally {clearTimeout(exitTimer);}
 });
