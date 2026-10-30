@@ -16,7 +16,7 @@ class SessionFiles {
         this.root = root;
     }
 
-    createFolderStructure() {
+    createFolderStructure({ restore = false } = {}) {
         // Create the effectstreamer base directory
         const effectstreamerDir = this.root;
         fs.mkdirSync(effectstreamerDir, { recursive: true });
@@ -29,12 +29,12 @@ class SessionFiles {
         const sessionNumber = existing.length > 0 ? Math.max(...existing) + 1 : 1;
 
         this.state.sessionDir = path.join(effectstreamerDir, this.state.sessionId || formatSessionDirName(sessionNumber));
-        fs.mkdirSync(this.state.sessionDir);
+        fs.mkdirSync(this.state.sessionDir, { recursive: restore });
 
         // Create condition directories
         const roundsTotal = this.config.conditions.baseline.length + this.config.conditions.random.length;
         for (let counter = 1; counter <= roundsTotal; counter++) {
-            fs.mkdirSync(path.join(this.state.sessionDir, formatConditionDirName(counter)));
+            fs.mkdirSync(path.join(this.state.sessionDir, formatConditionDirName(counter)), { recursive: restore });
         }
     }
 

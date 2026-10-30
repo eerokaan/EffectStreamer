@@ -110,3 +110,13 @@ it('applies queued ICE only after the matching answer and invalidates an unplugg
     const selected={sourceId:'default',sinkId:'default'};await f.value.test(selected);f.value.changed();
     await expect(f.value.save(selected)).rejects.toThrow(/test/i);
 });
+it('a late cancelled microphone request cannot unlock devices owned by a newer attempt',async()=>{
+    const f=devices();let resolveOld;const acquire=f.value.acquire.bind(f.value);let first=true;
+    f.value.acquire=()=>{if(first){first=false;return new Promise(resolve=>{resolveOld=resolve;});}return acquire();};
+    const old=new BrowserAudioSession({devices:f.value,RTCPeerConnection:Peer});
+    const pending=old.prepare({scope,generation:'old',iceServers:[],signal:async()=>({type:'answer',sdp:'answer'})}).catch(error=>error);
+    await old.stop();const current=new BrowserAudioSession({devices:f.value,RTCPeerConnection:Peer});
+    await current.prepare({scope:{...scope,attemptId:'new-attempt'},generation:'new',iceServers:[],signal:async()=>({type:'answer',sdp:'answer'})});
+    resolveOld(stream());expect((await pending).message).toMatch(/cancelled/);
+    expect(f.value.active).toBe(true);await current.stop();expect(f.value.active).toBe(false);
+});

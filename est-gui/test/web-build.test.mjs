@@ -14,4 +14,5 @@ it("builds the shared renderer for the web without native runtime or Node/Electr
         expect(chunk.imports.some(id => /^(node:|electron$)/.test(id))).toBe(false);
         expect(chunk.code).not.toContain("window.appApi");
     }
-}, 30000);
+// This checks dependency isolation, not build speed on a shared filesystem.
+}, 120000);

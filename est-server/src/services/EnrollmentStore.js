@@ -20,7 +20,8 @@ class EnrollmentStore {
         const reconnectToken = randomBytes(32).toString("base64url");
         const participant = {
             participantId: randomUUID(), identity, ipAddress, operatingSystem, recruitment,
-            tokenHash: tokenHash(reconnectToken), sessionId: null, setupComplete: false, pretestComplete: false, outcome: null
+            tokenHash: tokenHash(reconnectToken), sessionId: null, setupComplete: false, pretestComplete: false, outcome: null,
+            currentView: "viewWelcome", revision: 0, readyAt: null, readyOrder: null
         };
         this.participants.set(participant.participantId, participant);
         try { this.save(); }
@@ -35,6 +36,19 @@ class EnrollmentStore {
     }
 
     get(id) { return this.participants.get(id); }
+
+    ready(id, now = Date.now()) {
+        const person = this.get(id);
+        if (!person || person.sessionId || person.outcome || !person.setupComplete || !person.pretestComplete) throw new Error("Complete setup and pretest before joining the queue");
+        if (person.readyOrder == null) {
+            person.readyAt = now;person.readyOrder = 1 + Math.max(0, ...[...this.participants.values()].map(person => person.readyOrder || 0));
+            this.save();
+        }
+        return person;
+    }
+    nextPair(eligible = () => true) {
+        return [...this.participants.values()].filter(person => !person.sessionId && !person.outcome && person.readyOrder != null && person.setupComplete && person.pretestComplete && eligible(person)).sort((a, b) => a.readyOrder - b.readyOrder).slice(0, 2);
+    }
 
     save() {
         const temporary = this.file + ".tmp-" + randomUUID();

@@ -107,6 +107,7 @@ class RecordingTransfers {
             result.push(await this.locked(manifest.recordingId, async () => {
                 const record = { manifest, expiresAt: this.now() + this.config.uploadTimeoutMs };
                 const { session, attempt } = this.authorize(participant, record);
+                record.expiresAt = Math.min(record.expiresAt, attempt.uploadDeadline || record.expiresAt);
                 if (!["stopping", "uploading", "interrupted", "completed"].includes(attempt.status)) throw new Error("Attempt is not ready for recording transfer");
                 const expected = attempt.recordings || [];
                 const existing = expected.find(item => item.participantId === manifest.participantId && item.track === manifest.track);

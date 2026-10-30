@@ -1,4 +1,16 @@
 export async function handleNativeCommand(audio, command) {
+    if (command.type === "reconnected") {
+        const snapshot = command.snapshot;
+        if (!snapshot.sessionId) return;
+        if (audio.current && (snapshot.phase === "interrupted" || snapshot.phase === "ended" || audio.current.stopPromise)) {
+            const previous = audio.current.scope;
+            await audio.stop(previous).catch(() => {});await audio.recordings(previous, { status: "interrupted" }).catch(() => {});
+        }
+        await audio.loadPending();
+        const manifests = [...audio.pending.values()].map(entry => entry.manifest).filter(manifest => manifest.sessionId === snapshot.sessionId && manifest.participantId === snapshot.participantId);
+        if (!snapshot.attemptId && !snapshot.viewData?.recovery && !manifests.length) return;
+        return { type: "resume", scope: { sessionId: snapshot.sessionId, participantId: snapshot.participantId, attemptId: snapshot.attemptId }, payload: { manifests, mediaPresent: Boolean(audio.current) } };
+    }
     if (command.type === "disconnected") {
         if (audio.current) {
             const scope = audio.current.scope;

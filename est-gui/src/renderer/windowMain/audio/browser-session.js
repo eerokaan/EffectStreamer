@@ -6,7 +6,7 @@ export class BrowserAudioSession {
     async prepare({ scope, generation, iceServers, signal }) {
         if (this.generation) throw new Error("Another browser audio attempt is active");
         this.scope = { ...scope };this.generation = generation;this.stopping = false;this.pending = new Map();
-        this.devices.setActive(true);
+        this.devices.setActive(true, this);
         try {
             this.microphone = await this.devices.acquire();
             if (this.stopping) throw new Error("Browser media preparation cancelled");
@@ -82,7 +82,8 @@ export class BrowserAudioSession {
         this.stopping = true; await this.stopCapture();
         for (const peer of this.peers.values()) {peer.onicecandidate = null;peer.ontrack = null;peer.onconnectionstatechange = null;peer.close();}
         this.peers.clear();this.microphone?.getTracks().forEach(track => track.stop());
-        const element = this.devices.element();element.pause();element.srcObject = null;
-        this.microphone = null;this.playback = null;this.generation = null;this.devices.setActive(false);
+        const element = this.devices.element();
+        if (this.devices.activeOwner === this) {element.pause();element.srcObject = null;}
+        this.microphone = null;this.playback = null;this.generation = null;this.devices.setActive(false, this);
     }
 }

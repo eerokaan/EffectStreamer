@@ -139,6 +139,8 @@ class ExperimentFlow {
         const responseView = recordingContextStarted ? nextView : currentView;
         if (!recordingContextStarted && isFirstLstEval) this.state.conditionListeningSpeakingTestIndex = 0;
 
+        if (nextView.name === this.views.ending && !this.state.completionReady()) throw new Error("Required responses and recordings are not complete");
+
         for (const client of this.state.clientsData.values()) {
             this.clientRegistry.emitToSocket(client.socketId, "est-event:viewChangeResponse", this.viewFlow.getViewData(responseView, client));
         }
@@ -149,6 +151,9 @@ class ExperimentFlow {
         // Ending this pair never exits the shared coordinator.
         if (nextView.name === this.views.ending) {
             this.state.phase = "ended";
+            this.state.outcome = "completed";
+            for (const client of this.state.clientsData.values()) this.state.enrollments.get(client.participantId).outcome = "completed";
+            this.state.enrollments.save();
         }
     }
 
@@ -161,7 +166,10 @@ class ExperimentFlow {
         for (const participantId of recordingContext.sockets.viewChangePending) {
             const client = this.state.clientsData.get(participantId);
             if (client) {
-                this.clientRegistry.emitToSocket(client.socketId, "est-event:viewChangeResponse", this.viewFlow.getViewData(nextView, client));
+                // Persist the authoritative next view even when the participant
+                // is offline during the last receipt/restart reconciliation.
+                client.currentView = nextView.name;client.viewData = this.viewFlow.getViewData(nextView, client);
+                this.clientRegistry.emitToSocket(client.socketId, "est-event:viewChangeResponse", client.viewData);
             }
         }
 

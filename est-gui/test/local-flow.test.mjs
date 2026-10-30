@@ -48,7 +48,11 @@ it.skipIf(process.env.EST_NATIVE_INTEGRATION !== "1")("runs SCT and both LST rol
         } } });
     });
     runtimes.forEach(runtime => {runtime.onError = error => errors.push(error.message);});
-    const next = async () => Promise.all(runtimes.map(runtime => runtime.dispatch("nextView", { currentView: runtime.snapshot().currentView })));
+    const next = async () => Promise.all(runtimes.map(runtime => {
+        const snapshot=runtime.snapshot(),evaluation=snapshot.currentView.endsWith('Evaluation');
+        const keys=snapshot.currentView==='viewShortConversationTestEvaluation'?['audio_quality','noisiness','discontinuity','coloration','loudness','echo','degradation','interaction']:snapshot.viewData.conditionListeningSpeakingTestRole==='speaker'?['audio_quality','echo','degradation']:['audio_quality','noisiness','discontinuity','coloration','loudness'];
+        return runtime.dispatch(evaluation?'submitRating':'nextView',{currentView:snapshot.currentView,...(evaluation?{scaleValues:Object.fromEntries(keys.map(key=>[key,.5]))}:{})});
+    }));
     const bothView = view => Promise.all(runtimes.map(runtime => waitFor(runtime, snapshot => snapshot.currentView === view)));
     try {
         await Promise.all(runtimes.map(runtime => runtime.bootstrap()));await bothView("viewWelcome");

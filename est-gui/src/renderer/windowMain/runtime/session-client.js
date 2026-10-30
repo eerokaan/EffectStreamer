@@ -4,16 +4,23 @@ export function createSessionClient({ transport, participantId, onSnapshot = () 
     const { EVENTS } = protocol;
     const listeners = [];
     const pending = new Set();
-    let current = null, disposed = false;
+    let current = null, disposed = false, reconcile = true;
     function listen(event, handler) { transport.on(event, handler); listeners.push(() => transport.off(event, handler)); }
     function accept(snapshot) {
         if (disposed || !snapshot || snapshot.participantId !== participantId || !Number.isSafeInteger(snapshot.revision) || snapshot.revision < 0) return;
         if (current?.sessionId && snapshot.sessionId !== current.sessionId) return;
         if (current && current.sessionId === snapshot.sessionId && snapshot.revision <= current.revision) return;
         current = snapshot; onSnapshot(snapshot);
+        if (reconcile) {reconcile = false;command({ type: "reconnected", snapshot });}
     }
     function command(value) { if (!disposed) void Promise.resolve(onCommand(value)).catch(onError); }
     listen(EVENTS.snapshot, accept);
+    listen("connect", () => {
+        reconcile = true;
+        // Socket.IO may flush buffered server snapshots before emitting connect.
+        // Reconcile the latest known state now as well as the next fresh state.
+        if (current) command({ type: "reconnected", snapshot: current });
+    });
     listen(EVENTS.mediaCommand, command);
     listen(EVENTS.signal, value => command({ ...value, type: "remoteSignal", signal: value }));
     listen(EVENTS.recordingRequest, value => command({ ...value, type: "collectRecordings" }));

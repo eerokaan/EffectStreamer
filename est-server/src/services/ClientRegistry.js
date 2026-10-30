@@ -20,6 +20,10 @@ class ClientRegistry {
         this.state.clientsSocketRegistry.delete(socket.id);
         if (!client) return;
         client.socketId = null;
+        if (this.state.disposed) return;
+        if (this.state.recoveryPolicy) {
+            void this.state.recoveryPolicy.disconnected(client.participantId, "socket").catch(error => {this.state.persistenceError = error;});return;
+        }
         const active = this.state.recordingContexts.get(this.state.recordingContextActive);
         if (active) {
             active.interrupted = true;

@@ -7,12 +7,14 @@ async function initializeBrowser() {
     const response = await fetch("/api/config");
     if (!response.ok) throw new Error("Unable to load study configuration");
     const config = await response.json();
+    if (config.mode !== "remote") throw new Error("This deployment requires the native EffectStreamer client");
     const query = Object.fromEntries(new URLSearchParams(location.search));
     const key = "effectstreamer:" + (query.SESSION_ID || query.identity || "participant");
     let credentials;
     try { credentials = JSON.parse(sessionStorage.getItem(key)); } catch { /* Ignore invalid local state. */ }
     if (!credentials) {
-        const admitted = await fetch("/api/enrollment", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ identity: query.identity, query }) });
+        const device = { platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints || 0, mobile: navigator.userAgentData?.mobile === true };
+        const admitted = await fetch("/api/enrollment", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ identity: query.identity, query, device }) });
         if (!admitted.ok) throw new Error((await admitted.json()).error || "Study admission failed");
         credentials = await admitted.json(); sessionStorage.setItem(key, JSON.stringify(credentials));
     }
@@ -29,6 +31,16 @@ export function createRuntime({ initialize = initializeBrowser, transportFactory
     const browserMedia = media || {
         async command(command) {
             if (command.type === "remoteSignal") return session?.applySignal(command.signal);
+            if (command.type === "reconnected" || command.type === "requestResume") {
+                const snapshot = command.snapshot || runtime.snapshot();
+                if (!snapshot.sessionId || (!snapshot.attemptId && !snapshot.viewData?.recovery && !browserRecordings.pending?.size)) return;
+                if (snapshot.phase === "interrupted" || snapshot.phase === "ended") {
+                    if (scope) await browserRecordings.finalize?.({ scope, status: "interrupted" }).catch(() => {});
+                    await session?.stop();
+                }
+                const manifests = [...(browserRecordings.pending?.values() || [])].map(entry => entry.manifest).filter(manifest => manifest.sessionId === snapshot.sessionId);
+                await runtime.dispatch("resume", { manifests, mediaPresent: Boolean(session?.generation) }, { scope: { sessionId: snapshot.sessionId, participantId: snapshot.participantId, attemptId: snapshot.attemptId } });return;
+            }
             if (command.type === "disconnected") {
                 await session?.stopCapture();
                 if (scope) await browserRecordings.finalize?.({ scope, status: "interrupted" });
@@ -36,12 +48,14 @@ export function createRuntime({ initialize = initializeBrowser, transportFactory
             }
             if (command.type === "prepareRemote") {
                 scope = { sessionId: command.sessionId, participantId: command.participantId, attemptId: command.attemptId };generation = command.generation;
-                session = new BrowserAudioSession({ devices: browserDevices, onFailure: failure });
+                const attemptScope = scope, attemptGeneration = generation;
+                const report = error => {if (generation === attemptGeneration && scope === attemptScope) failure(error);};
+                const prepared = new BrowserAudioSession({ devices: browserDevices, onFailure: report });session = prepared;
                 try {
-                    await session.prepare({ scope, generation, iceServers: command.iceServers, signal: payload => runtime.dispatch("signal", payload, { scope }) });
-                    await runtime.dispatch("mediaPrepared", { component: "remote", success: true, generation }, { scope });
+                    await prepared.prepare({ scope: attemptScope, generation: attemptGeneration, iceServers: command.iceServers, signal: payload => runtime.dispatch("signal", payload, { scope: attemptScope }) });
+                    if (session === prepared) await runtime.dispatch("mediaPrepared", { component: "remote", success: true, generation: attemptGeneration }, { scope: attemptScope });
                 }
-                catch (error) {failure(error);}
+                catch (error) {report(error);}
                 return;
             }
             if (!scope || command.attemptId !== scope.attemptId || command.generation !== generation) throw new Error("Stale browser media command");

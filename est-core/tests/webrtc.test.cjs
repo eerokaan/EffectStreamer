@@ -31,7 +31,9 @@ test('WebRTC priming sends only silence until audio.start releases microphone co
     t.after(()=>socket.close());await new Promise(resolve=>socket.bind(ports[0],'127.0.0.1',resolve));
     const packet=()=>new Promise(resolve=>socket.once('message',resolve));
     const silent=packet();await core.request('audio.prime',{});
-    const primed=await silent;assert.ok(primed.subarray(12).every(value=>value===0));
+    const primed=await silent;const samples=Array.from({length:(primed.length-12)/2},(_,index)=>primed.readInt16BE(12+index*2));
+    assert.ok(samples.every(value=>value===0),'Priming sample values: '+samples.slice(0,16)+'; absolute peak '+Math.max(...samples.map(Math.abs)));
+    for(let index=0;index<10;index++){const next=await packet();assert.ok(next.subarray(12).every(value=>value===0),'All pre-start packets must remain silent');}
     const audible=new Promise(resolve=>{const listener=bytes=>{if(bytes.subarray(12).some(value=>value!==0)){socket.off('message',listener);resolve(bytes);}};socket.on('message',listener);});
     await core.request('audio.start',{});assert.ok((await audible).length>12);
 });

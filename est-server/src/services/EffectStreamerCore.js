@@ -113,6 +113,7 @@ class EffectStreamerCore {
             context.status = "running";
             this.state.attempts.find(attempt => attempt.attemptId === context.contextKey).status = "running";
             clearTimeout(context.startupTimeout);
+            context.conditionTimeout = setTimeout(() => this.state.mediaFailure(new Error("Maximum condition duration exceeded")), this.config.recordings.maxConditionSeconds * 1000);
         }
     }
 
@@ -243,8 +244,7 @@ class EffectStreamerCore {
         recordingContext.startupTimeout = setTimeout(() => {
             if (["startingSender", "startingReceiver", "startingMedia"].includes(recordingContext.status)) {
                 console.log("[Server] Recording context startup timed out: " + recordingContext.contextKey);
-                recordingContext.interrupted = true;
-                this.recordingContextStopCommit(recordingContext);
+                this.state.mediaFailure(new Error("Media startup timed out"));
             }
         }, this.config.deployment.mode === "remote" ? this.config.remote.startupTimeoutMs * 3 : 30000);
 
@@ -310,8 +310,11 @@ class EffectStreamerCore {
 
         // Enter stopping handling
         recordingContext.status = "stopping";
-        this.state.attempts.find(attempt => attempt.attemptId === recordingContext.contextKey).status = recordingContext.interrupted ? "interrupted" : "stopping";
+        const attempt = this.state.attempts.find(attempt => attempt.attemptId === recordingContext.contextKey);
+        attempt.status = recordingContext.interrupted ? "interrupted" : "stopping";
+        attempt.uploadDeadline ||= Date.now() + this.config.recordings.uploadTimeoutMs;
         clearTimeout(recordingContext.startupTimeout);
+        clearTimeout(recordingContext.conditionTimeout);
         console.log("[Server] Recording context stopping: " + recordingContext.contextKey);
 
         // Notify the clients and request the core stop
@@ -320,7 +323,11 @@ class EffectStreamerCore {
             testType: recordingContext.scope.testType,
             status: "stopping"
         });
-        this.state.runMedia(() => this.state.mediaAdapter.stop({ session: this.state, attempt: recordingContext, reason: recordingContext.interrupted ? "interrupted" : "completed" }));
+        this.state.runMedia(async () => {
+            try {await this.state.mediaAdapter.stop({ session: this.state, attempt: recordingContext, reason: recordingContext.interrupted ? "interrupted" : "completed" });}
+            finally {recordingContext.workerStopped = true;}
+            await this.state.recoveryPolicy?.maybeRetry(this.state);
+        });
     }
 
     // prettier-ignore
@@ -351,7 +358,7 @@ class EffectStreamerCore {
 
         // Notify the clients and hand over to the completion handler
         // Cleanup is authorized only by individual durable receipts returned by HTTP.
-        this.recordingContextCompletedHandler(recordingContext);
+        if (this.state.phase !== "ended") this.recordingContextCompletedHandler(recordingContext);
     }
 }
 

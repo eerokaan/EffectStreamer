@@ -15,7 +15,7 @@ export function connectRuntimeStores(runtime) {
         }
         const status = snapshot.viewData?.recordingStatus;
         useStoreComponentFooter.setState({ isWaitingForUpload: ["stopping", "uploading"].includes(status), isWaitingForRecording: ["startingSender", "startingReceiver", "startingMedia"].includes(status) });
-        useStoreComponentDevicePicker.setState({ activeCondition: Boolean(snapshot.attemptId), verified: snapshot.setupComplete });
+        useStoreComponentDevicePicker.setState({ activeCondition: ["startingSender", "startingReceiver", "startingMedia", "running", "stopping"].includes(status), verified: snapshot.setupComplete });
         previous = snapshot;
     });
 }

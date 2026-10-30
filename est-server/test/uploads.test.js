@@ -95,6 +95,12 @@ test('failed artifacts never satisfy the recording-completion gate',()=>{
     context.files.uploaded.add('b:microphone');context.files.uploaded.add('b:headphones');
     core.recordingContextFinalizeUpload(context);assert.equal(completions,1);assert.equal(state.recordingContextActive,null);
 });
+test('a late stored receipt cannot navigate an already-ended pair back into the experiment',()=>{
+    const context={contextKey:'late-attempt',status:'uploading',clients:[{},{}],files:{uploaded:new Set(['a:microphone','a:headphones','b:microphone','b:headphones'])},sockets:{stopped:new Set(['a','b'])}};
+    const state={phase:'ended',outcome:'technicalFailure',attempts:[{attemptId:'late-attempt',status:'uploading'}],recordingContextActive:'late-attempt'};let navigations=0;
+    const core=new EffectStreamerCore({state,config:{},clientRegistry:{},sessionFiles:{}});core.setRecordingContextCompletedHandler(()=>navigations++);
+    core.recordingContextFinalizeUpload(context);assert.equal(navigations,0);assert.equal(state.outcome,'technicalFailure');
+});
 test('authenticated HTTP uploads retry a lost final acknowledgement before releasing client bytes',async(t)=>{
     const {createCoordinator}=require('../src/server.js');
     const {normalizeConfig}=require('../src/bootstraps/configManager.js');

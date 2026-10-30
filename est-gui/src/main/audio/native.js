@@ -40,7 +40,7 @@ export class NativeAudioRuntime {
             try { const { stdout } = await execute(executable, args, { env, timeout: 35000, maxBuffer: 1048576 }); return JSON.parse(stdout); }
             catch (error) { throw new Error(error.stdout ? JSON.parse(error.stdout).error || error.message : error.message); }
         });
-        this.pending = new Map(); this.current = null; this.loaded = null;
+        this.pending = new Map(); this.receipts = new Map(); this.current = null; this.loaded = null;
     }
     directory(scope) {
         protocol.validateScope(scope);protocol.identifier(scope.attemptId, "attemptId");
@@ -136,11 +136,15 @@ export class NativeAudioRuntime {
         await this.loadPending();
         const entry = this.pending.get(receipt.recordingId);
         if (!entry || receipt.sha256 !== entry.manifest.sha256 || receipt.stored !== true) throw new Error("Invalid native recording receipt");
-        await fs.promises.rm(entry.file, { force: true });this.pending.delete(receipt.recordingId);await this.savePending();
+        await fs.promises.rm(entry.file, { force: true });this.pending.delete(receipt.recordingId);this.receipts.set(receipt.recordingId, receipt);await this.savePending();
     }
-    async collect(command, { url, credentials, config }) {
+    collect(command, options) {
+        const pending = (this.collecting || Promise.resolve()).catch(() => {}).then(() => this.collectSerial(command, options));this.collecting = pending;return pending;
+    }
+    async collectSerial(command, { url, credentials, config }) {
         await this.loadPending();
         for (const id of command.recordingIds) {
+            if (this.receipts.has(id)) continue;
             const entry = this.pending.get(id);
             if (!entry || entry.manifest.sessionId !== command.sessionId || entry.manifest.attemptId !== command.attemptId) throw new Error("Unknown requested native recording");
             await uploadRecording({ manifest: entry.manifest, baseUrl: url, headers: { authorization: "Bearer " + credentials.reconnectToken },

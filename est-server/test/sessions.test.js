@@ -6,7 +6,7 @@ const {once}=require('node:events');
 const {io:connect}=require('socket.io-client');
 const {createCoordinator}=require('../src/server.js');
 const {normalizeConfig}=require('../src/bootstraps/configManager.js');
-const {localConfig,remoteConfig}=require('./fixtures/config.js');
+const {localConfig,remoteConfig,pretestAnswers}=require('./fixtures/config.js');
 const {SessionStore}=require('../src/services/SessionStore.js');
 const {EnrollmentStore}=require('../src/services/EnrollmentStore.js');
 
@@ -61,6 +61,7 @@ test('replacement sockets and duplicate actions count only once toward a view ba
     await app.join(a);await app.join(b);
     const session=app.registry.getForParticipant(a.participantId);
     await action(session,a);await action(session,b);
+    await action(session,a,'pretest',{formData:pretestAnswers()});await action(session,b,'pretest',{formData:pretestAnswers()});
     await action(session,a);
     assert.equal(session.gates.viewChange.size,1);
     await app.join(a);await action(session,a);
@@ -111,4 +112,14 @@ test('authenticated socket actions cannot impersonate another participant',async
     assert.equal(reply.ok,false);assert.match(reply.error,/scope/);
     const valid=await socket.timeout(2000).emitWithAck('est-event:action',{version:1,requestId:'valid',sessionId:session.sessionId,participantId:a.participantId,attemptId:null,type:'nextView',payload:{currentView:'viewWelcome'}});
     assert.equal(valid.ok,true);assert.equal(valid.snapshot.currentView,'viewPretest');
+});
+test('replacing a paired browser socket does not interrupt the active participant slot',async t=>{
+    const raw=remoteConfig();raw.deployment.allowDevelopmentAdmission=true;const app=await fixture(t,raw);
+    const a=await app.enroll('tab-a'),b=await app.enroll('tab-b');
+    const session=app.registry.createPair([app.enrollments.get(a.participantId),app.enrollments.get(b.participantId)]);
+    await app.join(a);await app.join(b);
+    const context={contextKey:'active-replacement',status:'uploading'};session.recordingContexts.set(context.contextKey,context);session.recordingContextActive=context.contextKey;
+    session.attempts.push({attemptId:context.contextKey,status:'uploading'});
+    await app.join(a);assert.equal(context.interrupted,undefined);assert.equal(session.phase,'experiment');
+    session.recordingContextActive=null;
 });

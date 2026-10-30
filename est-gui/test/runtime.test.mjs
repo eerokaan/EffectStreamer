@@ -52,4 +52,10 @@ describe('shared participant runtime',()=>{
         expect(await client.dispatch('signal',{connectionId:'uplink',generation:'g-1',type:'offer',sdp:'offer'})).toEqual({type:'answer',sdp:'answer'});
         expect(signal.event).toBe('est-event:signal');client.dispose();
     });
+    it('reconciles reconnect when Socket.IO delivers its buffered snapshot before connect',()=>{
+        const socket=transport(),commands=[];
+        const client=createSessionClient({transport:socket,participantId:'p-1',onCommand:command=>commands.push(command)});
+        socket.receive('est-event:snapshot',snapshot);commands.length=0;socket.receive('connect');
+        expect(commands).toEqual([{type:'reconnected',snapshot}]);client.dispose();
+    });
 });

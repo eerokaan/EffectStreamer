@@ -31,6 +31,7 @@ export function createRuntime({ bridge = globalThis.window?.appApi?.runtime, tra
         },
         media: {
             command: async (command, runtime) => {
+                if (command.type === "requestResume") command = { type: "reconnected", snapshot: runtime.snapshot() };
                 const result = await bridge.invoke("media.command", command);
                 for (const message of Array.isArray(result) ? result : [result]) {
                     if (message?.type) await runtime.dispatch(message.type, message.payload, { scope: message.scope });

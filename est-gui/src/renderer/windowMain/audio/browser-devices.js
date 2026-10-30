@@ -13,7 +13,10 @@ export class BrowserDevices {
         return this.playback;
     }
     assertIdle() { if (this.active) throw new Error("Devices cannot change during an active attempt"); }
-    setActive(active) { this.active = active; }
+    setActive(active, owner = this) {
+        if (active) {this.active = true;this.activeOwner = owner;}
+        else if (this.activeOwner === owner) {this.active = false;this.activeOwner = null;}
+    }
     invalidate() { this.tested = null; }
     async authorizeContext() {
         if (!this.AudioContext) throw new Error("Web Audio is unavailable");

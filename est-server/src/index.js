@@ -8,7 +8,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
         const config = loadConfig();
         const { createCoordinator } = require("./server.js");
         const coordinator = createCoordinator({ config });
-        coordinator.server.listen(config.server.port, config.server.ipAddress, () => console.log("[Server] Listening on " + config.server.ipAddress + ":" + config.server.port));
+        void coordinator.ready.then(() => coordinator.server.listen(config.server.port, config.server.ipAddress, () => console.log("[Server] Listening on " + config.server.ipAddress + ":" + config.server.port))).catch(error => {console.error("[Server] Recovery failed: " + error.message);process.exitCode = 1;});
         for (const signal of ["SIGINT", "SIGTERM"]) process.once(signal, () => { void coordinator.close().then(() => process.exit(0)); });
     }
     catch (error) { console.error("[Server] " + error.message); process.exitCode = 1; }

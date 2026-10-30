@@ -23,7 +23,7 @@ function normalizeDeployment(raw) {
     boolean(audioSetup.enabled,'audioSetup.enabled');
     if (deployment.mode === 'remote' && !audioSetup.enabled) configError('audioSetup.enabled','cannot be false remotely');
     if (typeof audioSetup.testAsset !== 'string' || !/^[A-Za-z0-9_-]+\.wav$/.test(audioSetup.testAsset)) configError('audioSetup.testAsset','must be a WAV asset filename');
-    const sessions=section(raw,'sessions',{pairingTimeoutMs:300000,reconnectGraceMs:60000,maxRetries:1});
+    const sessions=section(raw,'sessions',{pairingTimeoutMs:300000,reconnectGraceMs:60000,maxRetries:1,maxWaitingParticipants:100});
     for (const key of Object.keys(sessions)) sessions[key]=integer(sessions[key],'sessions.'+key,key==='maxRetries'?0:1,key==='maxRetries'?10:2147483647);
     const recordings=section(raw,'recordings',{maxConditionSeconds:600,maxBytesPerParticipant:134217728,uploadTimeoutMs:600000,chunkBytes:1048576});
     for (const key of Object.keys(recordings)) recordings[key]=integer(recordings[key],'recordings.'+key,1,key==='chunkBytes'?4194304:2147483647);
@@ -48,8 +48,13 @@ function normalizeDeployment(raw) {
         for (const key of ['username','credential']) if(server[key] !== undefined && typeof server[key] !== 'string') configError('remote.iceServers.'+key,'must be string');
         return {...server,urls:[...urls]};
     });
-    const prolific=section(raw,'prolific',{enabled:false,studyId:'',completionCodes:{completed:'',technicalFailure:'',partnerLeft:'',waitingTimeout:''}});
+    const prolific=section(raw,'prolific',{enabled:false,studyId:'',completionCodes:{completed:'',technicalFailure:'',partnerLeft:'',waitingTimeout:''},secureUrls:false,externalStudyUrl:'',workspaceId:'',organisationId:null});
     boolean(prolific.enabled,'prolific.enabled');
+    boolean(prolific.secureUrls,'prolific.secureUrls');
+    if (prolific.secureUrls) {
+        let url;try {url=new URL(prolific.externalStudyUrl);}catch {configError('prolific.externalStudyUrl','must be an HTTPS study URL');}
+        if (url.protocol!=='https:' || url.username || url.password || url.hash || !prolific.workspaceId || typeof prolific.workspaceId!=='string' || !(prolific.organisationId===null || typeof prolific.organisationId==='string')) configError('prolific','invalid secured URL/workspace settings');
+    }
     validateObject(prolific.completionCodes,'prolific.completionCodes');
     const outcomes=['completed','technicalFailure','partnerLeft','waitingTimeout'];
     validateKnownKeys(prolific.completionCodes,outcomes,'prolific.completionCodes');

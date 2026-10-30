@@ -39,10 +39,10 @@ static void handle_request(CoreControl* control, const cJSON* request, gpointer 
         if (context->stopping) {control_reply(control, id, NULL, "stopping", "Core is stopping"); return;}
         if (context->preparation_volume) g_object_set(context->preparation_volume, "mute", FALSE, NULL);
         if (context->gate) g_object_set(context->gate, "drop", FALSE, NULL);
-        context->started = TRUE;
+        g_atomic_int_set(&context->started, TRUE);
         control_reply(control, id, NULL, NULL, NULL);
     } else if (!strcmp(command->valuestring, "audio.prime")) {
-        if (!context->webrtc || !context->preparation_volume || context->started || context->stopping) {
+        if (!context->webrtc || !context->preparation_volume || g_atomic_int_get(&context->started) || context->stopping) {
             control_reply(control, id, NULL, "invalidPhase", "Only a prepared WebRTC sender can prime silence");return;
         }
         g_object_set(context->preparation_volume, "mute", TRUE, NULL);

@@ -73,6 +73,17 @@ static gboolean emit_ready(AppContext* context) {
 static gboolean is_packetloss_enabled(const char* packetloss_type) {
     return strcmp(packetloss_type, "none") != 0;
 }
+static GstPadProbeReturn preparation_silence(GstPad* pad, GstPadProbeInfo* info, gpointer data) {
+    (void)pad;AppContext* context = data;
+    if (!g_atomic_int_get(&context->started)) {
+        // Muting the upstream volume alone cannot retract a buffer already
+        // between conversion and the valve when the main thread primes it.
+        GstBuffer* buffer = gst_buffer_make_writable(GST_PAD_PROBE_INFO_BUFFER(info));
+        GST_PAD_PROBE_INFO_DATA(info) = buffer;
+        gst_buffer_memset(buffer, 0, 0, gst_buffer_get_size(buffer));
+    }
+    return GST_PAD_PROBE_OK;
+}
 
 static gboolean bus_call(GstBus* bus, GstMessage* msg, gpointer data) {
     AppContext* context = (AppContext*)data;
@@ -264,6 +275,8 @@ int run_sender(SenderParams* params) {
     }
 
     if (params->device_type == DEVICE_TYPE_WEBRTC) {
+        GstPad* pcm = gst_element_get_static_pad(packetizer, "src");
+        gst_pad_add_probe(pcm, GST_PAD_PROBE_TYPE_BUFFER, preparation_silence, &context, NULL);gst_object_unref(pcm);
         audio_backend_watch_eos(&context, udpsink1, "sink");audio_backend_watch_eos(&context, udpsink2, "sink");
         if (udpsink3) audio_backend_watch_eos(&context, udpsink3, "sink");
     }

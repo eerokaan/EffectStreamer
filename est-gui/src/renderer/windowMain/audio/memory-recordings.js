@@ -30,7 +30,10 @@ export class MemoryRecordings {
         if (!entry || receipt.stored !== true || receipt.sha256 !== entry.manifest.sha256) throw new Error("Invalid browser recording receipt");
         this.pending.delete(receipt.recordingId);this.receipts.set(receipt.recordingId, { receipt, manifest: entry.manifest });
     }
-    async collect(command, options = {}) {
+    collect(command, options = {}) {
+        const pending = (this.collecting || Promise.resolve()).catch(() => {}).then(() => this.collectSerial(command, options));this.collecting = pending;return pending;
+    }
+    async collectSerial(command, options) {
         for (const id of command.recordingIds) {
             const entry = this.pending.get(id) || this.receipts.get(id);
             if (!entry || ["sessionId", "participantId", "attemptId"].some(key => entry.manifest[key] !== command[key])) throw new Error("Unknown recording request owner/attempt");

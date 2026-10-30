@@ -37,7 +37,7 @@ typedef struct {
     CoreControl* control;
     GstElement* gate;
     GstElement* preparation_volume;
-    gboolean started;
+    gint started;
     gboolean stopping;
     gboolean eos_received;
     guint stop_timeout;

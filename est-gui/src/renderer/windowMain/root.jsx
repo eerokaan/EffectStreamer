@@ -6,6 +6,7 @@ import ViewBreak from "@/views/meta-break";
 import ViewEnding from "@/views/meta-ending";
 import ViewPretest from "@/views/meta-pretest";
 import ViewWaiting from "@/views/meta-waiting";
+import ViewInterrupted from "@/views/meta-interrupted";
 import ViewWelcome from "@/views/meta-welcome";
 import ViewShortConversationTestEvaluation from "@/views/short-conversation-test-evaluation";
 import ViewShortConversationTestExplanation from "@/views/short-conversation-test-explanation";
@@ -14,6 +15,7 @@ import useStoreRoot from "@/stores/root";
 
 const viewMap = {
     viewWaiting: ViewWaiting,
+    viewInterrupted: ViewInterrupted,
     viewWelcome: ViewWelcome,
     viewPretest: ViewPretest,
     viewShortConversationTestExplanation: ViewShortConversationTestExplanation,

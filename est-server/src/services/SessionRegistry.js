@@ -15,8 +15,10 @@ class SessionRegistry {
         const ids = participants.map(participant => participant.participantId);
         if (new Set(ids).size !== 2 || ids.some(id => this.membership.has(id))) throw new Error("Participant already paired");
         if ([...this.sessions.values()].filter(session => session.phase !== "ended").length >= this.config.deployment.maxActivePairs) throw new Error("Pair capacity reached");
-        const session = new ExperimentSession({ participants, config: this.config, io: this.io, root: this.root, store: this.store, enrollments: this.enrollments, allocator: this.ports });
+        const session = new ExperimentSession({ participants, config: this.config, io: this.io, root: this.root, store: this.store, enrollments: this.enrollments, allocator: this.ports, onChange: () => this.onChange?.() });
+        session.prolific = this.prolific;
         session.transfers = this.transfers;
+        session.recoveryPolicy = this.recovery;
         this.sessions.set(session.sessionId, session);
         for (const participant of participants) {this.membership.set(participant.participantId, session.sessionId);participant.sessionId = session.sessionId;}
         this.enrollments.save();
@@ -26,6 +28,14 @@ class SessionRegistry {
     }
 
     getForParticipant(id) { return this.sessions.get(this.membership.get(id)); }
+
+    restore(manifest) {
+        const participants = manifest.participants.map(client => this.enrollments.get(client.participantId));
+        if (participants.length !== 2 || participants.some(person => !person || person.sessionId !== manifest.sessionId)) throw new Error("Invalid persisted session membership");
+        const session = new ExperimentSession({ participants, config: this.config, io: this.io, root: this.root, store: this.store, enrollments: this.enrollments, allocator: this.ports, restored: manifest, onChange: () => this.onChange?.() });
+        session.transfers = this.transfers;session.prolific = this.prolific;session.recoveryPolicy = this.recovery;
+        this.sessions.set(session.sessionId, session);for (const person of participants) this.membership.set(person.participantId, session.sessionId);return session;
+    }
 
     remove(id) {
         const session = this.sessions.get(id);

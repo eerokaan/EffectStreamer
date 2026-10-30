@@ -53,6 +53,12 @@ it('retention enforces the total bound across pending attempts without discardin
     await expect(store.retain({scope:{...scope,attemptId:'attempt-2'},files:{microphone:new Blob([new Uint8Array(60)]),headphones:new Blob([new Uint8Array(60)])},status:'interrupted'})).rejects.toThrow(/limit/);
     expect((await store.readChunk(manifests[0].recordingId,0,4)).length).toBe(4);
 });
+it('duplicate concurrent collection requests reconcile the same receipt without deleting another file',async()=>{
+    const {store,manifests}=await retained(),manifest=manifests[0];
+    const command={...scope,recordingIds:[manifest.recordingId]},options={request:async(_method,url,body)=>url.endsWith('/complete')?{recordingId:manifest.recordingId,sha256:manifest.sha256,stored:true}:{uploadId:manifest.recordingId,nextByteOffset:body.byteLength}};
+    await Promise.all([store.collect(command,options),store.collect(command,options)]);
+    expect(store.pending.size).toBe(1);expect(store.pending.has(manifests[1].recordingId)).toBe(true);
+});
 it('unsupported context rates and empty/cancelled starts cannot silently label data 48 kHz',async()=>{
     const recorder=new PcmRecorder({context:{sampleRate:44100},maxBytes:1000});
     await expect(recorder.start({microphone:{},playback:{}})).rejects.toThrow(/48000|48 kHz/);
