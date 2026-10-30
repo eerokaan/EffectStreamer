@@ -1,7 +1,8 @@
 const { Harness } = require("./harness.js");
 const { loadConfig } = require("./bootstraps/configManager.js");
 
-if (process.env.EST_SERVER_TYPE === "harness") new Harness().run();
+if (process.env.EST_SERVER_TYPE === "media-worker") require("./media/MediaWorker.js").runMediaWorker();
+else if (process.env.EST_SERVER_TYPE === "harness") new Harness().run();
 else if (process.env.EST_SERVER_TYPE === "server") {
     try {
         const config = loadConfig();
@@ -12,4 +13,4 @@ else if (process.env.EST_SERVER_TYPE === "server") {
     }
     catch (error) { console.error("[Server] " + error.message); process.exitCode = 1; }
 }
-else { console.error("EST_SERVER_TYPE must be harness or server"); process.exitCode = 1; }
+else { console.error("EST_SERVER_TYPE must be harness, server or media-worker"); process.exitCode = 1; }

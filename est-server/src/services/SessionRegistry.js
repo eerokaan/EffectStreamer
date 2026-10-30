@@ -1,11 +1,13 @@
 const { ExperimentSession } = require("./ExperimentSession.js");
 const { SessionStore } = require("./SessionStore.js");
+const { PortAllocator } = require("../media/PortAllocator.js");
 
 class SessionRegistry {
     constructor({ config, io, root, enrollments }) {
         this.config = config; this.io = io; this.root = root; this.enrollments = enrollments;
         this.sessions = new Map(); this.membership = new Map();
         this.store = new SessionStore(root);
+        this.ports = new PortAllocator(config.remote.internalPortRange);
     }
 
     createPair(participants) {
@@ -13,7 +15,7 @@ class SessionRegistry {
         const ids = participants.map(participant => participant.participantId);
         if (new Set(ids).size !== 2 || ids.some(id => this.membership.has(id))) throw new Error("Participant already paired");
         if ([...this.sessions.values()].filter(session => session.phase !== "ended").length >= this.config.deployment.maxActivePairs) throw new Error("Pair capacity reached");
-        const session = new ExperimentSession({ participants, config: this.config, io: this.io, root: this.root, store: this.store, enrollments: this.enrollments });
+        const session = new ExperimentSession({ participants, config: this.config, io: this.io, root: this.root, store: this.store, enrollments: this.enrollments, allocator: this.ports });
         session.transfers = this.transfers;
         this.sessions.set(session.sessionId, session);
         for (const participant of participants) {this.membership.set(participant.participantId, session.sessionId);participant.sessionId = session.sessionId;}

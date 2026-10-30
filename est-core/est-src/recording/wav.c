@@ -10,7 +10,8 @@ static gboolean add_wav_branch(GstElement* pipeline, GstElement* source, const c
     GstElement* resample = create_and_add_element(bin, "audioresample", NULL);
     GstElement* filter = create_and_add_element(bin, "capsfilter", NULL);
     GstElement* encoder = create_and_add_element(bin, "wavenc", NULL);
-    GstElement* sink = create_and_add_element(bin, "filesink", NULL);
+    gchar* sink_name = g_strdup_printf("wav-%s", track);
+    GstElement* sink = create_and_add_element(bin, "filesink", sink_name);g_free(sink_name);
     gboolean ok = FALSE;
     if (!queue || !convert || !resample || !filter || !encoder || !sink) goto cleanup;
     GstCaps* caps = gst_caps_new_simple("audio/x-raw", "format", G_TYPE_STRING, "S16LE", "layout", G_TYPE_STRING, "interleaved", "channels", G_TYPE_INT, 1, "rate", G_TYPE_INT, 48000, NULL);

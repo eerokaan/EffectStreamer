@@ -63,6 +63,20 @@ After the `control-ready` event, send `{ "version": 1, "type": "request", "id": 
 
 ## Compilation
 
+### WebRTC backend
+
+`--device-type webrtc --control ndjson` runs without a local audio device on Linux or Windows. A sender receives a single Opus microphone uplink; a receiver encodes its existing playback mix as one Opus downlink. A signaling host must pass an offer with `webrtc.offer` (`{type:"offer",sdp}`), apply the returned `{type:"answer",sdp}`, and exchange `ice-candidate` events and `webrtc.ice` requests (`{candidate,sdpMLineIndex:0}`). A null candidate signals end-of-candidates, including before the remote description is applied. Each process accepts one connection/offer; recreate it for another attempt.
+
+Preparation emits `control-ready` without waiting for packets. Observe separate `connection-state` and `media-ready` events before starting a conversation with `audio.start`. Stop with `audio.stop`/`shutdown`; audio branches drain without injecting EOS into the encrypted ICE transport. In remote deployments use `--recording none` on both roles: participant browsers own the two WAV recordings. Raw stdio never carries signaling JSON.
+
+`control-ready` follows nonblocking pipeline startup and local UDP binding, not successful ICE negotiation. A prepared WebRTC sender additionally accepts `audio.prime`: it opens the sender gate with microphone content muted in-core so both directions can be checked with silence. `audio.start` then unmutes it; priming cannot be re-entered once started. These silent preparation packets are outside the rated interaction and do not constitute microphone recording.
+
+Optional settings are `--ice-min-port <first> --ice-max-port <last>`, `--webrtc-jitter-ms` (default 20), `--opus-bitrate` (default 128000), `--stun-server stun://host:port`, and up to eight `--turn-server turn[s]://user:password@host:port` arguments. Use GStreamer-compatible URL escaping for TURN credentials. These are transport settings, not measured end-to-end latency promises. ICE discovers interfaces normally; it is not pinned to localhost. Keep private RTP endpoints separate from the public ICE range.
+
+The internal RTP/L16 sender now targets 128 mono frames per packet (`--rtp-frames`, 1–480), independent of normal incoming WebRTC/stdio block sizes. This intentionally replaces backend-dependent legacy packet granularity; loss is still applied on the same internal peer branch, not on public SRTP. Partial blocks at EOS or a source discontinuity are retained rather than padded or dropped, so those packets can be shorter. This does not add saved timing/gap-analysis data. Validate native hardware framing for the study before comparing old and new packet-loss results.
+
+The build additionally links GStreamer SDP/WebRTC and needs matching Opus, RTP, libnice, DTLS and SRTP runtime plugins. For source SDKs referencing host metadata such as Linux libdrm, supply `EST_PKG_CONFIG_EXTRA_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig` if that dependency is already installed. Do not point Windows cross-compilation at Linux metadata. `EST_BUILD_TEST_PEER=1` additionally builds an isolated `.build/<target>/webrtc-peer` offerer for integration tests; it is not part of the shipped application.
+
 As the EffectStreamer Core uses GStreamer internally, the following paragraphs will lay out how to compile GStreamer and other prerequisites, as well as compiling and running EffectStreamer Core itself.
 
 There are two important factors to consider, before starting:
@@ -161,7 +175,9 @@ gcc -o est-core \
     est-src/device/discovery.c \
     est-src/device/devicecheck.c \
     est-deps/cJSON/cJSON.c \
-    $(pkg-config --cflags --libs gstreamer-1.0) \
+    est-src/device/webrtc.c \
+    -DGST_USE_UNSTABLE_API \
+    $(pkg-config --cflags --libs gstreamer-1.0 gstreamer-sdp-1.0 gstreamer-webrtc-1.0) \
     -Wl,-rpath-link,$LIBRARY_PATH \
     -Wl,-rpath,'$ORIGIN/gst-lib/x86_64-linux-gnu/lib'
 ```
@@ -195,7 +211,9 @@ x86_64-w64-mingw32-gcc -o est-core.exe \
     est-src/device/discovery.c \
     est-src/device/devicecheck.c \
     est-deps/cJSON/cJSON.c \
-    $(pkg-config --cflags --libs gstreamer-1.0)
+    est-src/device/webrtc.c \
+    -DGST_USE_UNSTABLE_API \
+    $(pkg-config --cflags --libs gstreamer-1.0 gstreamer-sdp-1.0 gstreamer-webrtc-1.0)
 ```
 
 ### Step 4) Bundle EffectStreamer NetSim Plugin

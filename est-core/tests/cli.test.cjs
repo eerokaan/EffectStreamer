@@ -58,7 +58,7 @@ test('sender sends L16 to the configured peer, echo, and recording endpoints', {
     sender.child.stdin.end(pcm);
     const packets=await Promise.all(received);
     assert.ok(packets.every(packet=>(packet[1]&127)===96));
-    for(const packet of packets) assert.ok(Math.abs(packet.readInt16BE(12)-8192)<=1);
+    for(const packet of packets) {assert.equal(packet.length,268);assert.ok(Math.abs(packet.readInt16BE(12)-8192)<=1);}
     let exitTimer;
     try {
         const result=await Promise.race([sender.exit,new Promise((_,reject)=>{exitTimer=setTimeout(()=>reject(new Error('Sender exit stalled after RTP delivery: '+sender.stderr)),4000);})]);

@@ -28,12 +28,17 @@ function normalizeDeployment(raw) {
     const recordings=section(raw,'recordings',{maxConditionSeconds:600,maxBytesPerParticipant:134217728,uploadTimeoutMs:600000,chunkBytes:1048576});
     for (const key of Object.keys(recordings)) recordings[key]=integer(recordings[key],'recordings.'+key,1,key==='chunkBytes'?4194304:2147483647);
     if (recordings.maxConditionSeconds*48000*2*2+88>recordings.maxBytesPerParticipant) configError('recordings.maxBytesPerParticipant','must hold both WAV tracks for maxConditionSeconds');
-    const remote=section(raw,'remote',{coreExecutable:'/opt/effectstreamer/core/est-core',internalPortRange:[40000,49999],icePortRange:[50000,59999],playbackDrainMs:250,iceServers:[],turnSecret:'',turnUrls:[]});
+    const remote=section(raw,'remote',{coreExecutable:'/opt/effectstreamer/core/est-core',internalPortRange:[40000,49999],icePortRange:[50000,59999],playbackDrainMs:250,iceServers:[],turnSecret:'',turnUrls:[],startupTimeoutMs:30000,stopTimeoutMs:7000,jitterMs:20,opusBitrate:128000,rtpFrames:128});
     remote.coreExecutable=normalizeString(remote.coreExecutable,'remote.coreExecutable');
     remote.internalPortRange=range(remote.internalPortRange,'remote.internalPortRange');
     remote.icePortRange=range(remote.icePortRange,'remote.icePortRange');
     if (remote.internalPortRange[0]<=remote.icePortRange[1] && remote.icePortRange[0]<=remote.internalPortRange[1]) configError('remote','port ranges overlap');
     remote.playbackDrainMs=integer(remote.playbackDrainMs,'remote.playbackDrainMs',0,60000);
+    remote.startupTimeoutMs=integer(remote.startupTimeoutMs,'remote.startupTimeoutMs',100,120000);
+    remote.stopTimeoutMs=integer(remote.stopTimeoutMs,'remote.stopTimeoutMs',100,120000);
+    remote.jitterMs=integer(remote.jitterMs,'remote.jitterMs',0,2000);
+    remote.opusBitrate=integer(remote.opusBitrate,'remote.opusBitrate',6000,510000);
+    remote.rtpFrames=integer(remote.rtpFrames,'remote.rtpFrames',1,480);
     if (typeof remote.turnSecret !== 'string' || !Array.isArray(remote.turnUrls) || remote.turnUrls.some(url=>typeof url !== 'string' || !/^turns?:[^\s]+$/.test(url))) configError('remote','invalid TURN settings');
     if (!Array.isArray(remote.iceServers)) configError('remote.iceServers','must be an array');
     remote.iceServers=remote.iceServers.map(server=>{

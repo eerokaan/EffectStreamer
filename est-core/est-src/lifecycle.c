@@ -1,4 +1,5 @@
 #include "lifecycle.h"
+#include "device/webrtc.h"
 
 static gboolean stop_timeout(gpointer data) {
     AppContext* context = data;
@@ -11,8 +12,9 @@ static gboolean stop_timeout(gpointer data) {
 static void request_stop(AppContext* context) {
     if (context->stopping) return;
     context->stopping = TRUE;
-    if (context->gate) g_object_set(context->gate, "drop", FALSE, NULL);
     context->stop_timeout = g_timeout_add(5000, stop_timeout, context);
+    if (context->gate) g_object_set(context->gate, "drop", FALSE, NULL);
+    if (audio_backend_stop(context)) return;
     if (!gst_element_send_event(context->pipeline, gst_event_new_eos())) {
         g_mutex_lock(&context->error_lock); context->runtime_error = TRUE; g_mutex_unlock(&context->error_lock);
         g_main_loop_quit(context->loop);
@@ -31,10 +33,20 @@ static void handle_request(CoreControl* control, const cJSON* request, gpointer 
         !cJSON_IsString(command) || !cJSON_IsObject(payload)) {
         control_reply(control, NULL, NULL, "invalidRequest", "Invalid versioned control request"); return;
     }
+    if (context->stopping && strncmp(command->valuestring, "webrtc.", 7) == 0) {control_reply(control, id, NULL, "stopping", "Core is stopping");return;}
+    if (audio_backend_handle_control(context, command->valuestring, id, payload)) return;
     if (strcmp(command->valuestring, "audio.start") == 0) {
         if (context->stopping) {control_reply(control, id, NULL, "stopping", "Core is stopping"); return;}
+        if (context->preparation_volume) g_object_set(context->preparation_volume, "mute", FALSE, NULL);
         if (context->gate) g_object_set(context->gate, "drop", FALSE, NULL);
         context->started = TRUE;
+        control_reply(control, id, NULL, NULL, NULL);
+    } else if (!strcmp(command->valuestring, "audio.prime")) {
+        if (!context->webrtc || !context->preparation_volume || context->started || context->stopping) {
+            control_reply(control, id, NULL, "invalidPhase", "Only a prepared WebRTC sender can prime silence");return;
+        }
+        g_object_set(context->preparation_volume, "mute", TRUE, NULL);
+        g_object_set(context->gate, "drop", FALSE, NULL);
         control_reply(control, id, NULL, NULL, NULL);
     } else if (!strcmp(command->valuestring, "audio.stop") || !strcmp(command->valuestring, "shutdown")) {
         control_reply(control, id, NULL, NULL, NULL);
@@ -53,13 +65,16 @@ void lifecycle_bus(AppContext* context, GstMessage* message) {
     if (GST_MESSAGE_TYPE(message) == GST_MESSAGE_APPLICATION && gst_structure_has_name(gst_message_get_structure(message), "est-media-ready")) {
         control_event(context->control, "media-ready", NULL);
     }
+    if (GST_MESSAGE_TYPE(message) == GST_MESSAGE_APPLICATION && gst_structure_has_name(gst_message_get_structure(message), "est-branch-eos")) {
+        context->eos_branches_finished++;
+        if (context->stopping && context->eos_branches_finished == context->eos_branches) lifecycle_eos(context);
+    }
 }
 void lifecycle_prepare(AppContext* context, gboolean managed, GstElement* gate, GstElement* media_tap) {
     context->gate = gate;
     if (!managed) return;
     if (gate) g_object_set(gate, "drop", TRUE, NULL);
     context->control = control_new(g_main_loop_get_context(context->loop), handle_request, context);
-    control_event(context->control, "control-ready", NULL);
     GstPad* pad = gst_element_get_static_pad(media_tap, "src");
     gst_pad_add_probe(pad, GST_PAD_PROBE_TYPE_BUFFER, first_media, context, NULL);
     gst_object_unref(pad);

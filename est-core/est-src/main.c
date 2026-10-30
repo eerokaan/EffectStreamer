@@ -26,9 +26,10 @@ enum {
     OPTION_PEER_PORT = 1 << 10,
     OPTION_LISTEN_PORT = 1 << 11,
     OPTION_BIND_ADDRESS = 1 << 12,
+    OPTION_RTP_FRAMES = 1 << 13,
     SENDER_OPTIONS = OPTION_PEERIP | OPTION_NATIVE_DELAY | OPTION_ECHO_DELAY | OPTION_PACKETLOSS_TYPE |
                      OPTION_PACKETLOSS_RATIO | OPTION_PACKETLOSS_SEED | OPTION_PACKETLOSS_BURST_MODEL |
-                      OPTION_PACKETLOSS_BURST_RATIO | OPTION_PEER_PORT,
+                      OPTION_PACKETLOSS_BURST_RATIO | OPTION_PEER_PORT | OPTION_RTP_FRAMES,
     RECEIVER_OPTIONS = OPTION_NATIVE_GAIN | OPTION_ECHO_GAIN | OPTION_LISTEN_PORT | OPTION_BIND_ADDRESS,
 };
 
@@ -60,6 +61,11 @@ static void print_usage(const char* prog_name) {
     fprintf(stderr, "  --mode test-input         Finite native input-access/level check\n");
     fprintf(stderr, "  --mode test-output        Native playback test; requires --test-file <WAV>\n");
     fprintf(stderr, "  --test-duration-ms        Input check duration, 1-10000 ms (default: 1000)\n");
+    fprintf(stderr, "  --rtp-frames              Internal L16 packet frames, 1-480 (sender, default: 128)\n");
+    fprintf(stderr, "  --ice-min-port/--ice-max-port  WebRTC ICE port range (both or neither)\n");
+    fprintf(stderr, "  --webrtc-jitter-ms        WebRTC jitter buffer (default: 20 ms)\n");
+    fprintf(stderr, "  --opus-bitrate            WebRTC transport bitrate (default: 128000)\n");
+    fprintf(stderr, "  --stun-server/--turn-server  GStreamer ICE URLs; TURN may repeat up to eight times\n");
     fprintf(stderr, "  --native-delay            Additional native queue delay in milliseconds (sender mode only, default: 0)\n");
     fprintf(stderr, "  --native-gain             Native gain from 0.0 to 1.0 (receiver mode only, default: 1.0)\n");
     fprintf(stderr, "  --echo-delay              Additional echo queue delay in milliseconds (sender mode only, default: 0)\n");
@@ -125,6 +131,7 @@ static DeviceType parse_device_type(const char* value) {
     if (strcmp(value, "alsa") == 0) return DEVICE_TYPE_ALSA;
     if (strcmp(value, "wasapi2") == 0) return DEVICE_TYPE_WASAPI2;
     if (strcmp(value, "stdio") == 0) return DEVICE_TYPE_STDIO;
+    if (strcmp(value, "webrtc") == 0) return DEVICE_TYPE_WEBRTC;
     return DEVICE_TYPE_UNKNOWN;
 }
 
@@ -149,6 +156,7 @@ static const char* get_first_option_name(guint supplied_options) {
     if (supplied_options & OPTION_PEER_PORT) return "--peer-port";
     if (supplied_options & OPTION_LISTEN_PORT) return "--listen-port";
     if (supplied_options & OPTION_BIND_ADDRESS) return "--bind-address";
+    if (supplied_options & OPTION_RTP_FRAMES) return "--rtp-frames";
     if (supplied_options & OPTION_PEERIP) return "--peerip";
     if (supplied_options & OPTION_NATIVE_DELAY) return "--native-delay";
     if (supplied_options & OPTION_ECHO_DELAY) return "--echo-delay";
@@ -184,6 +192,8 @@ int main(int argc, char* argv[]) {
     gboolean list_devices = FALSE, duration_supplied = FALSE;
     const char* test_file = NULL;
     int test_duration = 1000;
+    int rtp_frames = 128;
+    WebRtcOptions webrtc = { .jitter_ms = 20, .opus_bitrate = 128000 };
     
     DeviceType device_type_parsed;
 
@@ -215,6 +225,13 @@ int main(int argc, char* argv[]) {
         OPT_LIST_DEVICES,
         OPT_TEST_FILE,
         OPT_TEST_DURATION,
+        OPT_ICE_MIN,
+        OPT_ICE_MAX,
+        OPT_WEBRTC_JITTER,
+        OPT_OPUS_BITRATE,
+        OPT_STUN,
+        OPT_TURN,
+        OPT_RTP_FRAMES,
         OPT_NATIVEDELAY,
         OPT_ECHODELAY,
         OPT_NATIVEGAIN,
@@ -245,6 +262,13 @@ int main(int argc, char* argv[]) {
         {"list-devices", no_argument, 0, OPT_LIST_DEVICES},
         {"test-file", required_argument, 0, OPT_TEST_FILE},
         {"test-duration-ms", required_argument, 0, OPT_TEST_DURATION},
+        {"ice-min-port", required_argument, 0, OPT_ICE_MIN},
+        {"ice-max-port", required_argument, 0, OPT_ICE_MAX},
+        {"webrtc-jitter-ms", required_argument, 0, OPT_WEBRTC_JITTER},
+        {"opus-bitrate", required_argument, 0, OPT_OPUS_BITRATE},
+        {"stun-server", required_argument, 0, OPT_STUN},
+        {"turn-server", required_argument, 0, OPT_TURN},
+        {"rtp-frames", required_argument, 0, OPT_RTP_FRAMES},
         {"native-delay", required_argument, 0, OPT_NATIVEDELAY},
         {"echo-delay", required_argument, 0, OPT_ECHODELAY},
         {"native-gain", required_argument, 0, OPT_NATIVEGAIN},
@@ -263,6 +287,22 @@ int main(int argc, char* argv[]) {
     opterr = 0;
     while ((option_code = getopt_long(argc, argv, "", long_options, NULL)) != -1) {
         switch (option_code) {
+            case OPT_RTP_FRAMES:
+                supplied_options |= OPTION_RTP_FRAMES;
+                if (!parse_int_option(optarg, "--rtp-frames", &rtp_frames)) return 1;
+                if (rtp_frames < 1 || rtp_frames > 480) {fprintf(stderr, "Error: Invalid --rtp-frames (1 to 480)\n");return 1;}break;
+            case OPT_ICE_MIN: if (!parse_port(optarg, "--ice-min-port", &webrtc.ice_min_port)) return 1; break;
+            case OPT_ICE_MAX: if (!parse_port(optarg, "--ice-max-port", &webrtc.ice_max_port)) return 1; break;
+            case OPT_WEBRTC_JITTER:
+                if (!parse_int_option(optarg, "--webrtc-jitter-ms", &webrtc.jitter_ms)) return 1;
+                if (webrtc.jitter_ms > 2000) {fprintf(stderr, "Error: --webrtc-jitter-ms exceeds 2000\n");return 1;}break;
+            case OPT_OPUS_BITRATE:
+                if (!parse_int_option(optarg, "--opus-bitrate", &webrtc.opus_bitrate)) return 1;
+                if (webrtc.opus_bitrate < 6000 || webrtc.opus_bitrate > 510000) {fprintf(stderr, "Error: Invalid --opus-bitrate\n");return 1;}break;
+            case OPT_STUN: webrtc.stun_server = optarg; break;
+            case OPT_TURN:
+                if (webrtc.turn_count >= G_N_ELEMENTS(webrtc.turn_servers)) {fprintf(stderr, "Error: Too many TURN servers\n");return 1;}
+                webrtc.turn_servers[webrtc.turn_count++] = optarg;break;
             case OPT_LIST_DEVICES: list_devices = TRUE; break;
             case OPT_TEST_FILE: test_file = optarg; break;
             case OPT_TEST_DURATION:
@@ -428,8 +468,11 @@ int main(int argc, char* argv[]) {
     }
 
     // Validate parsed arguments: Sender/Receiver
+    if (device_type_parsed == DEVICE_TYPE_WEBRTC && !managed) {fprintf(stderr, "Error: WebRTC requires --control ndjson\n");return 1;}
+    if (device_type_parsed == DEVICE_TYPE_WEBRTC && device_id) {fprintf(stderr, "Error: --device-id is invalid with webrtc\n");return 1;}
+    if ((webrtc.ice_min_port == 0) != (webrtc.ice_max_port == 0) || webrtc.ice_min_port > webrtc.ice_max_port) {fprintf(stderr, "Error: Invalid ICE port range\n");return 1;}
     if (list_devices || utility_mode) {
-        if (device_type_parsed == DEVICE_TYPE_STDIO) {fprintf(stderr, "Error: Device checks require a native backend\n");return 1;}
+        if (device_type_parsed == DEVICE_TYPE_STDIO || device_type_parsed == DEVICE_TYPE_WEBRTC) {fprintf(stderr, "Error: Device checks require a native backend\n");return 1;}
         if (managed || supplied_options || (list_devices && mode)) {fprintf(stderr, "Error: Invalid options for device utility\n");return 1;}
         if (g_strcmp0(mode, "test-output") == 0 && (!test_file || !g_file_test(test_file, G_FILE_TEST_IS_REGULAR))) {
             fprintf(stderr, "Error: --test-file must name an existing WAV\n");return 1;
@@ -481,7 +524,7 @@ int main(int argc, char* argv[]) {
         exit_code = list_devices ? print_native_devices(device_type_parsed) : run_device_check(device_type_parsed, device_id ? device_id : "default", mode, test_file, test_duration);
         gst_deinit();return exit_code;
     }
-    if (device_type_parsed != DEVICE_TYPE_STDIO && !device_id) {
+    if (device_type_parsed != DEVICE_TYPE_STDIO && device_type_parsed != DEVICE_TYPE_WEBRTC && !device_id) {
         device_id_auto_detected = get_first_audio_device(device_type_parsed, mode);
 
         if (!device_id_auto_detected) {
@@ -510,7 +553,9 @@ int main(int argc, char* argv[]) {
             .managed = managed,
             .recording = recording,
             .recording_dir = recording_dir,
+            .webrtc = webrtc,
             .peer_port = peer_port,
+            .rtp_frames = rtp_frames,
             .echo_port = echo_port,
             .record_port = record_port,
             .nativedelay = nativedelay,
@@ -530,6 +575,7 @@ int main(int argc, char* argv[]) {
             .managed = managed,
             .recording = recording,
             .recording_dir = recording_dir,
+            .webrtc = webrtc,
             .echogain = echogain,
             .listen_port = listen_port,
             .echo_port = echo_port,

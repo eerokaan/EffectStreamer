@@ -53,12 +53,20 @@ function createCoordinator({ config, root = path.join(os.homedir(), "effectstrea
         };
         socket.on(EVENTS.action, dispatch);
         socket.on(EVENTS.mediaResult, dispatch);
+        socket.on(EVENTS.signal, async (envelope, acknowledge = () => {}) => {
+            try {
+                const current = registry.getForParticipant(participantId);
+                if (!current?.clientRegistry.fetchClient(socket.id)) throw new Error("Not connected to an experiment session");
+                acknowledge({ requestId: envelope?.requestId, ok: true, signal: await current.signal(participantId, envelope) });
+            }
+            catch (error) { acknowledge({ requestId: envelope?.requestId, ok: false, error: error.message }); }
+        });
         socket.on("disconnect", () => registry.getForParticipant(participantId)?.clientRegistry.handleUnregister(socket));
     });
     return {
         app, server, io, enrollments, registry, transfers,
         async close() {
-            for (const session of registry.sessions.values()) session.dispose();
+            await Promise.all([...registry.sessions.values()].map(session => session.dispose()));
             await new Promise(resolve => io.close(resolve));
             await Promise.all(registry.store.pending.values());
         }

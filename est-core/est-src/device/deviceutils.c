@@ -85,17 +85,19 @@ const char* get_device_type_name(DeviceType device_type) {
             return "wasapi2";
         case DEVICE_TYPE_STDIO:
             return "stdio";
+        case DEVICE_TYPE_WEBRTC:
+            return "webrtc";
         default:
             return "unknown";
     }
 }
 
 const char* get_supported_device_type_names(void) {
-    return PLATFORM_WINDOWS ? "wasapi2 or stdio" : "alsa or stdio";
+    return PLATFORM_WINDOWS ? "wasapi2, stdio, or webrtc" : "alsa, stdio, or webrtc";
 }
 
 gboolean is_device_type_supported(DeviceType device_type) {
-    if (device_type == DEVICE_TYPE_STDIO) return TRUE;
+    if (device_type == DEVICE_TYPE_STDIO || device_type == DEVICE_TYPE_WEBRTC) return TRUE;
     return PLATFORM_WINDOWS ? device_type == DEVICE_TYPE_WASAPI2 : device_type == DEVICE_TYPE_ALSA;
 }
 

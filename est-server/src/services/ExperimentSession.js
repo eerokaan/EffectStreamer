@@ -8,9 +8,10 @@ const { ViewFlow } = require("./ViewFlow.js");
 const { ExperimentFlow } = require("./ExperimentFlow.js");
 const { EffectStreamerCore } = require("./EffectStreamerCore.js");
 const { LocalMediaAdapter } = require("../media/LocalMediaAdapter.js");
+const { RemoteMediaAdapter } = require("../media/RemoteMediaAdapter.js");
 
 class ExperimentSession extends ServerState {
-    constructor({ participants, config, io, root, store, enrollments, onChange = () => {} }) {
+    constructor({ participants, config, io, root, store, enrollments, allocator, onChange = () => {} }) {
         super();
         this.sessionId = randomUUID();
         this.config = config;
@@ -34,7 +35,7 @@ class ExperimentSession extends ServerState {
         this.sessionFiles = new SessionFiles({ state: this, config, root });
         this.sessionFiles.createFolderStructure();
         this.clientRegistry = new ClientRegistry({ state: this, io, views });
-        this.mediaAdapter = new LocalMediaAdapter(this.clientRegistry);
+        this.mediaAdapter = config.deployment.mode === "remote" ? new RemoteMediaAdapter({ config: config.remote, allocator, clientRegistry: this.clientRegistry, onFailure: error => this.mediaFailure(error) }) : new LocalMediaAdapter(this.clientRegistry);
         this.viewFlow = new ViewFlow({ state: this, config });
         this.effectStreamerCore = new EffectStreamerCore({ state: this, config, clientRegistry: this.clientRegistry, sessionFiles: this.sessionFiles });
         this.experimentFlow = new ExperimentFlow({ state: this, config, views, viewFlow: this.viewFlow, clientRegistry: this.clientRegistry, sessionFiles: this.sessionFiles, effectStreamerCore: this.effectStreamerCore });
@@ -85,6 +86,7 @@ class ExperimentSession extends ServerState {
             }
             if (envelope.type !== "recordingsFinalized" && envelope.attemptId !== this.recordingContextActive) throw new Error("Stale attempt scope");
             const payload = envelope.payload;
+            if (this.config.deployment.mode === "remote" && ["mediaPrepared", "mediaStarted", "mediaStopped", "mediaFailed"].includes(envelope.type) && payload.generation !== this.mediaAdapter.generation) throw new Error("Stale media generation");
             const socket = { id: client.socketId };
             if (!socket.id) throw new Error("Participant is not connected");
             if (envelope.type === "setupComplete") {
@@ -113,7 +115,8 @@ class ExperimentSession extends ServerState {
                 this.effectStreamerCore.handleCoreStopResponse(socket, { ...payload, contextKey: envelope.attemptId });
             }
             else if (envelope.type === "mediaStarted") {
-                this.effectStreamerCore.handleMediaStarted(socket, { ...payload, contextKey: envelope.attemptId });
+                try { await this.effectStreamerCore.handleMediaStarted(socket, { ...payload, contextKey: envelope.attemptId }); }
+                catch (error) { this.mediaFailure(error); throw error; }
             }
             else if (envelope.type === "recordingsFinalized") {
                 if (!Array.isArray(payload.manifests) || payload.manifests.some(manifest => manifest.attemptId !== envelope.attemptId)) throw new Error("Invalid recording attempt scope");
@@ -143,6 +146,30 @@ class ExperimentSession extends ServerState {
 
     dispose() {
         for (const context of this.recordingContexts.values()) clearTimeout(context.startupTimeout);
+        return this.mediaAdapter.dispose();
+    }
+
+    runMedia(operation) {
+        void Promise.resolve().then(operation).then(() => this.persist()).then(() => this.publish()).catch(error => this.mediaFailure(error));
+    }
+
+    mediaFailure(error) {
+        const active = this.recordingContexts.get(this.recordingContextActive);
+        if (!active || active.status === "completed") return;
+        active.interrupted = true;
+        this.phase = "interrupted";
+        this.attempts.find(attempt => attempt.attemptId === active.contextKey).status = "interrupted";
+        this.effectStreamerCore.recordingContextStopCommit(active);
+        this.publish();
+        void this.persist().catch(failure => { this.persistenceError = failure; });
+        console.warn("[Session " + this.sessionId + "] Media failure: " + error.message);
+    }
+
+    signal(participantId, envelope) {
+        validateEnvelope(envelope);
+        if (envelope.type !== "signal" || envelope.participantId !== participantId || envelope.sessionId !== this.sessionId || envelope.attemptId !== this.recordingContextActive) return Promise.reject(new Error("Invalid signaling scope"));
+        if (this.config.deployment.mode !== "remote") return Promise.reject(new Error("WebRTC signaling is not available locally"));
+        return this.mediaAdapter.signal(participantId, { ...envelope.payload, sessionId: this.sessionId, attemptId: envelope.attemptId });
     }
 
     receivedRecording(manifest, receipt) {

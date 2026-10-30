@@ -8,6 +8,7 @@
 #include "receiverstdin.h"
 #include "lifecycle.h"
 #include "recording/wav.h"
+#include "device/webrtc.h"
 
 typedef struct {
     GMutex lock;
@@ -184,7 +185,7 @@ int run_receiver(ReceiverParams* params) {
         g_printerr("Error: Could not create the receiver pipeline.\n");
         goto cleanup;
     }
-    if (!create_audio_sink(params->device_type, params->device_id, &sink_backend) || !add_audio_backend(GST_BIN(context.pipeline), &sink_backend)) {
+    if (!audio_backend_prepare(&context, &sink_backend, params->device_type, params->device_id, &params->webrtc, FALSE) || !add_audio_backend(GST_BIN(context.pipeline), &sink_backend)) {
         goto cleanup;
     }
     // clang-format on
@@ -301,6 +302,13 @@ int run_receiver(ReceiverParams* params) {
         goto cleanup;
     }
 
+    if (params->device_type == DEVICE_TYPE_WEBRTC && params->recording) {
+        const char* names[] = {"wav-microphone", "wav-headphones"};
+        for (guint i = 0; i < G_N_ELEMENTS(names); i++) {
+            GstElement* sink = gst_bin_get_by_name(GST_BIN(context.pipeline), names[i]);
+            audio_backend_watch_eos(&context, sink, "sink");gst_object_unref(sink);
+        }
+    }
     lifecycle_prepare(&context, params->managed, NULL, audioconvert_speaker);
     state_change = gst_element_set_state(context.pipeline, GST_STATE_PLAYING);
     if (state_change != GST_STATE_CHANGE_FAILURE && !params->managed) {
@@ -324,11 +332,13 @@ int run_receiver(ReceiverParams* params) {
         goto cleanup;
     }
 
+    if (params->managed) control_event(context.control, "control-ready", NULL);
     g_main_loop_run(context.loop);
     result = has_runtime_error(&context) || (stdin_watch && receiver_stdin_watch_had_error(stdin_watch)) ? 1 : 0;
 
 cleanup:
     // Stop processing and collect the final runtime status
+    audio_backend_quiesce(&context);
     if (stdin_watch) {
         if (receiver_stdin_watch_had_error(stdin_watch)) {
             result = 1;
@@ -341,6 +351,7 @@ cleanup:
     if (has_runtime_error(&context)) {
         result = 1;
     }
+    audio_backend_dispose(&context);
     lifecycle_finish(&context, result == 0, params->recording);
     if (params->device_type == DEVICE_TYPE_STDIO) {
         g_printerr("stdio speaker queue overruns: %" G_GUINT64_FORMAT "\n", get_speaker_queue_overruns(&speaker_stats));

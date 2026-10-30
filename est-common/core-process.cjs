@@ -81,7 +81,7 @@ async function startCore({executable,args=[],env=process.env,timeoutMs=10000}) {
                 let stopTimer;
                 const timedOut=await Promise.race([exited.then(()=>false),new Promise(resolve=>{stopTimer=setTimeout(()=>resolve(true),stopTimeoutMs);})]);
                 clearTimeout(stopTimer);
-                if(timedOut) {child.kill('SIGKILL');await exited;throw new Error('Core graceful stop timed out');}
+                if(timedOut) {child.kill('SIGKILL');await exited;throw new Error('Core graceful stop timed out: '+stderr);}
                 const result=await exited;
                 if(result.code!==0) throw new Error('Core stopped unsuccessfully: '+stderr);
                 return result;

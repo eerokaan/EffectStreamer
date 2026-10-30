@@ -28,6 +28,7 @@
 
 /* Common structures */
 typedef struct CoreControl CoreControl;
+typedef struct WebRtcBackend WebRtcBackend;
 typedef struct {
     GMainLoop* loop;
     GstElement* pipeline;
@@ -35,11 +36,15 @@ typedef struct {
     GMutex error_lock;
     CoreControl* control;
     GstElement* gate;
+    GstElement* preparation_volume;
     gboolean started;
     gboolean stopping;
     gboolean eos_received;
     guint stop_timeout;
     gint media_reported;
+    WebRtcBackend* webrtc;
+    guint eos_branches;
+    guint eos_branches_finished;
 } AppContext;
 
 typedef enum {
@@ -47,7 +52,18 @@ typedef enum {
     DEVICE_TYPE_ALSA,
     DEVICE_TYPE_WASAPI2,
     DEVICE_TYPE_STDIO,
+    DEVICE_TYPE_WEBRTC,
 } DeviceType;
+
+typedef struct {
+    int ice_min_port;
+    int ice_max_port;
+    int jitter_ms;
+    int opus_bitrate;
+    const char* stun_server;
+    const char* turn_servers[8];
+    guint turn_count;
+} WebRtcOptions;
 
 typedef struct {
     GstElement* elements[3];
@@ -65,6 +81,7 @@ typedef struct {
     int peer_port;
     int echo_port;
     int record_port;
+    int rtp_frames;
     int nativedelay;
     int echodelay;
     const char* packetloss_type;
@@ -72,6 +89,7 @@ typedef struct {
     guint packetloss_seed;
     const char* packetloss_burst_model;
     double packetloss_burst_ratio;
+    WebRtcOptions webrtc;
 } SenderParams;
 
 /* Receiver parameters */
@@ -87,6 +105,7 @@ typedef struct {
     int echo_port;
     int record_port;
     const char* bind_address;
+    WebRtcOptions webrtc;
 } ReceiverParams;
 
 /* Function declarations */

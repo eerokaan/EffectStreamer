@@ -6,6 +6,7 @@
 
 #include "effectstreamer.h"
 #include "lifecycle.h"
+#include "device/webrtc.h"
 
 static void record_runtime_error(AppContext* context) {
     g_mutex_lock(&context->error_lock);
@@ -121,7 +122,7 @@ int run_sender(SenderParams* params) {
     GstState current_state = GST_STATE_NULL;
 
     GstElement *audioconvert, *audioresample, *capsfilter;
-    GstElement *rtpL16pay, *tee, *gate;
+    GstElement *rtpL16pay, *tee, *gate, *packetizer;
     GstElement *queue1, *estnetsim1, *udpsink1;
     GstElement *queue2, *udpsink2;
     GstElement *queue3, *udpsink3;
@@ -169,7 +170,7 @@ int run_sender(SenderParams* params) {
         g_printerr("Error: Could not create the sender pipeline.\n");
         goto cleanup;
     }
-    if (!create_audio_source(params->device_type, params->device_id, &source_backend) || !add_audio_backend(GST_BIN(context.pipeline), &source_backend)) {
+    if (!audio_backend_prepare(&context, &source_backend, params->device_type, params->device_id, &params->webrtc, TRUE) || !add_audio_backend(GST_BIN(context.pipeline), &source_backend)) {
         goto cleanup;
     }
     // clang-format on
@@ -180,6 +181,8 @@ int run_sender(SenderParams* params) {
     rtpL16pay = create_and_add_element(GST_BIN(context.pipeline), "rtpL16pay", "rtp-payloader");
     tee = create_and_add_element(GST_BIN(context.pipeline), "tee", "tee");
     gate = create_and_add_element(GST_BIN(context.pipeline), "valve", "audio-gate");
+    context.preparation_volume = create_and_add_element(GST_BIN(context.pipeline), "volume", "preparation-mute");
+    packetizer = create_and_add_element(GST_BIN(context.pipeline), "audiobuffersplit", "rtp-frame-split");
 
     // clang-format off
     queue1 = create_and_add_element(GST_BIN(context.pipeline), "queue", "queue-peer");
@@ -193,13 +196,14 @@ int run_sender(SenderParams* params) {
     queue3 = params->recording ? create_and_add_element(GST_BIN(context.pipeline), "queue", "queue-record") : NULL;
     udpsink3 = params->recording ? create_and_add_element(GST_BIN(context.pipeline), "udpsink", "udpsink-record") : NULL;
 
-    if (!audioconvert || !audioresample || !capsfilter || !rtpL16pay || !tee || !gate || !queue1 ||
+    if (!audioconvert || !audioresample || !capsfilter || !rtpL16pay || !tee || !gate || !context.preparation_volume || !packetizer || !queue1 ||
         (is_packetloss_enabled(packetloss_type) && !estnetsim1) || !udpsink1 || !queue2 || !udpsink2 || (params->recording && (!queue3 || !udpsink3))) {
         goto cleanup;
     }
 
     // clang-format off
     g_object_set(G_OBJECT(rtpL16pay), "pt", 96, NULL);
+    g_object_set(packetizer, "output-buffer-size", (guint)(params->rtp_frames * 2), "strict-buffer-size", FALSE, NULL);
     g_object_set(G_OBJECT(queue1), "max-size-buffers", (guint)0, "max-size-bytes", (guint)0, "max-size-time", (guint64)0, "min-threshold-time", nativedelay, NULL);
     g_object_set(G_OBJECT(queue2), "max-size-buffers", (guint)0, "max-size-bytes", (guint)0, "max-size-time", (guint64)0, "min-threshold-time", echodelay, NULL);
     if (queue3) g_object_set(G_OBJECT(queue3), "max-size-buffers", (guint)0, "max-size-bytes", (guint)0, "max-size-time", (guint64)0, "min-threshold-time", (guint64)0, NULL);
@@ -215,6 +219,7 @@ int run_sender(SenderParams* params) {
 
     caps = gst_caps_new_simple(
         "audio/x-raw",
+        "format", G_TYPE_STRING, "S16BE",
         "channels", G_TYPE_INT, 1,
         "rate", G_TYPE_INT, 48000,
         NULL
@@ -225,7 +230,7 @@ int run_sender(SenderParams* params) {
     gst_caps_unref(caps);
 
     // clang-format off
-    if (!gst_element_link_many(get_audio_backend_last(&source_backend), audioconvert, audioresample, capsfilter, gate, rtpL16pay, tee, NULL)) {
+    if (!gst_element_link_many(get_audio_backend_last(&source_backend), context.preparation_volume, audioconvert, audioresample, capsfilter, gate, packetizer, rtpL16pay, tee, NULL)) {
         g_printerr("Error: Failed to link the sender audio source chain.\n");
         goto cleanup;
     }
@@ -258,6 +263,10 @@ int run_sender(SenderParams* params) {
         goto cleanup;
     }
 
+    if (params->device_type == DEVICE_TYPE_WEBRTC) {
+        audio_backend_watch_eos(&context, udpsink1, "sink");audio_backend_watch_eos(&context, udpsink2, "sink");
+        if (udpsink3) audio_backend_watch_eos(&context, udpsink3, "sink");
+    }
     lifecycle_prepare(&context, params->managed, gate, capsfilter);
     state_change = gst_element_set_state(context.pipeline, GST_STATE_PLAYING);
     if (state_change != GST_STATE_CHANGE_FAILURE && !params->managed) {
@@ -275,17 +284,20 @@ int run_sender(SenderParams* params) {
         goto cleanup;
     }
 
+    if (params->managed) control_event(context.control, "control-ready", NULL);
     g_main_loop_run(context.loop);
     result = has_runtime_error(&context) ? 1 : 0;
 
 cleanup:
     // Stop processing and collect the final runtime status
+    audio_backend_quiesce(&context);
     if (context.pipeline) {
         gst_element_set_state(context.pipeline, GST_STATE_NULL);
     }
     if (has_runtime_error(&context)) {
         result = 1;
     }
+    audio_backend_dispose(&context);
     lifecycle_finish(&context, result == 0, FALSE);
     if (bus_watch_id) {
         g_source_remove(bus_watch_id);

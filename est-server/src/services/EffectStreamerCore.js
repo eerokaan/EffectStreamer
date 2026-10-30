@@ -45,7 +45,18 @@ class EffectStreamerCore {
         // Stop the recording context when est-core failed to start
         if (data.success === false) {
             console.log("[Server] est-core start failed for " + client.clientId + " (" + recordingContext.contextKey + "): " + (data.error ?? "n/a"));
+            recordingContext.interrupted = true;
             this.recordingContextStopCommit(recordingContext);
+            return;
+        }
+
+        if (this.config.deployment.mode === "remote") {
+            if (data.component !== "remote" || recordingContext.status !== "startingSender") return;
+            recordingContext.sockets.receiverReady.add(client.participantId);
+            if (recordingContext.sockets.receiverReady.size === recordingContext.clients.length) {
+                recordingContext.status = "startingMedia";
+                this.state.runMedia(() => this.state.mediaAdapter.start({ session: this.state, attempt: recordingContext }));
+            }
             return;
         }
 
@@ -70,7 +81,7 @@ class EffectStreamerCore {
                 });
 
                 // prettier-ignore
-                void this.state.mediaAdapter.prepare({ session: this.state, attempt: recordingContext, condition: currentCondition, component: "receiver" });
+                this.state.runMedia(() => this.state.mediaAdapter.prepare({ session: this.state, attempt: recordingContext, condition: currentCondition, component: "receiver" }));
             }
         }
 
@@ -85,18 +96,20 @@ class EffectStreamerCore {
 
             if (recordingContext.sockets.receiverReady.size >= recordingContext.clients.length) {
                 recordingContext.status = "startingMedia";
-                void this.state.mediaAdapter.start({ session: this.state, attempt: recordingContext });
+                this.state.runMedia(() => this.state.mediaAdapter.start({ session: this.state, attempt: recordingContext }));
             }
         }
     }
 
-    handleMediaStarted(socket, data) {
+    async handleMediaStarted(socket, data) {
         const client = this.clientRegistry.fetchClient(socket.id);
         const context = this.state.recordingContexts.get(data.contextKey);
         if (!client || !context || context.status !== "startingMedia") return;
         if (data.success === false) {context.interrupted = true;this.recordingContextStopCommit(context);return;}
         context.sockets.mediaStarted.add(client.participantId);
         if (context.sockets.mediaStarted.size === context.clients.length) {
+            await this.state.mediaAdapter.release?.();
+            if (context.status !== "startingMedia") return;
             context.status = "running";
             this.state.attempts.find(attempt => attempt.attemptId === context.contextKey).status = "running";
             clearTimeout(context.startupTimeout);
@@ -182,7 +195,7 @@ class EffectStreamerCore {
         // Reuse the unfinished context for this condition instead of creating a duplicate
         if (existingRecordingContext && existingRecordingContext.status !== "completed") {
             console.log("[Server] Not starting est-core because recording context is already active: " + contextKey);
-            this.state.recordingContextActive = contextKey;
+            this.state.recordingContextActive = existingRecordingContext.contextKey;
             return true;
         }
 
@@ -230,9 +243,10 @@ class EffectStreamerCore {
         recordingContext.startupTimeout = setTimeout(() => {
             if (["startingSender", "startingReceiver", "startingMedia"].includes(recordingContext.status)) {
                 console.log("[Server] Recording context startup timed out: " + recordingContext.contextKey);
+                recordingContext.interrupted = true;
                 this.recordingContextStopCommit(recordingContext);
             }
-        }, 30000);
+        }, this.config.deployment.mode === "remote" ? this.config.remote.startupTimeoutMs * 3 : 30000);
 
         console.log("[Server] Recording context starting: " + contextKey);
 
@@ -244,7 +258,7 @@ class EffectStreamerCore {
         });
 
         // Start sender components with peer and condition settings
-        void this.state.mediaAdapter.prepare({ session: this.state, attempt: recordingContext, condition: currentCondition, component: "sender" });
+        this.state.runMedia(() => this.state.mediaAdapter.prepare({ session: this.state, attempt: recordingContext, condition: currentCondition, component: "sender" }));
 
         return true;
     }
@@ -306,7 +320,7 @@ class EffectStreamerCore {
             testType: recordingContext.scope.testType,
             status: "stopping"
         });
-        void this.state.mediaAdapter.stop({ session: this.state, attempt: recordingContext, reason: recordingContext.interrupted ? "interrupted" : "completed" });
+        this.state.runMedia(() => this.state.mediaAdapter.stop({ session: this.state, attempt: recordingContext, reason: recordingContext.interrupted ? "interrupted" : "completed" }));
     }
 
     // prettier-ignore
