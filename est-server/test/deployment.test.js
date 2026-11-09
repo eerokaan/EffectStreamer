@@ -8,9 +8,10 @@ const {createCoordinator}=require('../src/server.js');
 const {normalizeConfig}=require('../src/bootstraps/configManager.js');
 const {remoteConfig}=require('./fixtures/config.js');
 const {spawnSync}=require('node:child_process');
+const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
 
 test('same-origin hosting serves the renderer and real WAV while keeping private routes out of SPA fallback',async t=>{
-    const root=await fs.mkdtemp('/tmp/opencode/est-deploy-');
+    const root=checkoutPaths().temporaryDirectory('est-server','est-deploy-');
     const webRoot=path.join(root,'.private-build','web');await fs.mkdir(webRoot,{recursive:true});
     await fs.writeFile(path.join(webRoot,'index.html'),'<!doctype html><title>Study</title>');
     await fs.mkdir(path.join(webRoot,'audio'));
@@ -28,13 +29,13 @@ test('same-origin hosting serves the renderer and real WAV while keeping private
 });
 
 test('an explicitly configured missing web build fails readiness instead of accepting participants',async t=>{
-    const root=await fs.mkdtemp('/tmp/opencode/est-no-web-');
+    const root=checkoutPaths().temporaryDirectory('est-server','est-no-web-');
     const app=createCoordinator({config:normalizeConfig(remoteConfig()),root,webRoot:path.join(root,'missing')});
     t.after(async()=>{await app.close().catch(()=>{});await fs.rm(root,{recursive:true,force:true});});
     await assert.rejects(app.ready,/web|index|ENOENT/i);
 });
 test('deployment TURN secret overrides the mounted configuration without entering public bootstrap',async t=>{
-    const root=await fs.mkdtemp('/tmp/opencode/est-turn-config-');t.after(()=>fs.rm(root,{recursive:true,force:true}));
+    const root=checkoutPaths().temporaryDirectory('est-server','est-turn-config-');t.after(()=>fs.rm(root,{recursive:true,force:true}));
     const file=path.join(root,'config.json');await fs.writeFile(file,JSON.stringify(remoteConfig()));
     const result=spawnSync(process.execPath,['-e',`const {loadConfig,publicBootstrap}=require('./src/bootstraps/configManager.js');const config=loadConfig();console.log(JSON.stringify({secret:config.remote.turnSecret,public:publicBootstrap(config)}));`],{cwd:path.resolve(__dirname,'..'),env:{...process.env,EST_CONFIG_PATH:file,EST_TURN_SECRET:'only-from-private-environment'},encoding:'utf8'});
     assert.equal(result.status,0,result.stderr);const value=JSON.parse(result.stdout);assert.equal(value.secret,'only-from-private-environment');assert.doesNotMatch(JSON.stringify(value.public),/only-from-private-environment|turnSecret/);

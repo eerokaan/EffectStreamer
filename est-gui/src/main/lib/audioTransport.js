@@ -7,9 +7,6 @@ const playbackCreditWindow = 8;
 const portReadyTimeoutMs = 10000;
 const diagnosticSampleLimit = 4096;
 
-// EeroNote: Überlegen ob man wirklich auf .tmp-pid speichert und dann mit einem rename (automic replace) arbeitet
-// Sieht ziemlich (zu sehr) defensive aus; Prüfen ob nicht einfaches schreiben auf das FS ausreicht
-
 function createDirectionState() {
     return {
         port: null,

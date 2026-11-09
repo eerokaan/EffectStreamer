@@ -3,6 +3,7 @@
 #include <gst/sdp/sdp.h>
 #include <gst/webrtc/webrtc.h>
 #include "control/control.h"
+#include "transient.h"
 
 typedef struct {GMainLoop* loop;GstElement* pipeline;GstElement* peer;GstElement* input;CoreControl* control;GAsyncQueue* messages;gint received;} Peer;
 typedef struct {Peer* peer;cJSON* id;gboolean offer;} Operation;
@@ -88,7 +89,9 @@ static gboolean bus(GstBus* bus, GstMessage* message, gpointer data) {
     return G_SOURCE_CONTINUE;
 }
 int main(int argc, char** argv) {
-    gst_init(NULL, NULL);Peer peer = {0};GError* error = NULL;
+    GError* error = NULL;gchar* executable=effectstreamer_executable_path(&error);
+    if(!executable || !effectstreamer_transient_init(executable,&error)){g_printerr("Peer transient storage: %s\n",error?error->message:"unknown error");g_free(executable);g_clear_error(&error);return 1;}
+    g_free(executable);gst_init(NULL, NULL);Peer peer = {0};
     gboolean sender = argc > 1 && !strcmp(argv[1], "sender");
     const char* description = sender ?
         "webrtcbin name=peer bundle-policy=max-bundle audiotestsrc is-live=true wave=silence samplesperbuffer=960 ! audioconvert ! opusenc frame-size=20 dtx=false ! rtpopuspay pt=109 ! application/x-rtp,media=audio,encoding-name=OPUS,clock-rate=48000,encoding-params=(string)2,payload=(int)109 ! peer." :

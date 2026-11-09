@@ -2,30 +2,38 @@ import { resolve } from "path";
 import { defineConfig } from "electron-vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import {createRequire} from 'node:module';
+const {checkoutPaths}=createRequire(import.meta.url)('../est-common/transient-paths.cjs');
+const paths=checkoutPaths(),source=import.meta.dirname;
+const output=part=>paths.directory('est-gui','app','out',part);
+const cache=part=>paths.directory('est-gui','cache','vite-'+part);
 
 export default defineConfig({
     main: {
+        root:source, cacheDir:cache('main'), build:{outDir:output('main'),emptyOutDir:true},
         resolve: {
-            alias: [{ find: "@", replacement: resolve(__dirname, "./src") }]
+            alias: [{ find: "@", replacement: resolve(source, "./src") }]
         }
     },
     preload: {
+        root:source, cacheDir:cache('preload'), build:{outDir:output('preload'),emptyOutDir:true},
         resolve: {
-            alias: [{ find: "@", replacement: resolve(__dirname, "./src") }]
+            alias: [{ find: "@", replacement: resolve(source, "./src") }]
         }
     },
     renderer: {
-        publicDir: resolve(__dirname, "public"),
+        cacheDir:cache('renderer'), publicDir: resolve(source, "public"),
         build: {
+            outDir:output('renderer'),emptyOutDir:true,
             commonjsOptions: { include: [/node_modules/, /est-common/] },
             rollupOptions: {
                 input: {
-                    windowMain: resolve(__dirname, "./src/renderer/windowMain.html")
+                    windowMain: resolve(source, "./src/renderer/windowMain.html")
                 }
             }
         },
         resolve: {
-            alias: [{ find: "@", replacement: resolve(__dirname, "./src/renderer/windowMain") }, { find: "@runtime-platform", replacement: resolve(__dirname, "./src/renderer/windowMain/runtime/electron.js") }]
+            alias: [{ find: "@", replacement: resolve(source, "./src/renderer/windowMain") }, { find: "@runtime-platform", replacement: resolve(source, "./src/renderer/windowMain/runtime/electron.js") }]
         },
         plugins: [react(), tailwindcss()]
     }

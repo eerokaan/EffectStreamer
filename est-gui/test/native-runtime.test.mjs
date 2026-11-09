@@ -2,6 +2,7 @@ import { it, expect } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { NativeAudioRuntime, coreArguments } from "../src/main/audio/native.js";
+import {checkoutPaths} from '../../est-common/transient-paths.cjs';
 
 const scope={sessionId:'session-1',participantId:'person-a',attemptId:'attempt-1'};
 const condition={nativeDelay:30,echoDelay:80,nativeGain:0.5,echoGain:0.1,packetlossType:'random',packetlossRatio:0.2};
@@ -20,7 +21,7 @@ it('native setup lists backend defaults and cannot reuse historical browser IDs'
     expect((await runtime.listDevices()).selection).toEqual({sourceId:'default',sinkId:'default'});
 });
 it('a receipt cannot delete a pending file unless both ID and digest match',async()=>{
-    const root=await fs.mkdtemp('/tmp/opencode/est-native-');
+    const root=checkoutPaths().temporaryDirectory('est-gui','est-native-');
     try {
         const runtime=new NativeAudioRuntime({config:{audio:{backend:'native'}},platform:'linux',executable:'unused',recordingRoot:root,testAsset:'/packaged/P501.wav'});
         const directory=path.join(root,scope.sessionId,scope.attemptId,scope.participantId);await fs.mkdir(directory,{recursive:true});

@@ -3,13 +3,15 @@ const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
 const dgram = require('node:dgram');
+const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
 
-function corePath() { return process.env.EST_CORE_EXECUTABLE || path.resolve(__dirname,'../.build/linux/est-core'); }
+function corePath() { return process.env.EST_CORE_EXECUTABLE || checkoutPaths().path('est-core','build','linux','est-core'); }
 function runCli(args) { return spawnSync(corePath(),args,{encoding:'utf8',timeout:5000}); }
 function temporaryHome(t) {
-    const root=process.env.EST_TEST_TMP || '/tmp/opencode';
-    fs.mkdirSync(root,{recursive:true});
-    const dir=fs.mkdtempSync(path.join(root,'est-core-'));
+    const paths=checkoutPaths();
+    let dir;
+    if(process.env.EST_TEST_TMP){const root=paths.assertManagedOutput(process.env.EST_TEST_TMP);fs.mkdirSync(root,{recursive:true,mode:0o700});dir=fs.mkdtempSync(path.join(root,'est-core-'));}
+    else dir=paths.temporaryDirectory('est-core','est-core-');
     t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
     return dir;
 }

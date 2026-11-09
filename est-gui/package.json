@@ -7,17 +7,17 @@
     "author": "Eero Kaan",
     "company": "Quality and Usability Lab | TU Berlin",
     "scripts": {
-        "test": "vitest",
-        "test:audio-browser": "playwright test --config playwright.audio.config.mjs",
-        "test:e2e": "playwright test --config playwright.config.mjs",
+        "test": "node build_scripts/run.cjs test",
+        "test:audio-browser": "node build_scripts/run.cjs audio-tests",
+        "test:e2e": "node build_scripts/run.cjs e2e",
         "dev:format": "prettier --write .",
-        "dev:lint": "eslint --cache --fix .",
-        "dev:run": "electron-vite dev -- --no-sandbox",
-        "dev:preview": "electron-vite preview -- --no-sandbox",
-        "build:run": "electron-vite build",
-        "build:web": "vite build --config vite.web.config.mjs",
-        "build:win": "npm run build:run && electron-builder --win",
-        "build:linux": "npm run build:run && electron-builder --linux"
+        "dev:lint": "node build_scripts/run.cjs lint",
+        "dev:run": "node build_scripts/run.cjs electron-dev",
+        "dev:preview": "node build_scripts/run.cjs electron-preview",
+        "build:run": "node build_scripts/run.cjs electron-build",
+        "build:web": "node build_scripts/run.cjs web-build",
+        "build:win": "node build_scripts/run.cjs package win",
+        "build:linux": "node build_scripts/run.cjs package linux"
     },
     "dependencies": {
         "@effectstreamer/common": "file:../est-common",

@@ -1,6 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { randomBytes, randomUUID, createHash } = require("node:crypto");
+const { writeFileDirectSync } = require("@effectstreamer/common/direct-write");
 
 function tokenHash(token) { return createHash("sha256").update(token).digest("hex"); }
 
@@ -55,19 +56,7 @@ class EnrollmentStore {
     }
 
     save() {
-        const temporary = this.file + ".tmp-" + randomUUID();
-        let file;
-        try {
-            file = fs.openSync(temporary, "wx", 0o600);
-            fs.writeFileSync(file, JSON.stringify([...this.participants.values()], null, 4) + "\n");
-            fs.fsyncSync(file); fs.closeSync(file); file = undefined;
-            fs.renameSync(temporary, this.file);
-        }
-        catch (error) {
-            if (file !== undefined) fs.closeSync(file);
-            fs.rmSync(temporary, { force: true });
-            throw error;
-        }
+        writeFileDirectSync(this.file, JSON.stringify([...this.participants.values()], null, 4) + "\n", { flush: true });
     }
 }
 module.exports = { EnrollmentStore };

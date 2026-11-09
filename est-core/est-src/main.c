@@ -11,6 +11,7 @@
 #include "effectstreamer.h"
 #include "device/discovery.h"
 #include "device/devicecheck.h"
+#include "transient.h"
 
 enum {
     OPTION_PEERIP = 1 << 0,
@@ -512,6 +513,12 @@ int main(int argc, char* argv[]) {
     }
 
     // Validate parsed arguments: GStreamer
+    gchar* executable_path=effectstreamer_executable_path(&init_error);
+    if(!executable_path || !effectstreamer_transient_init(executable_path,&init_error)) {
+        fprintf(stderr,"Error: Could not initialize transient storage: %s\n",init_error?init_error->message:"unknown error");
+        g_free(executable_path);g_clear_error(&init_error);return 1;
+    }
+    g_free(executable_path);
     if (!gst_init_check(NULL, NULL, &init_error)) {
         fprintf(
             stderr, "Error: Could not initialize GStreamer: %s\n", init_error ? init_error->message : "unknown error");

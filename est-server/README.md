@@ -4,7 +4,9 @@
 
 This is the EffectStreamer Server – it orchestrates the entire experiment; managing state, coordinating all connected participants, collecting evaluation data, and serving as the single source of truth via a central configuration file.
 
-The server writes to `~/effectstreamer/sessions` (override with `EST_RESULTS_ROOT`). Each pair has a UUID directory with `session.json`, condition settings/forms/ratings, and immutable recording attempts under `attempts/<attemptId>/<participantId>/{microphone,headphones}.wav`. `enrollments.json` stores stable identities and hashed reconnect credentials; durable chunk/receipt bookkeeping allows retries. No audio transport/timing-analysis sidecars are written.
+The server writes to `~/effectstreamer/sessions` (override with `EST_RESULTS_ROOT`). Each pair has a UUID directory with `session.json`, condition settings/forms/ratings, and recording attempts under `attempts/<attemptId>/<participantId>/{microphone,headphones}.wav`. `enrollments.json` stores stable identities and hashed reconnect credentials; chunk/receipt bookkeeping allows retries. No audio transport/timing-analysis sidecars are written.
+
+All application files are saved directly, without atomic replacement files. Upload chunks go directly to the final WAV path; a partial or invalid WAV can exist there before completion. Format/size/checksum validation and persisted storage receipts—not filename existence—gate completion and client cleanup. Existing `.uploads/<id>.part` recordings are copied/reconciled into their final paths with prefix-conflict checks and retained until validation, receipt persistence and session reconciliation succeed. No new `.part` files are created. Interrupted JSON/WAV writes can leave corrupt/incomplete data; keep study data on persistent storage, back it up, and do not interpret successful ordinary restarts as power-loss-safe saving.
 
 EffectStreamer Server is distributed as a standalone Node.js executable and should be started before the GUI clients connect.
 
@@ -12,7 +14,7 @@ EffectStreamer Server is distributed as a standalone Node.js executable and shou
 
 Before starting the server, copy the `config-server.example.json` config file to `~/effectstreamer/config-server.json` and adjust it for your needs. The path is based on the current OS user's home directory on Linux and Windows.
 
-Set `EST_CONFIG_PATH` to select another mounted JSON file. `config-server.remote.example.json` is the remote starting point; replace study IDs/codes/DNS and provide a private TURN secret before deployment. For remote same-origin hosting, `EST_WEB_ROOT` overrides the adjacent packaged `web` directory (development default `../est-gui/out/web`). A missing explicitly configured web build prevents startup.
+Set `EST_CONFIG_PATH` to select another mounted JSON file. `config-server.remote.example.json` is the remote starting point; replace study IDs/codes/DNS and provide a private TURN secret before deployment. For remote same-origin hosting, `EST_WEB_ROOT` overrides the adjacent packaged `web` directory (development default: managed `est-gui/web` under `/tmp/effectstreamer`). A missing web build prevents startup; rebuild it after transient cleanup.
 
 On Linux for example, the initial setup can be performed with:
 
@@ -225,7 +227,7 @@ est-server.exe
 
 ## Compilation
 
-The build bundles the coordinator and worker entry with `ncc` and injects a SEA blob with `postject`. It stages a source-built core, matching runtime and production web frontend in a new distribution; an existing destination is never overwritten. Required inputs: matching `SDK`, `EST_NETSIM_PLUGIN`, target `.build` core and `est-gui/out/web`. Set `EST_DISTRIBUTION_DIR` for another new output directory. Build from Linux using the commands in [deployment/README.md](../deployment/README.md); do not use the old tracked core/runtime archives as source-build evidence.
+The build bundles the coordinator and worker entry with `ncc` and injects a SEA blob with `postject`. Bundler/SEA inputs and caches use `/tmp/effectstreamer/<user>/<checkout>/est-server`; the executable, core/runtime and web resources are assembled directly in the new final distribution. Existing destinations are never overwritten, but failure may leave partial output. Required inputs: matching `SDK`, `EST_NETSIM_PLUGIN`, a source-built core and managed web build. Defaults are queried with `bash est-common/transient-paths.sh path est-core build linux est-core` and `... path est-gui web` from the repository root. Set `EST_DISTRIBUTION_DIR` for another new final output. Runtime caches are also disposable; `EST_RESULTS_ROOT` is not. See [deployment/README.md](../deployment/README.md); old tracked core/runtime archives are not source-build evidence.
 
 ### Linux
 

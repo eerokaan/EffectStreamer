@@ -9,9 +9,10 @@ const {normalizeConfig}=require('../src/bootstraps/configManager.js');
 const {localConfig,remoteConfig,pretestAnswers}=require('./fixtures/config.js');
 const {SessionStore}=require('../src/services/SessionStore.js');
 const {EnrollmentStore}=require('../src/services/EnrollmentStore.js');
+const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
 
 async function fixture(t,raw=localConfig()) {
-    const root=fs.mkdtempSync('/tmp/opencode/est-session-');
+    const root=checkoutPaths().temporaryDirectory('est-server','est-session-');
     const app=createCoordinator({config:normalizeConfig(raw),root});
     app.server.listen(0,'127.0.0.1');await once(app.server,'listening');
     const url='http://127.0.0.1:'+app.server.address().port;
@@ -112,7 +113,7 @@ test('public configuration precedes enrollment and production remote admission r
     assert.equal(refused.status,403);
 });
 test('enrollment credentials persist without plaintext tokens or duplicate enrollment',async(t)=>{
-    const root=fs.mkdtempSync('/tmp/opencode/est-credentials-');t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+    const root=checkoutPaths().temporaryDirectory('est-server','est-credentials-');t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
     const first=new EnrollmentStore(root);const enrolled=first.admit({identity:'external/identity'});
     assert.throws(()=>first.admit({identity:'external/identity'}),/already enrolled/);
     const restored=new EnrollmentStore(root);
@@ -121,7 +122,7 @@ test('enrollment credentials persist without plaintext tokens or duplicate enrol
     assert.ok(!fs.readFileSync(path.join(root,'enrollments.json'),'utf8').includes(enrolled.reconnectToken));
 });
 test('session-store writes are serialized and cannot escape their owned directory',async(t)=>{
-    const root=fs.mkdtempSync('/tmp/opencode/est-store-');t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+    const root=checkoutPaths().temporaryDirectory('est-server','est-store-');t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
     const store=new SessionStore(root);
     await Promise.all([store.save({sessionId:'session-1',revision:1}),store.save({sessionId:'session-1',revision:2})]);
     assert.equal((await store.loadAll())[0].revision,2);

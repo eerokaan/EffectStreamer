@@ -1,6 +1,6 @@
 const fs = require("node:fs");
 const path = require("node:path");
-const { randomUUID } = require("node:crypto");
+const { writeFileDirect } = require("@effectstreamer/common/direct-write");
 const { identifier } = require("@effectstreamer/common");
 
 class SessionStore {
@@ -24,17 +24,7 @@ class SessionStore {
             const directory = path.join(this.root, id);
             await fs.promises.mkdir(directory, { recursive: true });
             const destination = path.join(directory, "session.json");
-            const temporary = destination + ".tmp-" + randomUUID();
-            try {
-                const file = await fs.promises.open(temporary, "wx", 0o600);
-                try { await file.writeFile(contents); await file.sync(); }
-                finally { await file.close(); }
-                await fs.promises.rename(temporary, destination);
-            }
-            catch (error) {
-                await fs.promises.rm(temporary, { force: true }).catch(() => {});
-                throw error;
-            }
+            await writeFileDirect(destination, contents, { flush: true });
         });
         this.pending.set(id, next);
         return next;

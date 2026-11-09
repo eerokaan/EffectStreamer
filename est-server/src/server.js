@@ -13,8 +13,11 @@ const { registerRecordingRoutes } = require("./routes/recordings.js");
 const { Prolific } = require("./services/Prolific.js");
 const { AdmissionFlow } = require("./services/AdmissionFlow.js");
 const { RecoveryPolicy } = require("./services/RecoveryPolicy.js");
+const {createTransientPaths}=require('@effectstreamer/common/transient-paths');
 
 function createCoordinator({ config, root = path.join(os.homedir(), "effectstreamer", "sessions"), webRoot = null }) {
+    const release=createTransientPaths({anchor:root}).acquireProcessLock('est-server','results');
+    try {
     const app = express();
     app.disable("x-powered-by");
     app.use(express.json({ limit: "64kb" }));
@@ -87,15 +90,21 @@ function createCoordinator({ config, root = path.join(os.homedir(), "effectstrea
         });
         socket.on("disconnect", () => {admission.detach(socket, participantId);registry.getForParticipant(participantId)?.clientRegistry.handleUnregister(socket);});
     });
+    let closing;
     return {
         app, server, io, enrollments, registry, transfers, prolific, admission, recovery, ready,
-        async close() {
-            admission.close();
-            recovery.close();await ready;
-            await Promise.all([...registry.sessions.values()].map(session => session.dispose()));
-            await new Promise(resolve => io.close(resolve));
-            await Promise.all(registry.store.pending.values());
+        close() {
+            closing ||= (async()=>{
+                try {
+                    admission.close();recovery.close();await ready;
+                    await Promise.all([...registry.sessions.values()].map(session => session.dispose()));
+                    await new Promise(resolve => io.close(resolve));
+                    await Promise.all(registry.store.pending.values());
+                } finally {release();}
+            })();
+            return closing;
         }
     };
+    } catch(error) {release();throw error;}
 }
 module.exports = { createCoordinator };

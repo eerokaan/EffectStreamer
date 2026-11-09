@@ -5,12 +5,13 @@ import {createRequire} from 'node:module';
 import {once} from 'node:events';
 import {loadLocalEnrollment} from '../src/main/lib/enrollment.js';
 const require=createRequire(import.meta.url);
+const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
 const {createCoordinator}=require('../../est-server/src/server.js');
 const {normalizeConfig}=require('../../est-server/src/bootstraps/configManager.js');
 const {localConfig}=require('../../est-server/test/fixtures/config.js');
 
 it('native bootstrap resumes an unfinished run but saves new credentials when the previous run ended',async()=>{
-    const root=await fs.mkdtemp('/tmp/opencode/est-local-enrollment-');
+    const root=checkoutPaths().temporaryDirectory('est-gui','est-local-enrollment-');
     const app=createCoordinator({config:normalizeConfig(localConfig()),root:path.join(root,'results')});await app.ready;
     app.server.listen(0,'127.0.0.1');await once(app.server,'listening');const url='http://127.0.0.1:'+app.server.address().port;
     const options=identity=>({url,identity,ipAddress:'127.0.0.1',operatingSystem:'linux',credentialsPath:path.join(root,identity+'.json')});

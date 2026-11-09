@@ -1,6 +1,7 @@
 const os = require("os");
 const path = require("path");
 const fs = require("fs");
+const { writeFileDirectSync } = require("@effectstreamer/common/direct-write");
 const { formatConditionDirName, formatSessionDirName, parseSessionDirNumber } = require("../utils/format.js");
 const { isSafeFilename } = require("../utils/filenames.js");
 
@@ -70,21 +71,7 @@ class SessionFiles {
             throw new Error("Session filename resolves outside destination: " + filename);
         }
 
-        // Write the file atomically through a temporary file
-        const temporaryPath = filePath + ".tmp-" + process.pid;
-        try {
-            fs.writeFileSync(temporaryPath, data);
-            fs.renameSync(temporaryPath, filePath);
-        }
-        catch (error) {
-            try {
-                fs.rmSync(temporaryPath, { force: true });
-            }
-            catch (cleanupError) {
-                throw new Error(error.message + "; failed to remove temporary file: " + cleanupError.message);
-            }
-            throw error;
-        }
+        writeFileDirectSync(filePath, data);
     }
 }
 

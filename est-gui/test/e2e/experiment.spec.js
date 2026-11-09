@@ -4,15 +4,16 @@ import {once} from 'node:events';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 const require=createRequire(import.meta.url);
+const {checkoutPaths}=require('../../../est-common/transient-paths.cjs');
 const {createCoordinator}=require('../../../est-server/src/server.js');
 const {normalizeConfig}=require('../../../est-server/src/bootstraps/configManager.js');
 const {remoteConfig}=require('../../../est-server/test/fixtures/config.js');
 
 const tones=[440,660,880,1100];
 test('an admission that expires before audio setup shows its early exit without a blocking setup dialog',async({browser})=>{
-    const root=await fs.mkdtemp('/tmp/opencode/est-admission-ui-'),raw=remoteConfig();
+    const root=checkoutPaths().temporaryDirectory('est-gui','est-admission-ui-'),raw=remoteConfig();
     raw.sessions={pairingTimeoutMs:1000};raw.prolific={enabled:true,studyId:'expiry-study',completionCodes:{completed:'DONE',technicalFailure:'TECH',partnerLeft:'LEFT',waitingTimeout:'WAIT'}};
-    const app=createCoordinator({config:normalizeConfig(raw),root,webRoot:path.resolve('out/web')});await app.ready;
+    const app=createCoordinator({config:normalizeConfig(raw),root,webRoot:checkoutPaths().path('est-gui','web')});await app.ready;
     let time=1000;app.enrollments.now=()=>time;app.prolific.now=()=>time;
     app.server.listen(0,'127.0.0.1');await once(app.server,'listening');const context=await browser.newContext(),page=await context.newPage();
     try {
@@ -44,13 +45,13 @@ async function traffic(pages){const values=await Promise.all(pages.map(page=>pag
 
 test('production frontend runs two concurrent isolated pairs through SCT/LST and receipt-confirmed completion',async({browser},testInfo)=>{
     test.setTimeout(240000);
-    const root=await fs.mkdtemp('/tmp/opencode/est-production-pairs-'),raw=remoteConfig();
+    const root=checkoutPaths().temporaryDirectory('est-gui','est-production-pairs-'),raw=remoteConfig();
     raw.deployment.maxActivePairs=2;raw.conditions={baseline:[{echoGain:0,nativeGain:1}],random:[]};
     raw.pretestForm=[{name:'age',type:'input',inputType:'number',label:'Age',validation:{valueType:'integer',min:18}}];
     raw.prolific={enabled:true,studyId:'acceptance-study',completionCodes:{completed:'DONE',technicalFailure:'TECH',partnerLeft:'LEFT',waitingTimeout:'WAIT'}};
-    raw.remote={coreExecutable:process.env.EST_ACCEPTANCE_CORE||process.env.EST_CORE_EXECUTABLE||path.resolve('../est-core/.build/linux/est-core'),internalPortRange:[35400,35499],icePortRange:[48500,48999],playbackDrainMs:100,startupTimeoutMs:30000};
+    raw.remote={coreExecutable:process.env.EST_ACCEPTANCE_CORE||process.env.EST_CORE_EXECUTABLE||checkoutPaths().path('est-core','build','linux','est-core'),internalPortRange:[35400,35499],icePortRange:[48500,48999],playbackDrainMs:100,startupTimeoutMs:30000};
     if(process.env.EST_ACCEPTANCE_ICE_SERVERS)raw.remote.iceServers=JSON.parse(process.env.EST_ACCEPTANCE_ICE_SERVERS);
-    const app=createCoordinator({config:normalizeConfig(raw),root,webRoot:path.resolve('out/web')});await app.ready;
+    const app=createCoordinator({config:normalizeConfig(raw),root,webRoot:checkoutPaths().path('est-gui','web')});await app.ready;
     app.server.listen(0,'127.0.0.1');await once(app.server,'listening');const url='http://127.0.0.1:'+app.server.address().port;
     const contexts=[],pages=[],samples=[],allPids=new Set();
     const sessions=()=>[...app.registry.sessions.values()];

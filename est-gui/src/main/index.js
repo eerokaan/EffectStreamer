@@ -10,6 +10,8 @@ import { handleNativeCommand } from "@/main/audio/command-handler";
 import AudioTransport from "@/main/lib/audioTransport";
 import appContent from "@/main/lib/appContent";
 import appInfo from "@/main/lib/appInfo";
+import {createTransientPaths} from '@effectstreamer/common/transient-paths';
+import {configureTransientRuntime} from '@/main/lib/transient';
 
 let windowMain, config, configPath, audio, initialization, activeScope, transport;
 let closing = false;
@@ -35,11 +37,12 @@ async function bootstrap() {
         if (publicConfig.mode !== "local") throw new Error("This native client requires a local deployment; use the study URL for remote experiments");
         const credentialsPath = configPath + ".enrollment.json";
         const saved = await loadLocalEnrollment({ url, identity: config.client.identity, ipAddress: config.client.ipAddress, operatingSystem: getOperatingSystem(), credentialsPath });
-        const base = app.isPackaged ? path.join(process.resourcesPath, "est-core") : path.join(app.getAppPath(), "build", process.platform === "win32" ? "win" : "linux");
+        const source=process.env.EST_GUI_SOURCE_ROOT || app.getAppPath();
+        const base = app.isPackaged ? path.join(process.resourcesPath, "est-core") : createTransientPaths({anchor:path.dirname(source)}).path('est-core','build',process.platform === 'win32' ? 'win' : 'linux');
         const spawnOptions = getCoreSpawnOptions("receiver", { base });
         const options = { config, executable: spawnOptions.executable, env: spawnOptions.options.env,
             recordingRoot: path.join(app.getPath("home"), "effectstreamer", "recordings"),
-            testAsset: app.isPackaged ? path.join(process.resourcesPath, "audio", path.basename(publicConfig.testAsset)) : path.join(app.getAppPath(), "public", "audio", path.basename(publicConfig.testAsset)),
+            testAsset: app.isPackaged ? path.join(process.resourcesPath, "audio", path.basename(publicConfig.testAsset)) : path.join(source, "public", "audio", path.basename(publicConfig.testAsset)),
             onFailure: error => windowMain?.webContents.send("ipc:runtimeFailure", { message: error.message, scope: activeScope })
         };
         if (config.audio.backend === "stdio") {
@@ -91,6 +94,7 @@ function registerIpc() {
 }
 
 async function start() {
+    configureTransientRuntime(app);
     await app.whenReady();electronApp.setAppUserModelId(appInfo.name);
     configPath = getGuiConfigPath();config = await readGuiConfig(configPath);registerIpc();
     windowMain = new BrowserWindow({ width: 1000, height: 800, title: appInfo.displayName, autoHideMenuBar: true, show: false,

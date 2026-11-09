@@ -3,6 +3,7 @@ import fs from "fs";
 import net from "net";
 import path from "path";
 import clientConfig from "@effectstreamer/common/client-config";
+import { writeFileDirect } from "@effectstreamer/common/direct-write";
 
 const configFileName = "config-gui.json";
 const clientIdPattern = /^[A-Za-z0-9_-]{1,64}$/;
@@ -90,16 +91,7 @@ async function saveAudioDeviceIds(configPath, deviceIds) {
             }
         }
     };
-    const temporaryPath = configPath + ".tmp-" + process.pid + "-" + Date.now();
-
-    try {
-        await fs.promises.writeFile(temporaryPath, JSON.stringify(nextConfig, null, 4) + "\n", { encoding: "utf8", mode: 0o600, flag: "wx" });
-        await fs.promises.rename(temporaryPath, configPath);
-    }
-    catch (error) {
-        await fs.promises.rm(temporaryPath, { force: true }).catch(() => {});
-        throw error;
-    }
+    await writeFileDirect(configPath, JSON.stringify(nextConfig, null, 4) + "\n");
 
     return nextConfig;
 }

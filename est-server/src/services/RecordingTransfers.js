@@ -1,6 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
-const { createHash, randomUUID } = require("node:crypto");
+const { createHash } = require("node:crypto");
+const { writeFileDirect } = require("@effectstreamer/common/direct-write");
 const { identifier, validateManifest } = require("@effectstreamer/common");
 
 async function syncDirectory(directory) {
@@ -9,23 +10,39 @@ async function syncDirectory(directory) {
     const handle = await fs.promises.open(directory, "r");
     try { await handle.sync(); } finally { await handle.close(); }
 }
-async function atomicJson(destination, value) {
-    const temporary = destination + ".tmp-" + randomUUID();
-    try {
-        const file = await fs.promises.open(temporary, "wx", 0o600);
-        try { await file.writeFile(JSON.stringify(value) + "\n"); await file.sync(); }
-        finally { await file.close(); }
-        await fs.promises.rename(temporary, destination);
-        await syncDirectory(path.dirname(destination));
-    }
-    catch (error) { await fs.promises.rm(temporary, { force: true }).catch(() => {}); throw error; }
+async function writeJson(destination, value) {
+    await writeFileDirect(destination, JSON.stringify(value) + "\n", { flush: true });
+    await syncDirectory(path.dirname(destination));
 }
 async function byteLength(file) {
-    try { return (await fs.promises.stat(file)).size; }
+    try {
+        const stat=await fs.promises.lstat(file);
+        if(!stat.isFile() || stat.nlink !== 1) throw new Error('Recording path must be a regular non-linked file');
+        return stat.size;
+    }
     catch (error) { if (error.code === "ENOENT") return 0; throw error; }
 }
+async function openRecording(file, readOnly = false) {
+    try {await byteLength(file);} catch(error) {if(error.code!=='ENOENT')throw error;}
+    const flags=(readOnly ? fs.constants.O_RDONLY : fs.constants.O_RDWR | fs.constants.O_CREAT) | (fs.constants.O_NOFOLLOW || 0) | (fs.constants.O_NONBLOCK || 0);
+    const handle=await fs.promises.open(file,flags,0o600);
+    try {
+        const stat=await handle.stat();
+        if(!stat.isFile() || stat.nlink !== 1) throw new Error('Recording path must be a regular non-linked file');
+        if(!readOnly)await handle.chmod(0o600);
+        return handle;
+    } catch(error) {await handle.close();throw error;}
+}
+async function writeBytes(file, bytes, offset) {
+    let written=0;
+    while(written<bytes.length) {
+        const result=await file.write(bytes,written,bytes.length-written,offset+written);
+        if(!result.bytesWritten)throw new Error('Recording write made no progress');
+        written+=result.bytesWritten;
+    }
+}
 async function validateWav(file, manifest) {
-    const handle = await fs.promises.open(file, "r");
+    const handle = await openRecording(file, true);
     async function read(size, position) {
         const bytes = Buffer.alloc(size);
         const result = await handle.read(bytes, 0, size, position);
@@ -54,17 +71,24 @@ async function validateWav(file, manifest) {
             offset += 8 + size + (size % 2);
         }
         if (!format || !audio || offset !== length) throw new Error("Missing or malformed WAV chunks");
+        const hash=createHash('sha256'),buffer=Buffer.alloc(1048576);
+        for(let position=0;position<length;) {
+            const count=Math.min(buffer.length,length-position),result=await handle.read(buffer,0,count,position);
+            if(result.bytesRead!==count)throw new Error('Incomplete recording byte length');
+            hash.update(buffer.subarray(0,count));position+=count;
+        }
+        if(hash.digest('hex')!==manifest.sha256)throw new Error('Recording digest mismatch');
     }
     finally { await handle.close(); }
-    const hash = createHash("sha256");
-    for await (const chunk of fs.createReadStream(file)) hash.update(chunk);
-    if (hash.digest("hex") !== manifest.sha256) throw new Error("Recording digest mismatch");
 }
 
 class RecordingTransfers {
     constructor({ root, getSession, config, now = Date.now, onReceipt = async () => {} }) {
-        this.root = path.join(path.resolve(root), ".uploads");
-        fs.mkdirSync(this.root, { recursive: true });
+        this.resultsRoot=path.resolve(root);fs.mkdirSync(this.resultsRoot,{recursive:true});
+        this.realRoot=fs.realpathSync(this.resultsRoot);this.root=path.join(this.realRoot,'.uploads');
+        try {fs.mkdirSync(this.root,{mode:0o700});} catch(error) {if(error.code!=='EEXIST')throw error;}
+        const stat=fs.lstatSync(this.root);
+        if(!stat.isDirectory() || stat.isSymbolicLink())throw new Error('Unsafe upload metadata directory symlink');
         this.getSession = getSession; this.config = config; this.now = now; this.onReceipt = onReceipt;
         this.pending = new Map();
     }
@@ -78,7 +102,7 @@ class RecordingTransfers {
     }
 
     metadataPath(id) { return path.join(this.root, id + ".json"); }
-    partPath(id) { return path.join(this.root, id + ".part"); }
+    legacyPartPath(id) { return path.join(this.root, id + ".part"); }
 
     async load(id) {
         try { return JSON.parse(await fs.promises.readFile(this.metadataPath(id), "utf8")); }
@@ -95,8 +119,45 @@ class RecordingTransfers {
         return { session, attempt };
     }
 
-    destination(session, manifest) {
-        return path.join(session.sessionDir, "attempts", manifest.attemptId, manifest.participantId, manifest.filename);
+    destination(session, manifest, create = false) {
+        const relative=path.relative(this.resultsRoot,path.resolve(session.sessionDir));
+        if(path.isAbsolute(relative) || relative==='..' || relative.startsWith('..'+path.sep))throw new Error('Session directory is not confined to its results root');
+        let current=this.realRoot;
+        const parts=[...relative.split(path.sep).filter(Boolean),'attempts',manifest.attemptId,manifest.participantId];
+        for(const part of parts) {
+            current=path.join(current,part);
+            if(create)try{fs.mkdirSync(current,{mode:0o700});}catch(error){if(error.code!=='EEXIST')throw error;}
+            let stat;try{stat=fs.lstatSync(current);}catch(error){if(!create && error.code==='ENOENT')continue;throw error;}
+            if(!stat.isDirectory() || stat.isSymbolicLink())throw new Error('Recording directory contains an unsafe symlink or non-directory');
+        }
+        return path.join(current,manifest.filename);
+    }
+
+    async migrateLegacyUpload(record, session) {
+        const destination=this.destination(session,record.manifest),legacy=this.legacyPartPath(record.manifest.recordingId);
+        let source;
+        try {source=await openRecording(legacy,true);} catch(error) {if(error.code==='ENOENT')return destination;throw error;}
+        let target;
+        try {
+            const sourceLength=(await source.stat()).size;
+            if(sourceLength>record.manifest.byteLength)throw new Error('Invalid legacy upload length');
+            this.destination(session,record.manifest,true);target=await openRecording(destination);
+            const targetLength=(await target.stat()).size;
+            if(targetLength>record.manifest.byteLength)throw new Error('Invalid stored upload length');
+            const overlap=Math.min(sourceLength,targetLength),buffer=Buffer.alloc(1048576),existing=Buffer.alloc(1048576);
+            for(let offset=0;offset<overlap;) {
+                const length=Math.min(buffer.length,overlap-offset);
+                const a=await source.read(buffer,0,length,offset),b=await target.read(existing,0,length,offset);
+                if(a.bytesRead!==length || b.bytesRead!==length || !buffer.subarray(0,length).equals(existing.subarray(0,length))) throw new Error('Conflicting legacy and final recording bytes');
+                offset+=length;
+            }
+            for(let offset=targetLength;offset<sourceLength;) {
+                const length=Math.min(buffer.length,sourceLength-offset),result=await source.read(buffer,0,length,offset);
+                if(result.bytesRead!==length)throw new Error('Legacy recording is truncated');
+                await writeBytes(target,buffer.subarray(0,length),offset);offset+=length;
+            }
+            await target.sync();return destination;
+        } finally {if(target)await target.close();await source.close();}
     }
 
     async register(participant, manifests) {
@@ -121,7 +182,7 @@ class RecordingTransfers {
                 }
                 catch (error) {
                     if (!error.message.includes("not been announced")) throw error;
-                    await atomicJson(this.metadataPath(manifest.recordingId), record);
+                    await writeJson(this.metadataPath(manifest.recordingId), record);
                 }
                 if (!existing) attempt.recordings = [...expected, manifest];
                 await session.persist();
@@ -136,8 +197,8 @@ class RecordingTransfers {
             const record = await this.load(supplied.recordingId);
             const { session } = this.authorize(participant, record);
             if (JSON.stringify(validateManifest(supplied)) !== JSON.stringify(record.manifest)) throw new Error("Recording manifest mismatch");
-            const destination = this.destination(session, record.manifest);
-            const offset = record.receipt ? record.manifest.byteLength : (await byteLength(this.partPath(supplied.recordingId)) || await byteLength(destination));
+            const destination = await this.migrateLegacyUpload(record, session);
+            const offset = record.receipt ? record.manifest.byteLength : await byteLength(destination);
             if (offset > record.manifest.byteLength) throw new Error("Invalid stored upload length");
             return { uploadId: supplied.recordingId, nextByteOffset: offset };
         });
@@ -145,12 +206,13 @@ class RecordingTransfers {
 
     append(participant, id, offset, data) {
         return this.locked(id, async () => {
-            const record = await this.load(id); this.authorize(participant, record);
+            const record = await this.load(id); const {session}=this.authorize(participant, record);
             if (!Buffer.isBuffer(data) || !data.length || data.length > this.config.chunkBytes || !Number.isSafeInteger(offset) || offset < 0 || offset + data.length > record.manifest.byteLength) throw new Error("Invalid recording chunk");
-            const filePath = this.partPath(id), size = await byteLength(filePath);
             if (record.receipt) return { nextByteOffset: record.manifest.byteLength };
+            const filePath = await this.migrateLegacyUpload(record,session), size = await byteLength(filePath);
             if (offset > size || (offset < size && offset + data.length > size)) throw new Error("Unexpected chunk offset");
-            const file = await fs.promises.open(filePath, size ? "r+" : "w+", 0o600);
+            this.destination(session,record.manifest,true);
+            const file = await openRecording(filePath);
             try {
                 if (offset < size) {
                     const old = Buffer.alloc(data.length);
@@ -158,12 +220,7 @@ class RecordingTransfers {
                     if (read.bytesRead !== old.length || !old.equals(data)) throw new Error("Conflicting duplicate recording chunk");
                 }
                 else {
-                    let written = 0;
-                    while (written < data.length) {
-                        const result = await file.write(data, written, data.length - written, offset + written);
-                        if (!result.bytesWritten) throw new Error("Recording write made no progress");
-                        written += result.bytesWritten;
-                    }
+                    await writeBytes(file,data,offset);
                     await file.sync();
                 }
             }
@@ -176,23 +233,18 @@ class RecordingTransfers {
         const { session, manifest, receipt } = await this.locked(id, async () => {
             const record = await this.load(id), { session } = this.authorize(participant, record);
             if (record.receipt) return { session, manifest: record.manifest, receipt: record.receipt };
-            const destination = this.destination(session, record.manifest), temporary = this.partPath(id);
-            // A crash after publish but before receipt persistence reconciles the already stored WAV.
-            const published = (await byteLength(destination)) > 0;
-            await validateWav(published ? destination : temporary, record.manifest);
-            if (!published) {
-                await fs.promises.mkdir(path.dirname(destination), { recursive: true });
-                await fs.promises.rename(temporary, destination);
-            }
+            const destination = await this.migrateLegacyUpload(record, session);
+            await validateWav(destination, record.manifest);
             await syncDirectory(path.dirname(destination));
             record.receipt = { recordingId: id, sha256: record.manifest.sha256, stored: true };
-            await atomicJson(this.metadataPath(id), record);
+            await writeJson(this.metadataPath(id), record);
             return { session, manifest: record.manifest, receipt: record.receipt };
         });
         // Session actions can register manifests under this recording lock.
         // Release it before joining the session queue, including receipt retries.
         // Still await reconciliation before acknowledging the client.
         await this.onReceipt(session, manifest, receipt);
+        await fs.promises.rm(this.legacyPartPath(id), {force:true});
         return receipt;
     }
 }

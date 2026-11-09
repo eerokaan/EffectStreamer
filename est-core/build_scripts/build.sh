@@ -2,6 +2,7 @@
 set -euo pipefail
 
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+source "$root/../est-common/transient-paths.sh"
 target=${TARGET_OS:-linux}
 case "$target" in
     linux) triple=linux_x86_64; compiler=${CC:-gcc}; platform=linux; extension= ;;
@@ -19,8 +20,12 @@ export PKG_CONFIG_LIBDIR="$lib/pkgconfig:$sdk/share/pkgconfig${EST_PKG_CONFIG_EX
 export PKG_CONFIG_PATH="$PKG_CONFIG_LIBDIR"
 export PKG_CONFIG_SYSROOT_DIR="$sdk"
 export LIBRARY_PATH="$lib"
-output=${EST_CORE_OUTPUT:-"$root/.build/$target/est-core$extension"}
-mkdir -p -- "$(dirname -- "$output")"
+est_transient_prepare "$root/.." est-core
+output=${EST_CORE_OUTPUT:-"$EST_TRANSIENT_BASE/est-core/build/$target/est-core$extension"}
+est_transient_validate_output "$output"
+est_transient_acquire_lock "$target"
+trap est_transient_release_lock EXIT
+est_transient_ensure "$(dirname -- "$output")"
 gst_flags_text=$(pkg-config --cflags --libs gstreamer-1.0 gstreamer-sdp-1.0 gstreamer-webrtc-1.0)
 read -r -a gst_flags <<< "$gst_flags_text"
 link_flags=()
@@ -28,7 +33,7 @@ if [[ "$target" == linux ]]; then
     link_flags=("-Wl,-rpath-link,$lib" '-Wl,-rpath,$ORIGIN/gst-lib/x86_64-linux-gnu/lib')
 fi
 "$compiler" -DGST_USE_UNSTABLE_API -Wall -Wextra -I"$root/est-src" -I"$root/est-src/stdin" -I"$root/est-deps/cJSON" \
-    "$root/est-src/main.c" "$root/est-src/modes/sender.c" "$root/est-src/modes/receiver.c" \
+    "$root/est-src/main.c" "$root/est-src/transient.c" "$root/est-src/modes/sender.c" "$root/est-src/modes/receiver.c" \
     "$root/est-src/stdin/receiverstdin.c" "$root/est-src/device/deviceutils.c" \
     "$root/est-src/platform/$platform.c" "$root/est-src/control/control.c" "$root/est-src/lifecycle.c" \
     "$root/est-src/recording/wav.c" \
@@ -38,7 +43,7 @@ fi
 echo "Built $output (GStreamer $(pkg-config --modversion gstreamer-1.0))"
 if [[ ${EST_BUILD_TEST_PEER:-0} == 1 ]]; then
     "$compiler" -DGST_USE_UNSTABLE_API -Wall -Wextra -I"$root/est-src" -I"$root/est-src/stdin" -I"$root/est-deps/cJSON" \
-        "$root/tests/fixtures/webrtc-peer.c" "$root/est-src/control/control.c" "$root/est-src/platform/$platform.c" \
+        "$root/tests/fixtures/webrtc-peer.c" "$root/est-src/transient.c" "$root/est-src/control/control.c" "$root/est-src/platform/$platform.c" \
         "$root/est-src/stdin/receiverstdin.c" "$root/est-deps/cJSON/cJSON.c" "$root/tests/fixtures/peer-support.c" \
         "${gst_flags[@]}" "${link_flags[@]}" -o "$(dirname -- "$output")/webrtc-peer$extension"
 fi

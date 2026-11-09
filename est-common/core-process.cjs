@@ -2,9 +2,10 @@ const {spawn} = require('node:child_process');
 const {EventEmitter} = require('node:events');
 const {StringDecoder} = require('node:string_decoder');
 const {randomUUID} = require('node:crypto');
+const {coreEnvironment}=require('./core-environment.cjs');
 
 async function startCore({executable,args=[],env=process.env,timeoutMs=10000}) {
-    const child=spawn(executable,args,{env,stdio:['pipe','pipe','pipe']});
+    const child=spawn(executable,args,{env:coreEnvironment({executable,env}),stdio:['pipe','pipe','pipe']});
     const events=new EventEmitter();
     const pending=new Map();
     const decoder=new StringDecoder('utf8');

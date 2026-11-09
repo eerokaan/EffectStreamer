@@ -7,6 +7,7 @@ const { Prolific, assertDesktop } = require("../src/services/Prolific.js");
 const { EnrollmentStore } = require("../src/services/EnrollmentStore.js");
 const { normalizeConfig } = require("../src/bootstraps/configManager.js");
 const { remoteConfig } = require("./fixtures/config.js");
+const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
 const desktop = { userAgent: "Mozilla/5.0 (X11; Linux x86_64) Chrome/145", platform: "Linux x86_64", maxTouchPoints: 0, mobile: false };
 const query = id => ({ PROLIFIC_PID: "person-" + id, STUDY_ID: "study-1", SESSION_ID: "submission-" + id });
 function rawConfig() {
@@ -15,7 +16,7 @@ function rawConfig() {
     return raw;
 }
 function fixture(t, raw = rawConfig(), extra = {}) {
-    const root = fs.mkdtempSync("/tmp/opencode/est-prolific-");t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const root = checkoutPaths().temporaryDirectory('est-server','est-prolific-');t.after(() => fs.rmSync(root, { recursive: true, force: true }));
     const config = normalizeConfig(raw), enrollments = new EnrollmentStore(root);
     const prolific = new Prolific({ config, enrollments, getSession: () => null, ...extra });return { root, config, enrollments, prolific };
 }
@@ -62,7 +63,7 @@ test("waiting expiry offers only its server-selected early-exit code", async t =
 });
 test('abandoned pre-setup admissions expire durably and release HTTP admission capacity',async t=>{
     const {createCoordinator}=require('../src/server.js');const raw=rawConfig();raw.sessions={pairingTimeoutMs:1000,maxWaitingParticipants:1};
-    const root=fs.mkdtempSync('/tmp/opencode/est-admission-expiry-'),app=createCoordinator({config:normalizeConfig(raw),root});await app.ready;
+    const root=checkoutPaths().temporaryDirectory('est-server','est-admission-expiry-'),app=createCoordinator({config:normalizeConfig(raw),root});await app.ready;
     let time=1000;app.enrollments.now=()=>time;app.prolific.now=()=>time;
     app.server.listen(0,'127.0.0.1');await once(app.server,'listening');const url='http://127.0.0.1:'+app.server.address().port;
     t.after(async()=>{await app.close();fs.rmSync(root,{recursive:true,force:true});});
@@ -90,7 +91,7 @@ test('valid pre-pair progress renews inactivity but cannot extend the ready-queu
 test("authenticated pre-pair setup and questionnaire stage before capacity-aware pairing", async t => {
     const { createCoordinator } = require("../src/server.js");const { io: connect } = require("socket.io-client");
     const raw = rawConfig();raw.pretestForm = [{ name: "age", type: "input", inputType: "number", label: "Age", validation: { valueType: "integer", min: 18 } }];
-    const root=fs.mkdtempSync('/tmp/opencode/est-prolific-lobby-'),config=normalizeConfig(raw);const app = createCoordinator({ config, root });app.server.listen(0, "127.0.0.1");await once(app.server, "listening");const sockets=[];
+    const root=checkoutPaths().temporaryDirectory('est-server','est-prolific-lobby-'),config=normalizeConfig(raw);const app = createCoordinator({ config, root });app.server.listen(0, "127.0.0.1");await once(app.server, "listening");const sockets=[];
     t.after(async()=>{for(const socket of sockets)socket.disconnect();await app.close();fs.rmSync(root,{recursive:true,force:true});});
     const url = "http://127.0.0.1:" + app.server.address().port;
     async function enroll(index) {

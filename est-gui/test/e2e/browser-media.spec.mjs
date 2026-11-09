@@ -5,15 +5,16 @@ import { once } from "node:events";
 import fs from "node:fs/promises";
 import path from "node:path";
 const require = createRequire(import.meta.url);
+const {checkoutPaths}=require('../../../est-common/transient-paths.cjs');
 const { createCoordinator } = require("../../../est-server/src/server.js");
 const { normalizeConfig } = require("../../../est-server/src/bootstraps/configManager.js");
 const { remoteConfig } = require("../../../est-server/test/fixtures/config.js");
 
 test("real browser peers negotiate, record distinct PCM taps, upload by receipt, and close cleanly", async ({ browser }, testInfo) => {
-    const root = await fs.mkdtemp("/tmp/opencode/est-browser-media-");
-    const raw = remoteConfig(); raw.remote = { coreExecutable: process.env.EST_CORE_EXECUTABLE || path.resolve("../est-core/.build/linux/est-core"), internalPortRange: [35100, 35199], icePortRange: [47000, 47499], playbackDrainMs: 20, startupTimeoutMs: 20000 };
+    const root = checkoutPaths().temporaryDirectory('est-gui','est-browser-media-');
+    const raw = remoteConfig(); raw.remote = { coreExecutable: process.env.EST_CORE_EXECUTABLE || checkoutPaths().path('est-core','build','linux','est-core'), internalPortRange: [35100, 35199], icePortRange: [47000, 47499], playbackDrainMs: 20, startupTimeoutMs: 20000 };
     const app = createCoordinator({ config: normalizeConfig(raw), root });
-    const vite = await createServer({ configFile: path.resolve("vite.web.config.mjs"), server: { middlewareMode: true }, appType: "custom" });
+    const vite = await createServer({ configFile: path.resolve("vite.web.config.mjs"), configLoader:'runner', server: { middlewareMode: true }, appType: "custom" });
     app.app.use(vite.middlewares);
     app.app.get("/media-test", (_request, response) => response.type("html").send('<!doctype html><button id="prepare">Prepare audio</button>'));
     app.server.listen(0, "127.0.0.1");await once(app.server, "listening");

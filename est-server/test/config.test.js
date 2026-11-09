@@ -2,7 +2,7 @@ const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const os = require('node:os');
+const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
 const {normalizeConfig,publicBootstrap,loadConfig} = require('../src/bootstraps/configManager.js');
 const {localConfig,remoteConfig} = require('./fixtures/config.js');
 
@@ -45,7 +45,7 @@ test('recording limits cover both WAVs and reject invalid chunk sizes', () => {
     assert.throws(() => normalizeConfig({...localConfig(),recordings:{maxConditionSeconds:600,maxBytesPerParticipant:1000000}}));
 });
 test('EST_CONFIG_PATH overrides the home path without changing working directory', (t) => {
-    const dir=fs.mkdtempSync(path.join(os.tmpdir(),'est-config-'));
+    const dir=checkoutPaths().temporaryDirectory('est-server','est-config-');
     t.after(() => fs.rmSync(dir,{recursive:true,force:true}));
     const p=path.join(dir,'config.json'); fs.writeFileSync(p,JSON.stringify(localConfig()));
     const old=process.env.EST_CONFIG_PATH;

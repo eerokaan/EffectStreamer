@@ -1,5 +1,0 @@
-{
-    "main": "out/index.js",
-    "output": "out/sea.blob",
-    "disableExperimentalSEAWarning": true
-}

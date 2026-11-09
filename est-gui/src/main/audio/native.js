@@ -6,6 +6,7 @@ import { createHash, randomUUID } from "node:crypto";
 import protocol from "@effectstreamer/common";
 import clientConfig from "@effectstreamer/common/client-config";
 import managedCore from "@effectstreamer/common/core-process";
+import { writeFileDirect } from "@effectstreamer/common/direct-write";
 import { uploadRecording } from "../../shared/recording-transfer.js";
 
 const execute = promisify(execFile);
@@ -58,9 +59,8 @@ export class NativeAudioRuntime {
     }
     async savePending() {
         await fs.promises.mkdir(this.root, { recursive: true });
-        const destination = path.join(this.root, "pending-recordings.json"), temporary = destination + ".tmp-" + randomUUID();
-        await fs.promises.writeFile(temporary, JSON.stringify([...this.pending.values()].map(value => value.manifest)), { mode: 0o600 });
-        await fs.promises.rename(temporary, destination);
+        const destination = path.join(this.root, "pending-recordings.json");
+        await writeFileDirect(destination, JSON.stringify([...this.pending.values()].map(value => value.manifest)));
     }
     async listDevices() {
         const devices = await this.runUtility(["--list-devices", "--device-type", backend(this.platform)]);

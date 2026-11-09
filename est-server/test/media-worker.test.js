@@ -5,11 +5,12 @@ const fs = require("node:fs");
 const dgram = require("node:dgram");
 const { once } = require("node:events");
 const { startCore } = require("../../est-common/core-process.cjs");
+const { checkoutPaths } = require("../../est-common/transient-paths.cjs");
 const { PortAllocator } = require("../src/media/PortAllocator.js");
 const { MediaWorker } = require("../src/media/MediaWorker.js");
 const { RemoteMediaAdapter } = require("../src/media/RemoteMediaAdapter.js");
 
-const executable = process.env.EST_CORE_EXECUTABLE || path.resolve(__dirname, "../../est-core/.build/linux/est-core");
+const executable = process.env.EST_CORE_EXECUTABLE || checkoutPaths().path('est-core','build','linux','est-core');
 const peerExecutable = path.join(path.dirname(executable), "webrtc-peer");
 function settings() { return { coreExecutable: executable, icePortRange: [46000, 46999], iceServers: [], playbackDrainMs: 10, startupTimeoutMs: 6000, stopTimeoutMs: 7000, jitterMs: 20, opusBitrate: 128000, rtpFrames: 128 }; }
 function scope(id) { return { sessionId: "session-" + id, attemptId: "attempt-" + id, participants: ["a-" + id, "b-" + id] }; }
@@ -98,7 +99,7 @@ test("no-media readiness has a finite timeout and stop during negotiation is bou
     await worker.stop(); assert.equal(worker.health().children.length, 0);
 });
 test("remote adapter supervises a separate worker and releases its lease after stop", { timeout: 15000 }, async t => {
-    const root = fs.mkdtempSync("/tmp/opencode/est-worker-"); t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const root = checkoutPaths().temporaryDirectory('est-server','est-worker-'); t.after(() => fs.rmSync(root, { recursive: true, force: true }));
     const allocator = new PortAllocator([32300, 32399]), commands = [];
     const session = { sessionId: "session-host", sessionDir: root, clientsData: new Map([["p-a", { participantId: "p-a", socketId: "socket-a" }], ["p-b", { participantId: "p-b", socketId: "socket-b" }]]) };
     const adapter = new RemoteMediaAdapter({ config: settings(), allocator, clientRegistry: { emitToSocket: (id, event, command) => commands.push({ id, event, command }) }, onFailure: error => { throw error; } });
@@ -111,7 +112,7 @@ test("remote adapter supervises a separate worker and releases its lease after s
     assert.equal(allocator.lease("other", 6)[0], 32300);
 });
 test("a core that never announces control readiness is killed on the startup deadline", { timeout: 10000 }, async t => {
-    const root=fs.mkdtempSync('/tmp/opencode/est-slow-core-');t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+    const root=checkoutPaths().temporaryDirectory('est-server','est-slow-core-');t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
     const file=path.join(root,'slow.cjs');
     fs.writeFileSync(file,'#!/usr/bin/env node\nrequire("node:fs").writeFileSync('+JSON.stringify(path.join(root,'pid'))+',String(process.pid));setInterval(()=>{},1000);\n',{mode:0o700});
     const worker=new MediaWorker({config:{...settings(),coreExecutable:file,startupTimeoutMs:200}});t.after(()=>worker.dispose());
@@ -151,7 +152,7 @@ test("authenticated signaling and media barriers reject impersonation and old ge
     const {createCoordinator}=require('../src/server.js');const {normalizeConfig}=require('../src/bootstraps/configManager.js');
     const {remoteConfig}=require('./fixtures/config.js');const {io:connect}=require('socket.io-client');const {randomUUID}=require('node:crypto');
     const raw=remoteConfig();raw.remote={...settings(),internalPortRange:[32700,32799]};
-    const root=fs.mkdtempSync('/tmp/opencode/est-signal-');const app=createCoordinator({config:normalizeConfig(raw),root});
+    const root=checkoutPaths().temporaryDirectory('est-server','est-signal-');const app=createCoordinator({config:normalizeConfig(raw),root});
     app.server.listen(0,'127.0.0.1');await once(app.server,'listening');const sockets=[];
     t.after(async()=>{for(const socket of sockets)socket.disconnect();await app.close();fs.rmSync(root,{recursive:true,force:true});});
     const people=['signal-a','signal-b'].map(identity=>app.enrollments.admit({identity}));

@@ -3,16 +3,17 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import dgram from "node:dgram";
 import { NativeAudioRuntime } from "../src/main/audio/native.js";
+import {checkoutPaths} from '../../est-common/transient-paths.cjs';
 
 it.skipIf(process.env.EST_NATIVE_INTEGRATION !== "1")("runs two native participants with four real core processes and separate WAVs", async () => {
-    const root = await fs.mkdtemp("/tmp/opencode/est-native-pair-");
+    const root = checkoutPaths().temporaryDirectory('est-gui','est-native-pair-');
     const sockets = Array.from({ length: 6 }, () => dgram.createSocket("udp4"));
     await Promise.all(sockets.map(socket => new Promise(resolve => socket.bind(0, "127.0.0.1", resolve))));
     const ports = sockets.map(socket => socket.address().port);
     await Promise.all(sockets.map(socket => new Promise(resolve => socket.close(resolve))));
     const participants = [0, 1].map(index => new NativeAudioRuntime({
         config: { audio: { backend: "native", devices: { source: "null", sink: "null" } } },
-        executable: process.env.EST_CORE_EXECUTABLE || path.resolve("../est-core/.build/linux/est-core"), platform: "linux", recordingRoot: root, testAsset: "unused"
+        executable: process.env.EST_CORE_EXECUTABLE || checkoutPaths().path('est-core','build','linux','est-core'), platform: "linux", recordingRoot: root, testAsset: "unused"
     }));
     const scopes = ["person-a", "person-b"].map(participantId => ({ sessionId: "session-integration", attemptId: "attempt-1", participantId }));
     try {

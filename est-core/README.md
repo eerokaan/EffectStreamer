@@ -75,7 +75,7 @@ Optional settings are `--ice-min-port <first> --ice-max-port <last>`, `--webrtc-
 
 The internal RTP/L16 sender now targets 128 mono frames per packet (`--rtp-frames`, 1–480), independent of normal incoming WebRTC/stdio block sizes. This intentionally replaces backend-dependent legacy packet granularity; loss is still applied on the same internal peer branch, not on public SRTP. Partial blocks at EOS or a source discontinuity are retained rather than padded or dropped, so those packets can be shorter. This does not add saved timing/gap-analysis data. Validate native hardware framing for the study before comparing old and new packet-loss results.
 
-The build additionally links GStreamer SDP/WebRTC and needs matching Opus, RTP, libnice, DTLS and SRTP runtime plugins. For source SDKs referencing host metadata such as Linux libdrm, supply `EST_PKG_CONFIG_EXTRA_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig` if that dependency is already installed. Do not point Windows cross-compilation at Linux metadata. `EST_BUILD_TEST_PEER=1` additionally builds an isolated `.build/<target>/webrtc-peer` offerer for integration tests; it is not part of the shipped application.
+The build additionally links GStreamer SDP/WebRTC and needs matching Opus, RTP, libnice, DTLS and SRTP runtime plugins. For source SDKs referencing host metadata such as Linux libdrm, supply `EST_PKG_CONFIG_EXTRA_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig` if that dependency is already installed. Do not point Windows cross-compilation at Linux metadata. `EST_BUILD_TEST_PEER=1` additionally builds a sibling `webrtc-peer` offerer (`webrtc-peer.exe` for Windows) in the managed temporary build directory for integration tests; it is not shipped with the application.
 
 ### Standalone signaling reference
 
@@ -147,81 +147,9 @@ SDK=/absolute/path/to/gst-sdk/build/dist/linux_x86_64 TARGET_OS=linux bash build
 SDK=/absolute/path/to/gst-sdk/build/dist/mingw_x86_64 TARGET_OS=win bash build_scripts/build.sh
 ```
 
-Outputs default to `.build/linux/est-core` and `.build/win/est-core.exe`. Override with `EST_CORE_OUTPUT` if needed. Run with the matching bundled runtime/library environment described in Step 5. The script can be invoked from any working directory and never copies or deletes SDK/runtime files.
+Outputs default to `/tmp/effectstreamer/<user>/<checkout>/est-core/build/linux/est-core` and the corresponding `build/win/est-core.exe`. Query the exact path with `bash ../est-common/transient-paths.sh path est-core build linux est-core` from `est-core`. `EST_CORE_OUTPUT` and the test-home override `EST_TEST_TMP` must remain inside this checkout's managed temporary namespace. Build locks reject concurrent writes to the same target. The standalone C build does not require Node.js, can run from any working directory, and never copies or deletes SDK/runtime inputs.
 
-```
-cd ..
-```
-
-#### Linux
-
-```
-export SDK=$(pwd)/gst-sdk/build/dist/linux_x86_64
-export PKG_CONFIG_PATH=$SDK/lib/x86_64-linux-gnu/pkgconfig
-export PKG_CONFIG_SYSROOT_DIR=$SDK
-export LIBRARY_PATH=$SDK/lib/x86_64-linux-gnu
-
-mkdir -p gst-lib/x86_64-linux-gnu/bin
-mkdir -p gst-lib/x86_64-linux-gnu/lib
-cp -a $SDK/bin/* gst-lib/x86_64-linux-gnu/bin/
-cp -a $SDK/lib/x86_64-linux-gnu/* gst-lib/x86_64-linux-gnu/lib/
-
-gcc -o est-core \
-    -Iest-src \
-    -Iest-src/stdin \
-    -Iest-deps/cJSON \
-    est-src/main.c \
-    est-src/modes/sender.c \
-    est-src/modes/receiver.c \
-    est-src/stdin/receiverstdin.c \
-    est-src/device/deviceutils.c \
-    est-src/platform/linux.c \
-    est-src/control/control.c \
-    est-src/lifecycle.c \
-    est-src/recording/wav.c \
-    est-src/device/discovery.c \
-    est-src/device/devicecheck.c \
-    est-deps/cJSON/cJSON.c \
-    est-src/device/webrtc.c \
-    -DGST_USE_UNSTABLE_API \
-    $(pkg-config --cflags --libs gstreamer-1.0 gstreamer-sdp-1.0 gstreamer-webrtc-1.0) \
-    -Wl,-rpath-link,$LIBRARY_PATH \
-    -Wl,-rpath,'$ORIGIN/gst-lib/x86_64-linux-gnu/lib'
-```
-
-#### Windows
-
-```
-export SDK=$(pwd)/gst-sdk/build/dist/mingw_x86_64
-export PKG_CONFIG_PATH=$SDK/lib/pkgconfig
-export PKG_CONFIG_SYSROOT_DIR=$SDK
-export LIBRARY_PATH=$SDK/lib
-
-mkdir -p gst-lib/x86_64-windows/bin
-mkdir -p gst-lib/x86_64-windows/lib
-cp -a $SDK/bin/* gst-lib/x86_64-windows/bin/
-cp -a $SDK/lib/* gst-lib/x86_64-windows/lib/
-
-x86_64-w64-mingw32-gcc -o est-core.exe \
-    -Iest-src \
-    -Iest-src/stdin \
-    -Iest-deps/cJSON \
-    est-src/main.c \
-    est-src/modes/sender.c \
-    est-src/modes/receiver.c \
-    est-src/stdin/receiverstdin.c \
-    est-src/device/deviceutils.c \
-    est-src/platform/windows.c \
-    est-src/control/control.c \
-    est-src/lifecycle.c \
-    est-src/recording/wav.c \
-    est-src/device/discovery.c \
-    est-src/device/devicecheck.c \
-    est-deps/cJSON/cJSON.c \
-    est-src/device/webrtc.c \
-    -DGST_USE_UNSTABLE_API \
-    $(pkg-config --cflags --libs gstreamer-1.0 gstreamer-sdp-1.0 gstreamer-webrtc-1.0)
-```
+Prefer the script above to hand-maintained compiler commands: it includes the standalone transient-cache initializer and directs compiler scratch into the managed tree. The executable initializes its own temporary/GStreamer registry paths before GStreamer starts, even without a Node host. WAV destinations remain persistent; native recordings write directly to their WAV filenames and are finalized during normal shutdown, not atomically renamed.
 
 ### Step 4) Bundle EffectStreamer NetSim Plugin
 
@@ -229,21 +157,11 @@ The EffectStreamer NetSim plugin is being discovered and loaded in by GStreamer 
 
 However, make sure the `estnetsim` plugin `.so` and `.dll` artifacts were built against the same GStreamer SDK version and target architecture as `est-core`.
 
-#### Linux
-
-```
-cp -a libestnetsim.so gst-lib/x86_64-linux-gnu/lib/gstreamer-1.0/
-```
-
-#### Windows
-
-```
-cp -a libestnetsim.dll gst-lib/x86_64-windows/lib/gstreamer-1.0/
-```
+Use the Node runtime assembler with the matching `SDK`, `EST_NETSIM_PLUGIN` and source-built `EST_CORE_EXECUTABLE` inputs; see [deployment/README.md](../deployment/README.md). It copies directly into a **new final** core-resource directory, refuses existing destinations, and records input hashes. There is no intermediate publication directory. A failed copy may leave partial resources; inspect/remove only that failed output or choose another new destination before retrying. Node is needed for packaging, not for the C-only build.
 
 ### Step 5) Run EffectStreamer Core
 
-Notice: Always `tar` the `gst-lib` directory when transferring it between machines. The symbolic link structure inside it can easily become corrupted when moving across different machines or platforms.
+Run from the assembled distribution's core directory, not a source-tree binary. Transfer the complete assembled runtime; its SDK library aliases are dereferenced so they do not point back to the build host. Removing temporary build/cache files does not remove this final distribution or persistent recordings.
 
 #### Linux
 

@@ -6,7 +6,7 @@ directories:
     buildResources: build
     output: dist
 
-beforePack: ./build_scripts/beforePack.js
+afterPack: ./build_scripts/afterPack.js
 
 extraResources:
     - from: "public/audio"

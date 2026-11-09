@@ -3,7 +3,7 @@ import { build } from "vite";
 import { fileURLToPath } from "node:url";
 
 it("builds the shared renderer for the web without native runtime or Node/Electron modules", async () => {
-    const result = await build({ configFile: fileURLToPath(new URL("../vite.web.config.mjs", import.meta.url)), logLevel: "silent", build: { write: false } });
+    const result = await build({ configFile: fileURLToPath(new URL("../vite.web.config.mjs", import.meta.url)), configLoader:'runner', logLevel: "silent", build: { write: false } });
     const outputs = (Array.isArray(result) ? result : [result]).flatMap(value => value.output);
     const chunks = outputs.filter(value => value.type === "chunk");
     expect(chunks.length).toBeGreaterThan(0);

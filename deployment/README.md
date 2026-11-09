@@ -21,7 +21,7 @@ Choose the example for the intended use; both server examples set `deployment.mo
 
 Copy the selected examples to `~/effectstreamer/` on Linux or `%USERPROFILE%\effectstreamer\` on Windows, using the account running each application. `EST_CONFIG_PATH` selects another private server configuration. Remote-use browsers need no GUI JSON file. See the [server](../est-server/README.md) and [GUI](../est-gui/README.md) READMEs for configuration fields and legacy filename migration.
 
-The server saves results under `~/effectstreamer/sessions` unless `EST_RESULTS_ROOT` selects another durable, writable directory. Protect configuration, credentials, certificates and study results; back them up and never place them in temporary storage. A WAV filename alone does not prove successful collection; retain data until the server confirms durable receipts.
+The server saves results under `~/effectstreamer/sessions` unless `EST_RESULTS_ROOT` selects another durable, writable directory. Protect configuration, credentials, certificates and study results; back them up and never place them in temporary storage. Saves are direct and non-atomic: an interrupted write can leave incomplete JSON/WAV files, and a WAV filename alone does not prove successful collection.
 
 ## Usage
 
@@ -89,7 +89,7 @@ npm --prefix est-server run build:linux
 npm --prefix est-gui run build:linux
 ```
 
-For Windows targets, use the matching MinGW SDK and `.dll` plugin, unset Linux-only `EST_PKG_CONFIG_EXTRA_PATH`, and select `TARGET_OS=win` and the `build:win` npm commands instead. Server distributions go to `est-server/dist/linux` or `est-server/dist/win`; GUI packages go to `est-gui/dist`. `EST_DISTRIBUTION_DIR` selects another new final destination. Builds refuse existing destinations; deploy only completed distributions. Target machines still need compatible system libraries; a cross-build is not native Windows execution or an arbitrary Linux portability guarantee.
+For Windows targets, use the matching MinGW SDK and `.dll` plugin, unset Linux-only `EST_PKG_CONFIG_EXTRA_PATH`, and select `TARGET_OS=win` and the `build:win` npm commands instead. Server distributions go to `est-server/dist/linux` or `est-server/dist/win`; GUI packages go to `est-gui/dist`. `EST_DISTRIBUTION_DIR` selects another new final destination. Builds refuse existing destinations, but failed assembly can leave incomplete output which must not be deployed. Target machines still need compatible system libraries; a cross-build is not native Windows execution or an arbitrary Linux portability guarantee.
 
 ## Verification
 
@@ -102,3 +102,15 @@ Before recruitment, verify the actual target OS, devices and participant network
 - **Both modes:** sustained condition duration/load, bounded shutdown, process/port cleanup and persistent backups. Validate capacity before increasing pair limits; do not infer production capacity from localhost samples.
 
 These are operator release checks, not claims that a live deployment, native Windows, real hardware or Internet/TURN acceptance has already passed.
+
+## Temporary files
+
+Disposable builds/caches use `/tmp/effectstreamer` on Linux and the system temporary directory's `effectstreamer` subtree on native Windows. Rebuild required inputs after cleanup; never move configuration, recordings or results there. Reboot cleanup depends on OS policy.
+
+For optional Linux systemd boot cleanup, an administrator may install the shared [tmpfiles rule](../est-common/effectstreamer-tmpfiles.conf), from the repository root:
+
+```bash
+sudo install -m 0644 est-common/effectstreamer-tmpfiles.conf /etc/tmpfiles.d/effectstreamer.conf
+```
+
+The rule removes contents only during boot-mode removal. Do not invoke `systemd-tmpfiles --remove --boot` while builds or experiments are running. Installing this Linux rule does not configure Windows cleanup.

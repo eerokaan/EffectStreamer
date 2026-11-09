@@ -5,6 +5,7 @@ const path=require('node:path');
 const {createHash}=require('node:crypto');
 const {RecordingTransfers}=require('../src/services/RecordingTransfers.js');
 const {EffectStreamerCore}=require('../src/services/EffectStreamerCore.js');
+const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
 
 function wave() {
     const bytes=Buffer.alloc(60);bytes.write('RIFF');bytes.writeUInt32LE(52,4);bytes.write('WAVEfmt ',8);
@@ -14,7 +15,7 @@ function wave() {
     return bytes;
 }
 function fixture(t) {
-    const root=fs.mkdtempSync('/tmp/opencode/est-uploads-');t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+    const root=checkoutPaths().temporaryDirectory('est-server','est-uploads-');t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
     const participant={participantId:'person-a'},bytes=wave();
     const session={sessionId:'session-1',sessionDir:path.join(root,'session-1'),clientsData:new Map([['person-a',participant]]),attempts:[{attemptId:'attempt-1',status:'stopping'}],persist:async()=>{}};
     fs.mkdirSync(session.sessionDir);
@@ -26,6 +27,8 @@ test('interrupted chunks resume, duplicate chunks are checked, and a lost receip
     const f=fixture(t);await f.transfers.register(f.participant,[f.manifest]);
     const upload=await f.transfers.begin(f.participant,f.manifest);assert.equal(upload.nextByteOffset,0);
     await f.transfers.append(f.participant,upload.uploadId,0,f.bytes.subarray(0,32));
+    assert.deepEqual(fs.readFileSync(path.join(f.session.sessionDir,'attempts','attempt-1','person-a','microphone.wav')),f.bytes.subarray(0,32));
+    assert.equal(fs.existsSync(path.join(f.root,'.uploads','recording-1.part')),false);
     await f.transfers.append(f.participant,upload.uploadId,0,f.bytes.subarray(0,32));
     await assert.rejects(f.transfers.append(f.participant,upload.uploadId,0,Buffer.alloc(32)),/conflicting/i);
     const restarted=new RecordingTransfers(f.options);
@@ -65,15 +68,16 @@ test('corrupt WAVs, digest mismatch and incomplete transfers never produce store
         await f.transfers.append(f.participant,upload.uploadId,0,bytes.subarray(0,32));
         if(kind!=='length') await f.transfers.append(f.participant,upload.uploadId,32,bytes.subarray(32));
         await assert.rejects(f.transfers.commit(f.participant,upload.uploadId),/WAV|digest|incomplete/i);
-        assert.equal(fs.existsSync(path.join(f.session.sessionDir,'attempts','attempt-1','person-a','microphone.wav')),false);
+        const record=JSON.parse(fs.readFileSync(path.join(f.root,'.uploads','recording-1.json')));
+        assert.equal(record.receipt,undefined);
     }
 });
-test('disk publication failure cannot acknowledge data as stored',async(t)=>{
+test('direct destination failure cannot acknowledge data as stored and can be retried',async(t)=>{
     const f=fixture(t);await f.transfers.register(f.participant,[f.manifest]);const u=await f.transfers.begin(f.participant,f.manifest);
-    await f.transfers.append(f.participant,u.uploadId,0,f.bytes.subarray(0,32));await f.transfers.append(f.participant,u.uploadId,32,f.bytes.subarray(32));
     fs.writeFileSync(path.join(f.session.sessionDir,'attempts'),'not a directory');
-    await assert.rejects(f.transfers.commit(f.participant,u.uploadId));
+    await assert.rejects(f.transfers.append(f.participant,u.uploadId,0,f.bytes.subarray(0,32)));
     fs.unlinkSync(path.join(f.session.sessionDir,'attempts'));
+    await f.transfers.append(f.participant,u.uploadId,0,f.bytes.subarray(0,32));await f.transfers.append(f.participant,u.uploadId,32,f.bytes.subarray(32));
     assert.equal((await f.transfers.commit(f.participant,u.uploadId)).stored,true);
 });
 test('the shared client retains bytes on failures and verifies a matching receipt before cleanup',async()=>{
@@ -129,7 +133,7 @@ test('authenticated HTTP uploads retry a lost final acknowledgement before relea
 });
 test('commit and duplicate recording announcement both finish without holding each others locks',async t=>{
     const {createCoordinator}=require('../src/server.js'),{normalizeConfig}=require('../src/bootstraps/configManager.js'),{localConfig}=require('./fixtures/config.js');
-    const {randomUUID}=require('node:crypto');const root=fs.mkdtempSync('/tmp/opencode/est-upload-locks-');
+    const {randomUUID}=require('node:crypto');const root=checkoutPaths().temporaryDirectory('est-server','est-upload-locks-');
     const app=createCoordinator({config:normalizeConfig(localConfig()),root});await app.ready;
     t.after(async()=>{await app.close();fs.rmSync(root,{recursive:true,force:true});});
     const people=['client-a','client-b'].map(identity=>app.enrollments.admit({identity}));

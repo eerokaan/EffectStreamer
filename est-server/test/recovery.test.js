@@ -6,9 +6,10 @@ const { EnrollmentStore } = require("../src/services/EnrollmentStore.js");
 const { RecoveryPolicy } = require("../src/services/RecoveryPolicy.js");
 const { normalizeConfig } = require("../src/bootstraps/configManager.js");
 const { remoteConfig } = require("./fixtures/config.js");
+const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
 
 function fixture(t) {
-    const root=fs.mkdtempSync('/tmp/opencode/est-recovery-');
+    const root=checkoutPaths().temporaryDirectory('est-server','est-recovery-');
     const raw=remoteConfig();raw.conditions={baseline:[{}],random:[]};
     const config=normalizeConfig(raw),enrollments=new EnrollmentStore(root),events=[];
     const io={to:id=>({emit:(event,data)=>events.push({id,event,data})}),sockets:{sockets:new Map()}};
@@ -119,7 +120,7 @@ test('a bounded worker failure can retry after its children stop even when grace
 });
 test('a restarted coordinator resumes chunk offsets and durable receipts without repeating an upload-only conversation',async t=>{
     const {createCoordinator}=require('../src/server.js');const {createHash,randomUUID}=require('node:crypto');
-    const root=fs.mkdtempSync('/tmp/opencode/est-restart-upload-');const raw=remoteConfig(),config=normalizeConfig(raw);let app=createCoordinator({config,root});await app.ready;
+    const root=checkoutPaths().temporaryDirectory('est-server','est-restart-upload-');const raw=remoteConfig(),config=normalizeConfig(raw);let app=createCoordinator({config,root});await app.ready;
     t.after(async()=>{await app.close();fs.rmSync(root,{recursive:true,force:true});});
     const people=['persist-a','persist-b'].map(identity=>app.enrollments.admit({identity}));
     let session=app.registry.createPair(people.map(person=>app.enrollments.get(person.participantId)));

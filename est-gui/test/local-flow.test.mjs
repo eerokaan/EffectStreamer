@@ -9,6 +9,7 @@ import { handleNativeCommand } from "../src/main/audio/command-handler.js";
 import { createRuntime } from "../src/renderer/windowMain/runtime/electron.js";
 
 const require = createRequire(import.meta.url);
+const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
 const { createCoordinator } = require("../../est-server/src/server.js");
 const { normalizeConfig } = require("../../est-server/src/bootstraps/configManager.js");
 
@@ -22,7 +23,7 @@ function waitFor(runtime, predicate) {
 }
 
 it.skipIf(process.env.EST_NATIVE_INTEGRATION !== "1")("runs SCT and both LST role rounds through shared runtime, real native cores and receipt-driven uploads", async () => {
-    const root = await fs.mkdtemp("/tmp/opencode/est-local-flow-");
+    const root = checkoutPaths().temporaryDirectory('est-gui','est-local-flow-');
     const raw = structuredClone(require("../../est-server/config-server.example.json"));
     raw.conditions = { baseline: [{}], random: [] };
     const config = normalizeConfig(raw), app = createCoordinator({ config, root: path.join(root, "server") });
@@ -36,7 +37,7 @@ it.skipIf(process.env.EST_NATIVE_INTEGRATION !== "1")("runs SCT and both LST rol
     await Promise.all(sockets.map(socket => new Promise(resolve => socket.close(resolve))));
     [...session.clientsData.values()].forEach((client, index) => {client.ports = { listen: ports[index * 3], echo: ports[index * 3 + 1], record: ports[index * 3 + 2] };});
     const errors = [], deviceCalls = [];
-    const audios = credentials.map((_, index) => new NativeAudioRuntime({ config: { audio: { backend: "native", devices: { source: "null", sink: "null" } } }, executable: process.env.EST_CORE_EXECUTABLE || path.resolve("../est-core/.build/linux/est-core"), platform: "linux", recordingRoot: path.join(root, "client-" + index), testAsset: "unused", onFailure: error => errors.push(error.message) }));
+    const audios = credentials.map((_, index) => new NativeAudioRuntime({ config: { audio: { backend: "native", devices: { source: "null", sink: "null" } } }, executable: process.env.EST_CORE_EXECUTABLE || checkoutPaths().path('est-core','build','linux','est-core'), platform: "linux", recordingRoot: path.join(root, "client-" + index), testAsset: "unused", onFailure: error => errors.push(error.message) }));
     const runtimes = credentials.map((item, index) => {
         const initialized = { url, credentials: item, config: { mode: "local", setupRequired: false, recordings: config.recordings } };
         return createRuntime({ bridge: { invoke(operation, payload) {

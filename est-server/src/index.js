@@ -1,3 +1,7 @@
+const path=require('node:path');
+const {isSea}=require('node:sea');
+const {createTransientPaths}=require('@effectstreamer/common/transient-paths');
+Object.assign(process.env,createTransientPaths({anchor:isSea()?path.dirname(process.execPath):path.resolve(__dirname,'../..')}).environment('est-server'));
 const { Harness } = require("./harness.js");
 const { loadConfig } = require("./bootstraps/configManager.js");
 
