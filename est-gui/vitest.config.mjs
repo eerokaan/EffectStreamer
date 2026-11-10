@@ -1,7 +1,7 @@
 import { defineConfig } from "vitest/config";
 import { resolve } from "node:path";
 import {createRequire} from 'node:module';
-const {checkoutPaths}=createRequire(import.meta.url)('../est-common/transient-paths.cjs');
+const {checkoutPaths}=createRequire(import.meta.url)('../common/transient-paths.cjs');
 const paths=checkoutPaths(),environment=paths.environment('est-gui');
 Object.assign(process.env,environment);
 const run=environment.EST_TRANSIENT_RUN_DIR;

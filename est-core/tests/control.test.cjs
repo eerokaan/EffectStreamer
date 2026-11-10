@@ -1,7 +1,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {runCli,allocatePorts,startProcess,feedRtp}=require('./fixtures.cjs');
-const {startCore}=require('../../est-common/core-process.cjs');
+const {startCore}=require('../../common/core-process.cjs');
 const {corePath,temporaryHome}=require('./fixtures.cjs');
 
 test('raw stdio explicitly rejects control framing',()=>{

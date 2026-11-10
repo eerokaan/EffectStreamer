@@ -147,7 +147,7 @@ SDK=/absolute/path/to/gst-sdk/build/dist/linux_x86_64 TARGET_OS=linux bash build
 SDK=/absolute/path/to/gst-sdk/build/dist/mingw_x86_64 TARGET_OS=win bash build_scripts/build.sh
 ```
 
-Outputs default to `/tmp/effectstreamer/<user>/<checkout>/est-core/build/linux/est-core` and the corresponding `build/win/est-core.exe`. Query the exact path with `bash ../est-common/transient-paths.sh path est-core build linux est-core` from `est-core`. `EST_CORE_OUTPUT` and the test-home override `EST_TEST_TMP` must remain inside this checkout's managed temporary namespace. Build locks reject concurrent writes to the same target. The standalone C build does not require Node.js, can run from any working directory, and never copies or deletes SDK/runtime inputs.
+Outputs default to `/tmp/effectstreamer/<user>/<checkout>/est-core/build/linux/est-core` and the corresponding `build/win/est-core.exe`. Query the exact path with `bash ../common/transient-paths.sh path est-core build linux est-core` from `est-core`. `EST_CORE_OUTPUT` and the test-home override `EST_TEST_TMP` must remain inside this checkout's managed temporary namespace. Build locks reject concurrent writes to the same target. The standalone C build does not require Node.js, can run from any working directory, and never copies or deletes SDK/runtime inputs.
 
 Prefer the script above to hand-maintained compiler commands: it includes the standalone transient-cache initializer and directs compiler scratch into the managed tree. The executable initializes its own temporary/GStreamer registry paths before GStreamer starts, even without a Node host. WAV destinations remain persistent; native recordings write directly to their WAV filenames and are finalized during normal shutdown, not atomically renamed.
 

@@ -40,36 +40,36 @@ test('native Windows paths use system temp and a private username identity', t =
 test('directories are private, unique, confined, and recreated after owned cleanup', t => {
     const paths = policy().createTransientPaths({anchor:fixture(t)});
     t.after(() => fs.rmSync(paths.base,{recursive:true,force:true}));
-    const a=paths.temporaryDirectory('est-common','fixture-'), b=paths.temporaryDirectory('est-common','fixture-');
+    const a=paths.temporaryDirectory('common','fixture-'), b=paths.temporaryDirectory('common','fixture-');
     assert.notEqual(a,b); assert.equal(fs.statSync(a).mode & 0o777,0o700);
-    assert.throws(() => paths.path('est-common','..'), /segment|unsafe/i);
-    assert.throws(() => paths.path('est-common','/outside'), /segment|unsafe/i);
+    assert.throws(() => paths.path('common','..'), /segment|unsafe/i);
+    assert.throws(() => paths.path('common','/outside'), /segment|unsafe/i);
     assert.throws(() => paths.assertManagedOutput('/outside/result'), /managed|outside/i);
     assert.equal(paths.assertManagedOutput(path.join(a,'output')),path.join(a,'output'));
     fs.rmSync(paths.base,{recursive:true});
-    assert.ok(fs.statSync(paths.directory('est-common','cache')).isDirectory());
+    assert.ok(fs.statSync(paths.directory('common','cache')).isDirectory());
 });
 test('output and directory writes reject symlinks and writable namespaces', t => {
     const anchor=fixture(t), paths=policy().createTransientPaths({anchor});
     t.after(()=>fs.rmSync(paths.base,{recursive:true,force:true}));
-    const base=paths.directory('est-common');
+    const base=paths.directory('common');
     fs.symlinkSync(anchor,path.join(base,'escape'));
-    assert.throws(()=>paths.directory('est-common','escape','write'),/symlink|unsafe/i);
+    assert.throws(()=>paths.directory('common','escape','write'),/symlink|unsafe/i);
     assert.throws(()=>paths.assertManagedOutput(path.join(base,'escape','write')),/symlink|unsafe/i);
-    const writable=paths.directory('est-common','writable');fs.chmodSync(writable,0o777);
-    assert.throws(()=>paths.directory('est-common','writable','child'),/unsafe|permission/i);
+    const writable=paths.directory('common','writable');fs.chmodSync(writable,0o777);
+    assert.throws(()=>paths.directory('common','writable','child'),/unsafe|permission/i);
 });
 test('tool environment is isolated without changing SDK settings or its input', t => {
     const paths=policy().createTransientPaths({anchor:fixture(t)});
     t.after(()=>fs.rmSync(paths.base,{recursive:true,force:true}));
     const original={PATH:'/bin',LD_LIBRARY_PATH:'/sdk',TMPDIR:'/unrelated'};
-    const env=paths.environment('est-common',original);
+    const env=paths.environment('common',original);
     assert.equal(original.TMPDIR,'/unrelated');assert.equal(env.LD_LIBRARY_PATH,'/sdk');
     for(const name of ['TMPDIR','TMP','TEMP','XDG_CACHE_HOME','NODE_COMPILE_CACHE']) {
         assert.ok(env[name].startsWith(paths.base + path.sep),name);
         assert.ok(fs.statSync(env[name]).isDirectory(),name);
     }
-    assert.equal(paths.environment('est-common',env).EST_TRANSIENT_RUN_DIR,env.EST_TRANSIENT_RUN_DIR);
+    assert.equal(paths.environment('common',env).EST_TRANSIENT_RUN_DIR,env.EST_TRANSIENT_RUN_DIR);
 });
 test('stable build locks fail clearly until their owner releases them', t => {
     const paths=policy().createTransientPaths({anchor:fixture(t)});
@@ -82,13 +82,13 @@ test('process locks reject conflicting instances and recover after an owner dies
     const anchor=fixture(t),paths=policy().createTransientPaths({anchor});t.after(()=>fs.rmSync(paths.base,{recursive:true,force:true}));
     assert.equal(typeof paths.acquireProcessLock,'function','process-lifetime coordination must exist');
     const source=path.resolve(__dirname,'../transient-paths.cjs');
-    const child=spawn(process.execPath,['-e',`const {createTransientPaths}=require(${JSON.stringify(source)});createTransientPaths({anchor:process.argv[1]}).acquireProcessLock('est-common','profile');console.log('ready');setInterval(()=>{},10000);`,anchor],{stdio:['ignore','pipe','pipe']});
+    const child=spawn(process.execPath,['-e',`const {createTransientPaths}=require(${JSON.stringify(source)});createTransientPaths({anchor:process.argv[1]}).acquireProcessLock('common','profile');console.log('ready');setInterval(()=>{},10000);`,anchor],{stdio:['ignore','pipe','pipe']});
     t.after(()=>{if(child.exitCode===null && child.signalCode===null)child.kill('SIGKILL');});
     await once(child.stdout,'data');
-    assert.throws(()=>paths.acquireProcessLock('est-common','profile'),/lock|instance/i);
+    assert.throws(()=>paths.acquireProcessLock('common','profile'),/lock|instance/i);
     const exited=once(child,'close');child.kill('SIGKILL');await exited;
-    const release=paths.acquireProcessLock('est-common','profile');release();
-    paths.acquireProcessLock('est-common','profile')();
+    const release=paths.acquireProcessLock('common','profile');release();
+    paths.acquireProcessLock('common','profile')();
 });
 test('redirecting disposable caches preserves the installed browser lookup and explicit browser inputs',t=>{
     const paths=policy().createTransientPaths({anchor:fixture(t)});t.after(()=>fs.rmSync(paths.base,{recursive:true,force:true}));

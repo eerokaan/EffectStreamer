@@ -6,7 +6,7 @@ vi.mock('electron',()=>({app:{getPath:()=>'/unused'}}));
 import {saveAudioDeviceIds} from '../src/main/lib/config.js';
 import {loadLocalEnrollment} from '../src/main/lib/enrollment.js';
 import {NativeAudioRuntime} from '../src/main/audio/native.js';
-const require=createRequire(import.meta.url),{checkoutPaths}=require('../../est-common/transient-paths.cjs');
+const require=createRequire(import.meta.url),{checkoutPaths}=require('../../common/transient-paths.cjs');
 it('GUI configuration, enrollment and pending manifests save without publication renames',async()=>{
     const root=checkoutPaths().temporaryDirectory('est-gui','direct-');
     const rename=vi.spyOn(fs.promises,'rename').mockImplementation(()=>{throw new Error('rename forbidden');});

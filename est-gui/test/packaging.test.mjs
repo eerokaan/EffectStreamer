@@ -5,7 +5,7 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import syncFs from 'node:fs';
 const require=createRequire(import.meta.url);
-const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
+const {checkoutPaths}=require('../../common/transient-paths.cjs');
 function afterPack(context){expect(syncFs.existsSync(path.resolve(import.meta.dirname,'../build_scripts/afterPack.js'))).toBe(true);return require('../build_scripts/afterPack.js')(context);}
 const {runtimeFixture}=require('../../est-core/tests/fixtures/runtime-sdk.cjs');
 

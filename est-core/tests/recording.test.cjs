@@ -4,7 +4,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {allocatePorts,startProcess,waitForReady,feedRtp,temporaryHome,runCli}=require('./fixtures.cjs');
 const {corePath}=require('./fixtures.cjs');
-const {startCore}=require('../../est-common/core-process.cjs');
+const {startCore}=require('../../common/core-process.cjs');
 
 function wav(bytes) {
     assert.equal(bytes.toString('ascii',0,4),'RIFF');assert.equal(bytes.toString('ascii',8,12),'WAVE');

@@ -1,9 +1,9 @@
 const fs=require('node:fs');
 const path=require('node:path');
 const {pathToFileURL}=require('node:url');
-const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
-const {writeFileDirectSync}=require('../../est-common/direct-write.cjs');
-const {runTool}=require('../../est-common/run-tool.cjs');
+const {checkoutPaths}=require('../../common/transient-paths.cjs');
+const {writeFileDirectSync}=require('../../common/direct-write.cjs');
+const {runTool}=require('../../common/run-tool.cjs');
 const project=path.resolve(__dirname,'..');
 function bin(name,key=name) {
     const metadata=require.resolve(name+'/package.json'),pkg=require(metadata);

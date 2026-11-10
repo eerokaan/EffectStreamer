@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs/promises');
 const path=require('node:path');
 const {stageRuntime}=require('../build_scripts/stage-runtime.cjs');
-const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
+const {checkoutPaths}=require('../../common/transient-paths.cjs');
 const {runtimeFixture}=require('./fixtures/runtime-sdk.cjs');
 
 test('runtime staging refuses incomplete inputs and never overwrites existing resources',async t=>{

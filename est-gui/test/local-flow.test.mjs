@@ -9,7 +9,7 @@ import { handleNativeCommand } from "../src/main/audio/command-handler.js";
 import { createRuntime } from "../src/renderer/windowMain/runtime/electron.js";
 
 const require = createRequire(import.meta.url);
-const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
+const {checkoutPaths}=require('../../common/transient-paths.cjs');
 const { createCoordinator } = require("../../est-server/src/server.js");
 const { normalizeConfig } = require("../../est-server/src/bootstraps/configManager.js");
 

@@ -9,7 +9,7 @@ const {normalizeConfig}=require('../src/bootstraps/configManager.js');
 const {localConfig,remoteConfig,pretestAnswers}=require('./fixtures/config.js');
 const {SessionStore}=require('../src/services/SessionStore.js');
 const {EnrollmentStore}=require('../src/services/EnrollmentStore.js');
-const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
+const {checkoutPaths}=require('../../common/transient-paths.cjs');
 
 async function fixture(t,raw=localConfig()) {
     const root=checkoutPaths().temporaryDirectory('est-server','est-session-');

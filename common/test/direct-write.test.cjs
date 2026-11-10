@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const {checkoutPaths}=require('../transient-paths.cjs');
-function fixture(t) {const dir=checkoutPaths().temporaryDirectory('est-common','direct-');t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));return dir;}
+function fixture(t) {const dir=checkoutPaths().temporaryDirectory('common','direct-');t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));return dir;}
 function writers() {assert.ok(fs.existsSync(path.join(__dirname,'../direct-write.cjs')),'direct-write helpers must exist');return require('../direct-write.cjs');}
 test('writes only to its destination and restricts private replacement permissions',async t=>{
     const {writeFileDirect,writeFileDirectSync}=writers(),root=fixture(t),file=path.join(root,'data.json');

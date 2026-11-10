@@ -7,7 +7,7 @@ const { Prolific, assertDesktop } = require("../src/services/Prolific.js");
 const { EnrollmentStore } = require("../src/services/EnrollmentStore.js");
 const { normalizeConfig } = require("../src/bootstraps/configManager.js");
 const { remoteConfig } = require("./fixtures/config.js");
-const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
+const {checkoutPaths}=require('../../common/transient-paths.cjs');
 const desktop = { userAgent: "Mozilla/5.0 (X11; Linux x86_64) Chrome/145", platform: "Linux x86_64", maxTouchPoints: 0, mobile: false };
 const query = id => ({ PROLIFIC_PID: "person-" + id, STUDY_ID: "study-1", SESSION_ID: "submission-" + id });
 function rawConfig() {

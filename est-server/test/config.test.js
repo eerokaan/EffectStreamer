@@ -2,7 +2,7 @@ const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
+const {checkoutPaths}=require('../../common/transient-paths.cjs');
 const {normalizeConfig,publicBootstrap,loadConfig} = require('../src/bootstraps/configManager.js');
 const {localConfig,remoteConfig} = require('./fixtures/config.js');
 

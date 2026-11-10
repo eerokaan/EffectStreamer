@@ -5,7 +5,7 @@ const path=require('node:path');
 const {createHash}=require('node:crypto');
 const {RecordingTransfers}=require('../src/services/RecordingTransfers.js');
 const {EffectStreamerCore}=require('../src/services/EffectStreamerCore.js');
-const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
+const {checkoutPaths}=require('../../common/transient-paths.cjs');
 
 function wave() {
     const bytes=Buffer.alloc(60);bytes.write('RIFF');bytes.writeUInt32LE(52,4);bytes.write('WAVEfmt ',8);

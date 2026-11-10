@@ -8,7 +8,7 @@ const {createCoordinator}=require('../src/server.js');
 const {normalizeConfig}=require('../src/bootstraps/configManager.js');
 const {remoteConfig}=require('./fixtures/config.js');
 const {spawnSync}=require('node:child_process');
-const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
+const {checkoutPaths}=require('../../common/transient-paths.cjs');
 
 test('same-origin hosting serves the renderer and real WAV while keeping private routes out of SPA fallback',async t=>{
     const root=checkoutPaths().temporaryDirectory('est-server','est-deploy-');

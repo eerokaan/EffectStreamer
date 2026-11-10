@@ -7,15 +7,15 @@
     "author": "Eero Kaan",
     "company": "Quality and Usability Lab | TU Berlin",
     "scripts": {
-        "test": "node ../est-common/run-tool.cjs est-server node --test test/*.test.js",
+        "test": "node ../common/run-tool.cjs est-server node --test test/*.test.js",
         "dev:format": "prettier --write .",
-        "dev:lint": "node ../est-common/run-tool.cjs est-server eslint --cache --fix .",
-        "dev:run": "EST_SERVER_TYPE=harness node ../est-common/run-tool.cjs est-server node ./src/index.js",
+        "dev:lint": "node ../common/run-tool.cjs est-server eslint --cache --fix .",
+        "dev:run": "EST_SERVER_TYPE=harness node ../common/run-tool.cjs est-server node ./src/index.js",
         "build:linux": "TARGET_OS=linux bash ./build_scripts/build.sh",
         "build:win": "TARGET_OS=win bash ./build_scripts/build.sh"
     },
     "dependencies": {
-        "@effectstreamer/common": "file:../est-common",
+        "@effectstreamer/common": "file:../common",
         "express": "^5.2.1",
         "jose": "^6.2.14",
         "socket.io": "^4.8.3"

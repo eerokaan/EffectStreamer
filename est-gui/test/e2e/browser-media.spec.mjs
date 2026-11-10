@@ -5,7 +5,7 @@ import { once } from "node:events";
 import fs from "node:fs/promises";
 import path from "node:path";
 const require = createRequire(import.meta.url);
-const {checkoutPaths}=require('../../../est-common/transient-paths.cjs');
+const {checkoutPaths}=require('../../../common/transient-paths.cjs');
 const { createCoordinator } = require("../../../est-server/src/server.js");
 const { normalizeConfig } = require("../../../est-server/src/bootstraps/configManager.js");
 const { remoteConfig } = require("../../../est-server/test/fixtures/config.js");

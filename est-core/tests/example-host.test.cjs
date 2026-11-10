@@ -1,7 +1,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const path=require('node:path');
-const {startCore}=require('../../est-common/core-process.cjs');
+const {startCore}=require('../../common/core-process.cjs');
 const {corePath,allocatePorts}=require('./fixtures.cjs');
 const {createWebRtcHost}=require('../examples/webrtc-host.cjs');
 

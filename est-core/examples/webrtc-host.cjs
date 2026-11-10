@@ -1,8 +1,8 @@
 // Loopback-only, single-peer signaling reference. Not a study coordinator.
 const http = require('node:http');
 const path = require('node:path');
-const {startCore} = require('../../est-common/core-process.cjs');
-const {coreEnvironment} = require('../../est-common/core-environment.cjs');
+const {startCore} = require('../../common/core-process.cjs');
+const {coreEnvironment} = require('../../common/core-environment.cjs');
 
 async function createWebRtcHost({executable, args, env = process.env}) {
     const role = args[args.indexOf('--mode') + 1];

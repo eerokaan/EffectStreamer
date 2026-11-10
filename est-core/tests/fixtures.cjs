@@ -3,7 +3,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
 const dgram = require('node:dgram');
-const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
+const {checkoutPaths}=require('../../common/transient-paths.cjs');
 
 function corePath() { return process.env.EST_CORE_EXECUTABLE || checkoutPaths().path('est-core','build','linux','est-core'); }
 function runCli(args) { return spawnSync(corePath(),args,{encoding:'utf8',timeout:5000}); }

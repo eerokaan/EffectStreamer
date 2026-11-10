@@ -2,7 +2,7 @@ import {it,expect} from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import {createRequire} from 'node:module';
-const {checkoutPaths}=createRequire(import.meta.url)('../../est-common/transient-paths.cjs');
+const {checkoutPaths}=createRequire(import.meta.url)('../../common/transient-paths.cjs');
 it('Electron configures disposable paths before readiness without moving durable profile/home data',async()=>{
     expect(fs.existsSync(path.resolve(import.meta.dirname,'../src/main/lib/transient.js'))).toBe(true);
     const {configureTransientRuntime}=await import('../src/main/lib/transient.js');

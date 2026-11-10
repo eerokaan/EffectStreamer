@@ -1,13 +1,13 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {spawn,spawnSync}=require('node:child_process');
-const {coreEnvironment}=require('../../est-common/core-environment.cjs');
+const {coreEnvironment}=require('../../common/core-environment.cjs');
 const {once}=require('node:events');
 const fs=require('node:fs/promises');
 const path=require('node:path');
 const net=require('node:net');
 const {remoteConfig}=require('./fixtures/config.js');
-const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
+const {checkoutPaths}=require('../../common/transient-paths.cjs');
 const packaged=process.env.EST_PACKAGED_SERVER;
 function cleanEnv(home){return {HOME:home,PATH:'/no-external-node',EST_SERVER_TYPE:'media-worker'};}
 function message(child,predicate,timeout=20000){return new Promise((resolve,reject)=>{

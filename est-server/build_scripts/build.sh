@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-source "$root/../est-common/transient-paths.sh"
+source "$root/../common/transient-paths.sh"
 target=${TARGET_OS:-linux}
 case "$target" in linux) extension= ;; win) extension=.exe ;; *) echo 'TARGET_OS must be linux or win' >&2; exit 1 ;; esac
 destination=${EST_DISTRIBUTION_DIR:-"$root/dist/$target"}

@@ -1,7 +1,7 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const {stageRuntime} = require('../../est-core/build_scripts/stage-runtime.cjs');
-const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
+const {checkoutPaths}=require('../../common/transient-paths.cjs');
 
 module.exports = async function(context) {
     const target = context.electronPlatformName === 'win32' ? 'win' : context.electronPlatformName;

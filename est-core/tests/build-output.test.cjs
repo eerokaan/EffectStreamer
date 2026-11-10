@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const {spawnSync}=require('node:child_process');
-const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
+const {checkoutPaths}=require('../../common/transient-paths.cjs');
 const script=path.resolve(__dirname,'../build_scripts/build.sh');
 function fixture(t) {
     const paths=checkoutPaths(),root=paths.temporaryDirectory('est-core','compiler-');t.after(()=>fs.rmSync(root,{recursive:true,force:true}));

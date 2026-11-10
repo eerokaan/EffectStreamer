@@ -4,7 +4,7 @@ import path from 'node:path';
 import {createRequire} from 'node:module';
 import {loadConfigFromFile} from 'electron-vite';
 import {pathToFileURL} from 'node:url';
-const require=createRequire(import.meta.url),{checkoutPaths}=require('../../est-common/transient-paths.cjs');
+const require=createRequire(import.meta.url),{checkoutPaths}=require('../../common/transient-paths.cjs');
 const project=path.resolve(import.meta.dirname,'..');
 it('web builds and dependency caches are outside the source checkout',async()=>{
     const {default:config}=await import('../vite.web.config.mjs');
@@ -37,10 +37,10 @@ it('Electron dev/preview resolve a managed app and source inputs without bundled
 });
 function clonedTooling() {
     const root=checkoutPaths().temporaryDirectory('est-gui','tool-policy-'),source=path.resolve(project,'..');
-    const files=['est-common/transient-paths.cjs','est-common/direct-write.cjs','est-common/run-tool.cjs','est-gui/build_scripts/run.cjs','est-gui/package.json','est-gui/vite.web.config.mjs'];
+    const files=['common/transient-paths.cjs','common/direct-write.cjs','common/run-tool.cjs','est-gui/build_scripts/run.cjs','est-gui/package.json','est-gui/vite.web.config.mjs'];
     for(const file of files){fs.mkdirSync(path.dirname(path.join(root,file)),{recursive:true});fs.copyFileSync(path.join(source,file),path.join(root,file));}
     fs.symlinkSync(path.join(project,'node_modules'),path.join(root,'est-gui/node_modules'),'dir');
-    const {createTransientPaths}=require('../../est-common/transient-paths.cjs'),paths=createTransientPaths({anchor:root});
+    const {createTransientPaths}=require('../../common/transient-paths.cjs'),paths=createTransientPaths({anchor:root});
     return {root,paths,runGui:require(path.join(root,'est-gui/build_scripts/run.cjs')).runGui,
         close(){fs.rmSync(paths.base,{recursive:true,force:true});fs.rmSync(root,{recursive:true,force:true});}};
 }

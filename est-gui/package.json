@@ -20,7 +20,7 @@
         "build:linux": "node build_scripts/run.cjs package linux"
     },
     "dependencies": {
-        "@effectstreamer/common": "file:../est-common",
+        "@effectstreamer/common": "file:../common",
         "@electron-toolkit/preload": "^3.0.2",
         "@electron-toolkit/utils": "^4.0.0",
         "@hookform/resolvers": "^5.2.2",

@@ -42,14 +42,14 @@ Disposable builds, tool caches, packaging inputs, test fixtures/reports and runt
 From the repository root, query default build paths without creating files:
 
 ```bash
-bash est-common/transient-paths.sh path est-core build linux est-core
-bash est-common/transient-paths.sh path est-core build win est-core.exe
-bash est-common/transient-paths.sh path est-gui web
+bash common/transient-paths.sh path est-core build linux est-core
+bash common/transient-paths.sh path est-core build win est-core.exe
+bash common/transient-paths.sh path est-gui web
 ```
 
 All project-owned saves write directly to their destinations, including JSON, uploaded WAVs and package resources. There are no new atomic-save `.tmp` files or upload `.part` files. **An interrupted write can leave truncated JSON, an incomplete WAV, or a partial distribution.** A WAV filename alone does not establish completion: validation and matching storage receipts remain required. Existing legacy partial uploads are reconciled without discarding their source before successful receipt/session persistence.
 
-After temporary storage is cleared, rebuild before running tests or packaging that need compiled inputs. Producers recreate their transient directories; persistent application data must never be configured below the disposable root. `/tmp` is not universally cleared on reboot: see the optional Linux boot-cleanup [rule](est-common/effectstreamer-tmpfiles.conf) and [installation instructions](deployment/README.md#temporary-files). No cleanup service is installed automatically.
+After temporary storage is cleared, rebuild before running tests or packaging that need compiled inputs. Producers recreate their transient directories; persistent application data must never be configured below the disposable root. `/tmp` is not universally cleared on reboot: see the optional Linux boot-cleanup [rule](common/effectstreamer-tmpfiles.conf) and [installation instructions](deployment/README.md#temporary-files). No cleanup service is installed automatically.
 
 ## Contact Info
 

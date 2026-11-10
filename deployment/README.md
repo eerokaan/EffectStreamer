@@ -107,10 +107,10 @@ These are operator release checks, not claims that a live deployment, native Win
 
 Disposable builds/caches use `/tmp/effectstreamer` on Linux and the system temporary directory's `effectstreamer` subtree on native Windows. Rebuild required inputs after cleanup; never move configuration, recordings or results there. Reboot cleanup depends on OS policy.
 
-For optional Linux systemd boot cleanup, an administrator may install the shared [tmpfiles rule](../est-common/effectstreamer-tmpfiles.conf), from the repository root:
+For optional Linux systemd boot cleanup, an administrator may install the shared [tmpfiles rule](../common/effectstreamer-tmpfiles.conf), from the repository root:
 
 ```bash
-sudo install -m 0644 est-common/effectstreamer-tmpfiles.conf /etc/tmpfiles.d/effectstreamer.conf
+sudo install -m 0644 common/effectstreamer-tmpfiles.conf /etc/tmpfiles.d/effectstreamer.conf
 ```
 
 The rule removes contents only during boot-mode removal. Do not invoke `systemd-tmpfiles --remove --boot` while builds or experiments are running. Installing this Linux rule does not configure Windows cleanup.

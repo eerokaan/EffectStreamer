@@ -227,7 +227,7 @@ est-server.exe
 
 ## Compilation
 
-The build bundles the coordinator and worker entry with `ncc` and injects a SEA blob with `postject`. Bundler/SEA inputs and caches use `/tmp/effectstreamer/<user>/<checkout>/est-server`; the executable, core/runtime and web resources are assembled directly in the new final distribution. Existing destinations are never overwritten, but failure may leave partial output. Required inputs: matching `SDK`, `EST_NETSIM_PLUGIN`, a source-built core and managed web build. Defaults are queried with `bash est-common/transient-paths.sh path est-core build linux est-core` and `... path est-gui web` from the repository root. Set `EST_DISTRIBUTION_DIR` for another new final output. Runtime caches are also disposable; `EST_RESULTS_ROOT` is not. See [deployment/README.md](../deployment/README.md); old tracked core/runtime archives are not source-build evidence.
+The build bundles the coordinator and worker entry with `ncc` and injects a SEA blob with `postject`. Bundler/SEA inputs and caches use `/tmp/effectstreamer/<user>/<checkout>/est-server`; the executable, core/runtime and web resources are assembled directly in the new final distribution. Existing destinations are never overwritten, but failure may leave partial output. Required inputs: matching `SDK`, `EST_NETSIM_PLUGIN`, a source-built core and managed web build. Defaults are queried with `bash common/transient-paths.sh path est-core build linux est-core` and `... path est-gui web` from the repository root. Set `EST_DISTRIBUTION_DIR` for another new final output. Runtime caches are also disposable; `EST_RESULTS_ROOT` is not. See [deployment/README.md](../deployment/README.md); old tracked core/runtime archives are not source-build evidence.
 
 ### Linux
 

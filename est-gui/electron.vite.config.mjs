@@ -3,7 +3,7 @@ import { defineConfig } from "electron-vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import {createRequire} from 'node:module';
-const {checkoutPaths}=createRequire(import.meta.url)('../est-common/transient-paths.cjs');
+const {checkoutPaths}=createRequire(import.meta.url)('../common/transient-paths.cjs');
 const paths=checkoutPaths(),source=import.meta.dirname;
 const output=part=>paths.directory('est-gui','app','out',part);
 const cache=part=>paths.directory('est-gui','cache','vite-'+part);
@@ -25,7 +25,7 @@ export default defineConfig({
         cacheDir:cache('renderer'), publicDir: resolve(source, "public"),
         build: {
             outDir:output('renderer'),emptyOutDir:true,
-            commonjsOptions: { include: [/node_modules/, /est-common/] },
+            commonjsOptions: { include: [/node_modules/, /[/\\]common[/\\]/] },
             rollupOptions: {
                 input: {
                     windowMain: resolve(source, "./src/renderer/windowMain.html")

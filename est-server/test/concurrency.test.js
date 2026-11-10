@@ -8,7 +8,7 @@ const {io:connect}=require('socket.io-client');
 const {createCoordinator}=require('../src/server.js');
 const {normalizeConfig}=require('../src/bootstraps/configManager.js');
 const {remoteConfig}=require('./fixtures/config.js');
-const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
+const {checkoutPaths}=require('../../common/transient-paths.cjs');
 
 test('a crashed pair releases admission capacity without replacing partners or stopping the second worker',{timeout:30000},async t=>{
     const root=checkoutPaths().temporaryDirectory('est-server','est-concurrency-'),raw=remoteConfig();

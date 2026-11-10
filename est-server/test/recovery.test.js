@@ -6,7 +6,7 @@ const { EnrollmentStore } = require("../src/services/EnrollmentStore.js");
 const { RecoveryPolicy } = require("../src/services/RecoveryPolicy.js");
 const { normalizeConfig } = require("../src/bootstraps/configManager.js");
 const { remoteConfig } = require("./fixtures/config.js");
-const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
+const {checkoutPaths}=require('../../common/transient-paths.cjs');
 
 function fixture(t) {
     const root=checkoutPaths().temporaryDirectory('est-server','est-recovery-');

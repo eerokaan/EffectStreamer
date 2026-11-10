@@ -2,7 +2,7 @@ import { it, expect } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { NativeAudioRuntime, coreArguments } from "../src/main/audio/native.js";
-import {checkoutPaths} from '../../est-common/transient-paths.cjs';
+import {checkoutPaths} from '../../common/transient-paths.cjs';
 
 const scope={sessionId:'session-1',participantId:'person-a',attemptId:'attempt-1'};
 const condition={nativeDelay:30,echoDelay:80,nativeGain:0.5,echoGain:0.1,packetlossType:'random',packetlossRatio:0.2};

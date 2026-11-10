@@ -2,7 +2,7 @@
 set -euo pipefail
 
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-source "$root/../est-common/transient-paths.sh"
+source "$root/../common/transient-paths.sh"
 target=${TARGET_OS:-linux}
 case "$target" in
     linux) triple=linux_x86_64; compiler=${CC:-gcc}; platform=linux; extension= ;;

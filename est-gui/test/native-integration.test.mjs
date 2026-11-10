@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import dgram from "node:dgram";
 import { NativeAudioRuntime } from "../src/main/audio/native.js";
-import {checkoutPaths} from '../../est-common/transient-paths.cjs';
+import {checkoutPaths} from '../../common/transient-paths.cjs';
 
 it.skipIf(process.env.EST_NATIVE_INTEGRATION !== "1")("runs two native participants with four real core processes and separate WAVs", async () => {
     const root = checkoutPaths().temporaryDirectory('est-gui','est-native-pair-');

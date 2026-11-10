@@ -1,6 +1,6 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {startCore}=require('../../est-common/core-process.cjs');
+const {startCore}=require('../../common/core-process.cjs');
 const {runCli,corePath,allocatePorts,temporaryHome}=require('./fixtures.cjs');
 const path=require('node:path');
 

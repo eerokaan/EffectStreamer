@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const {createHash}=require('node:crypto');
-const {checkoutPaths}=require('../../est-common/transient-paths.cjs');
+const {checkoutPaths}=require('../../common/transient-paths.cjs');
 const {RecordingTransfers}=require('../src/services/RecordingTransfers.js');
 async function fixture(t) {
     const root=checkoutPaths().temporaryDirectory('est-server','legacy-');t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
