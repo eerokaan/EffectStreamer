@@ -12,21 +12,41 @@ EffectStreamer Server is distributed as a standalone Node.js executable and shou
 
 ## The configuration file
 
-Before starting the server, copy the `config-server.example.json` config file to `~/effectstreamer/config-server.json` and adjust it for your needs. The path is based on the current OS user's home directory on Linux and Windows.
+Before starting the server, choose the example for your intended use:
 
-Set `EST_CONFIG_PATH` to select another mounted JSON file. `config-server.remote.example.json` is the remote starting point; replace study IDs/codes/DNS and provide a private TURN secret before deployment. For remote same-origin hosting, `EST_WEB_ROOT` overrides the adjacent packaged `web` directory (development default: managed `est-gui/web` under `/tmp/effectstreamer`). A missing web build prevents startup; rebuild it after transient cleanup.
+- **Local-use:** `est-server.config.local.example.json` for participants using native Electron clients.
+- **Remote-use:** `est-server.config.remote.example.json` for participants using browsers.
 
-On Linux for example, the initial setup can be performed with:
+Both examples set `deployment.mode` explicitly. Copy the selected example to the runtime location and adjust it for your needs:
 
-```
+| Platform | Server configuration, local-use or remote-use |
+| --- | --- |
+| Linux | `~/effectstreamer/est-server.config.json` |
+| Windows | `%USERPROFILE%\effectstreamer\est-server.config.json` |
+
+The home directory belongs to the account running the server, which may be a service account. Set `EST_CONFIG_PATH` to select another private file for a standalone deployment or service. The loader does not automatically migrate or fall back to `config-server.json`; rename an existing configuration or explicitly select it with `EST_CONFIG_PATH`. Remote-use browser participants need no GUI configuration file.
+
+For remote-use, replace study IDs/codes/DNS and provide a private TURN secret before deployment. For remote same-origin hosting, `EST_WEB_ROOT` overrides the adjacent packaged `web` directory (development default: managed `est-gui/web` under `/tmp/effectstreamer`). A missing web build prevents startup; rebuild it after transient cleanup.
+
+For local-use on Linux:
+
+```bash
 mkdir -p ~/effectstreamer
-cp config-server.example.json ~/effectstreamer/config-server.json
+cp est-server.config.local.example.json ~/effectstreamer/est-server.config.json
 ```
 
-An example configuration looks like this:
+For remote-use on Linux:
+
+```bash
+mkdir -p ~/effectstreamer
+cp est-server.config.remote.example.json ~/effectstreamer/est-server.config.json
+```
+
+An example local-use configuration looks like this:
 
 ```
 {
+    "deployment": { "mode": "local", "maxActivePairs": 1 },
     "server": {
         "ipAddress": "0.0.0.0",
         "port": "3000"
@@ -238,7 +258,7 @@ npm install
 npm run build:linux
 ```
 
-The Linux distribution is written to `est-server/dist/linux`. Transfer the whole directory, not just the executable. The default configuration path remains `~/effectstreamer/config-server.json`, overridable with `EST_CONFIG_PATH`.
+The Linux distribution is written to `est-server/dist/linux`. Transfer the whole directory, not just the executable. Both local-use and remote-use example configurations are included. The runtime configuration path is `~/effectstreamer/est-server.config.json`, overridable with `EST_CONFIG_PATH`.
 
 ### Windows
 
@@ -249,4 +269,4 @@ npm install
 npm run build:win
 ```
 
-The Windows distribution is written to `est-server/dist/win` with `est-server.exe`, `core/est-core.exe`, matching DLLs and `web/`. Cross-building it is not a Windows runtime/device acceptance result. Use the matching Node target version and run the installer/package smoke checks on Windows before release.
+The Windows distribution is written to `est-server/dist/win` with `est-server.exe`, `core/est-core.exe`, matching DLLs, `web/`, and both local-use/remote-use example configurations. The runtime configuration path is `%USERPROFILE%\effectstreamer\est-server.config.json`, overridable with `EST_CONFIG_PATH`. Cross-building it is not a Windows runtime/device acceptance result. Use the matching Node target version and run the installer/package smoke checks on Windows before release.

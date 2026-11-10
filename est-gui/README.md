@@ -8,7 +8,16 @@ The same React frontend builds as a native Electron application or a browser app
 
 ## The configuration file
 
-Before starting the GUI, create `~/effectstreamer/config-gui.json` for the current OS user. `config-gui.example.json` is the repository template; the application does not search for or migrate legacy adjacent configuration files:
+For local-use Electron clients, copy the repository template `est-gui.config.example.json` to the runtime location for the account running the application:
+
+| Platform | GUI configuration, local-use |
+| --- | --- |
+| Linux | `~/effectstreamer/est-gui.config.json` |
+| Windows | `%USERPROFILE%\effectstreamer\est-gui.config.json` |
+
+Existing installations must rename `config-gui.json` to `est-gui.config.json`; the application does not automatically migrate or fall back to legacy filenames or adjacent configuration files. For remote-use browser clients, no GUI JSON file is needed: configuration is fetched from the server.
+
+An example local-use configuration is:
 
 ```
 {
@@ -51,13 +60,13 @@ chmod +x EffectStreamer_GUI*.AppImage
 ./EffectStreamer_GUI*.AppImage
 ```
 
-The AppImage reads `~/effectstreamer/config-gui.json`.
+For local-use, the AppImage reads `~/effectstreamer/est-gui.config.json`.
 
 ### Windows
 
 Run the installer `EffectStreamer_GUI.exe` and start EffectStreamer from the Start Menu or the installed executable.
 
-Packaged Windows builds read `%USERPROFILE%\effectstreamer\config-gui.json`.
+For local-use, packaged Windows builds read `%USERPROFILE%\effectstreamer\est-gui.config.json`.
 
 ## Compilation
 

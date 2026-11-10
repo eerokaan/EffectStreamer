@@ -22,8 +22,17 @@ Remote deployments isolate each two-person pair in a worker with four server-hos
 
 ## Running experiments
 
-- **Local:** build/package native Linux or Windows clients, copy the server/GUI example configurations, configure `client-a`/`client-b` LAN addresses, and start the coordinator before both clients. See [server](est-server/README.md) and [GUI](est-gui/README.md) instructions. Audio setup is server-optional locally.
-- **Remote:** follow [deployment/README.md](deployment/README.md) for standalone server/core/runtime packaging, DNS/TLS/TURN, Prolific URLs and operational limits. Audio setup is mandatory. Desktop/laptop Chrome, Edge, Firefox and Safari are the supported targets; phones/tablets are excluded. Automated Chromium/Firefox results do not establish real Safari/Edge or physical-device acceptance; see the [verification checklist](deployment/README.md#verification).
+- **Local-use:** build/package native Linux or Windows clients, start from the [local-use server example](est-server/est-server.config.local.example.json) and [Electron GUI example](est-gui/est-gui.config.example.json), configure `client-a`/`client-b` LAN addresses, and start the coordinator before both clients. See [server](est-server/README.md) and [GUI](est-gui/README.md) instructions. Audio setup is server-optional locally.
+- **Remote-use:** start from the [remote-use server example](est-server/est-server.config.remote.example.json) and follow [deployment/README.md](deployment/README.md) for standalone server/core/runtime packaging, DNS/TLS/TURN, Prolific URLs and operational limits. Audio setup is mandatory. Desktop/laptop Chrome, Edge, Firefox and Safari are the supported targets; phones/tablets are excluded. Automated Chromium/Firefox results do not establish real Safari/Edge or physical-device acceptance; see the [verification checklist](deployment/README.md#verification).
+
+Runtime configuration belongs to the account running the application, not its installation directory:
+
+| Component/use | Linux | Windows |
+| --- | --- | --- |
+| Server, local-use or remote-use | `~/effectstreamer/est-server.config.json` | `%USERPROFILE%\effectstreamer\est-server.config.json` |
+| Electron GUI, local-use | `~/effectstreamer/est-gui.config.json` | `%USERPROFILE%\effectstreamer\est-gui.config.json` |
+
+Copy the chosen example to its runtime filename; both server examples explicitly set `deployment.mode`. Remote-use browser participants need no GUI JSON file. `EST_CONFIG_PATH` selects an alternative server configuration, including a private service/container mount. Existing installations must rename the previous `config-server.json`/`config-gui.json` files; there is no automatic migration or fallback lookup.
 
 Both modes save `microphone.wav` and `headphones.wav` as 48 kHz mono S16LE PCM. Local taps are the core microphone and playback mix; remote taps are the original microphone stream before Opus encoding and the received decoded playback stream. They do not represent physical sound at the ears, system output-volume changes, or hardware processing. Recordings keep ordinary existing-style start/stop semantics: no extra offsets, sample-count sidecars, gap logs, synchronization, calibration or timing-analysis dataset is added.
 

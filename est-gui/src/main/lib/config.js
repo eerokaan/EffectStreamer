@@ -5,7 +5,7 @@ import path from "path";
 import clientConfig from "@effectstreamer/common/client-config";
 import { writeFileDirect } from "@effectstreamer/common/direct-write";
 
-const configFileName = "config-gui.json";
+const configFileName = "est-gui.config.json";
 const clientIdPattern = /^[A-Za-z0-9_-]{1,64}$/;
 
 function getGuiConfigPath() {

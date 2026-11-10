@@ -24,7 +24,7 @@ function waitFor(runtime, predicate) {
 
 it.skipIf(process.env.EST_NATIVE_INTEGRATION !== "1")("runs SCT and both LST role rounds through shared runtime, real native cores and receipt-driven uploads", async () => {
     const root = checkoutPaths().temporaryDirectory('est-gui','est-local-flow-');
-    const raw = structuredClone(require("../../est-server/config-server.example.json"));
+    const raw = structuredClone(require("../../est-server/est-server.config.local.example.json"));
     raw.conditions = { baseline: [{}], random: [] };
     const config = normalizeConfig(raw), app = createCoordinator({ config, root: path.join(root, "server") });
     app.server.listen(0, "127.0.0.1");await once(app.server, "listening");

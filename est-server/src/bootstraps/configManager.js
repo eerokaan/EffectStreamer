@@ -25,7 +25,7 @@ const numericConditionFields = {
 // =======================================
 
 function loadConfig() {
-    const configPath = process.env.EST_CONFIG_PATH || path.join(os.homedir(), "effectstreamer", "config-server.json");
+    const configPath = process.env.EST_CONFIG_PATH || path.join(os.homedir(), "effectstreamer", "est-server.config.json");
     let configFile = null;
     let parsedConfig = null;
 

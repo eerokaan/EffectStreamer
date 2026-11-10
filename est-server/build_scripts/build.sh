@@ -36,6 +36,6 @@ TARGET_OS="$target" EST_CORE_EXECUTABLE="$core" node "$root/../est-core/build_sc
 mkdir -p "$destination/web"
 cp -a -- "$web/." "$destination/web/"
 chmod u+x "$destination/est-server$extension"
-cp -- "$root/config-server.example.json" "$root/config-server.remote.example.json" "$destination/"
+cp -- "$root/est-server.config.local.example.json" "$root/est-server.config.remote.example.json" "$destination/"
 cp -- "$root/README.md" "$destination/README.md"
 echo "Distribution: $destination"

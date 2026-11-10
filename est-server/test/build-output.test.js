@@ -19,5 +19,12 @@ for(const target of ['linux','win'])test(`${target} SEA build writes final resou
     assert.equal(stage.args[1],path.join(destination,'core'));assert.equal(stage.core,checkoutPaths().path('est-core','build',target,'est-core'+(target==='win'?'.exe':'')));
     assert.ok(calls.every(call=>call.tmp.startsWith(checkoutPaths().base+'/est-server/runs/')));
     assert.equal(fs.readFileSync(path.join(destination,'core/est-core'+(target==='win'?'.exe':'')),'utf8'),'source-built-core');
+    for(const mode of ['local','remote']) {
+        const filename=`est-server.config.${mode}.example.json`,packaged=path.join(destination,filename);
+        assert.ok(fs.existsSync(packaged),`Missing ${mode}-use example: ${filename}`);
+        const config=JSON.parse(fs.readFileSync(packaged,'utf8'));
+        assert.equal(config.deployment.mode,mode);
+        assert.deepEqual(config,JSON.parse(fs.readFileSync(path.resolve(__dirname,'..',filename),'utf8')));
+    }
     const again=spawnSync('bash',[script],{env,encoding:'utf8'});assert.notEqual(again.status,0);assert.match(again.stderr,/overwrite|exist/i);
 });

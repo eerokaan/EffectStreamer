@@ -15,9 +15,9 @@ Choose the example for the intended use; both server examples set `deployment.mo
 
 | Component/use | Example | Runtime filename |
 | --- | --- | --- |
-| Server, local-use | [config-server.example.json](../est-server/config-server.example.json) | `config-server.json` |
-| Server, remote-use | [config-server.remote.example.json](../est-server/config-server.remote.example.json) | `config-server.json` |
-| Electron GUI, local-use | [config-gui.example.json](../est-gui/config-gui.example.json) | `config-gui.json` |
+| Server, local-use | [est-server.config.local.example.json](../est-server/est-server.config.local.example.json) | `est-server.config.json` |
+| Server, remote-use | [est-server.config.remote.example.json](../est-server/est-server.config.remote.example.json) | `est-server.config.json` |
+| Electron GUI, local-use | [est-gui.config.example.json](../est-gui/est-gui.config.example.json) | `est-gui.config.json` |
 
 Copy the selected examples to `~/effectstreamer/` on Linux or `%USERPROFILE%\effectstreamer\` on Windows, using the account running each application. `EST_CONFIG_PATH` selects another private server configuration. Remote-use browsers need no GUI JSON file. See the [server](../est-server/README.md) and [GUI](../est-gui/README.md) READMEs for configuration fields and legacy filename migration.
 

@@ -12,7 +12,7 @@ it('GUI configuration, enrollment and pending manifests save without publication
     const rename=vi.spyOn(fs.promises,'rename').mockImplementation(()=>{throw new Error('rename forbidden');});
     const fetch=vi.spyOn(globalThis,'fetch').mockResolvedValue({ok:true,json:async()=>({participantId:'person-a',reconnectToken:'test-token'})});
     try {
-        const config=path.join(root,'config.json');fs.writeFileSync(config,JSON.stringify(require('../config-gui.example.json')));
+        const config=path.join(root,'config.json');fs.writeFileSync(config,JSON.stringify(require('../est-gui.config.example.json')));
         await saveAudioDeviceIds(config,{source:'input',sink:'output'});
         expect(JSON.parse(fs.readFileSync(config)).audio.devices.source).toBe('input');
         await loadLocalEnrollment({url:'http://localhost',identity:'client-a',ipAddress:'127.0.0.1',operatingSystem:'linux',credentialsPath:path.join(root,'enrollment.json')});
