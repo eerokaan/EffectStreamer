@@ -24,26 +24,21 @@ function validateArguments(command,args) {
         'electron-dev':['--rendererOnly','--help','-h'],
         'electron-preview':['--skipBuild','--help','-h'],
         package:['--dir','--help','-h'],
-        test:['--run','--watch','--silent','--coverage','--passWithNoTests','--help','-h'],
-        e2e:['--list','--headed','--debug','--help','-h'],
-        'audio-tests':['--list','--headed','--debug','--help','-h'],
         lint:['--quiet','--no-fix','--help','-h']
     };
     const values={
         'web-build':['--mode','--logLevel'], 'electron-build':['--mode','--logLevel'],
         'electron-dev':['--mode','--logLevel','--host','--port'], 'electron-preview':['--mode','--logLevel'],
-        package:[],test:['--exclude','--testNamePattern','-t','--maxWorkers','--pool','--configLoader'],
-        e2e:['--grep','--grep-invert','--project','--workers','--repeat-each','--timeout','--retries'],
-        'audio-tests':['--grep','--grep-invert','--project','--workers','--repeat-each','--timeout','--retries'],lint:['--max-warnings']
+        package:[],lint:['--max-warnings']
     };
     for(let i=command==='package'?1:0;i<args.length;i++) {
         const argument=args[i];
-        if(!argument.startsWith('-') && ['test','e2e','audio-tests','lint'].includes(command))continue;
+        if(!argument.startsWith('-') && command==='lint')continue;
         if(flags[command]?.includes(argument))continue;
         const index=argument.indexOf('='),name=index<0?argument:argument.slice(0,index);
         if(values[command]?.includes(name)) {
             const value=index<0?args[++i]:argument.slice(index+1);
-            if(!value || value.startsWith('-') || name==='--configLoader' && value!=='runner')throw new Error('Unsupported '+command+' argument value: '+argument);
+            if(!value || value.startsWith('-'))throw new Error('Unsupported '+command+' argument value: '+argument);
             continue;
         }
         throw new Error('Unsupported '+command+' argument: '+argument+'; output/configuration overrides are managed by EffectStreamer');
@@ -53,7 +48,6 @@ async function runGui(command,args=[],{spawnTool=(executable,argv,options)=>runT
     validateArguments(command,args);
     const paths=checkoutPaths(),env=paths.environment('est-gui');
     env.ELECTRON_CACHE=paths.directory('est-gui','cache','electron');env.ELECTRON_BUILDER_CACHE=paths.directory('est-gui','cache','electron-builder');
-    env.PLAYWRIGHT_HTML_OUTPUT_DIR=path.join(env.EST_TRANSIENT_RUN_DIR,'playwright-report');
     const spawn=(argv)=>spawnTool(process.execPath,argv,{cwd:project,env});
     const group=command.startsWith('electron-') || command==='package'?'electron':command==='web-build'?'web':null;
     const release=group?paths.acquireLock('est-gui',group):()=>{};
@@ -86,9 +80,7 @@ async function runGui(command,args=[],{spawnTool=(executable,argv,options)=>runT
             return finish(await spawn([bin('electron-builder','electron-builder'),'--'+target,'--projectDir',app,'--config',config,'--publish','never',...args.slice(1)]));
         }
         if(command==='web-build') {paths.directory('est-gui','web');return await spawn([bin('vite'),'build','--config',path.join(project,'vite.web.config.mjs'),'--configLoader','runner',...args]);}
-        if(command==='test')return await spawn([bin('vitest'),'--config',path.join(project,'vitest.config.mjs'),'--configLoader','runner',...args]);
         if(command==='lint')return await spawn([bin('eslint'),'--cache','--cache-location',paths.path('est-gui','cache','eslint'),'--fix','.',...args]);
-        if(command==='audio-tests' || command==='e2e')return await spawn([bin('@playwright/test','playwright'),'test','--config',path.join(project,command==='audio-tests'?'playwright.audio.config.mjs':'playwright.config.mjs'),...args]);
         throw new Error('Unknown GUI command: '+command);
     } catch(error) {if(reservedOutput)console.error('Build failed; incomplete distribution may remain at '+reservedOutput);throw error;}
     finally {release();}

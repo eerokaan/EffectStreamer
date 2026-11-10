@@ -70,10 +70,7 @@ function createTransientPaths({anchor, platform = process.platform, systemTemp, 
             }
             run=ensure(output(run));
             const temporary=ensure(p.join(run,'tmp'));
-            const browserCache=process.platform==='win32' ? path.join(env.LOCALAPPDATA || path.join(os.homedir(),'AppData','Local'),'ms-playwright') :
-                process.platform==='darwin' ? path.join(os.homedir(),'Library','Caches','ms-playwright') : path.join(env.XDG_CACHE_HOME || path.join(os.homedir(),'.cache'),'ms-playwright');
             return {...env,EST_TRANSIENT_ROOT:root,EST_TRANSIENT_RUN_DIR:run,TMPDIR:temporary,TMP:temporary,TEMP:temporary,
-                PLAYWRIGHT_BROWSERS_PATH:env.PLAYWRIGHT_BROWSERS_PATH || browserCache,
                 XDG_CACHE_HOME:paths.directory(component,'cache'),NODE_COMPILE_CACHE:paths.directory(component,'cache','node')};
         },
         acquireLock(component, name) {

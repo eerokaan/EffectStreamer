@@ -12,7 +12,7 @@ The test procedure implemented in EffectStreamer follows the ITU-T Recommendatio
 
 **EffectStreamer consists of three main parts, which are explained in detail in these README files:** The [**est-core**](./est-core/README.md), [**est-gui**](./est-gui/README.md) and [**est-server**](./est-server/README.md).
 
-`est-core` owns RTP streaming, impairment, mixing and native PCM/WAV recording. Local participants use ALSA on Linux or WASAPI2 on Windows directly; raw PCM stdio remains an optional external-host backend. Standalone WebRTC runs require a signaling host; see the [reference example](est-core/examples/webrtc-host.cjs).
+`est-core` owns RTP streaming, impairment, mixing and native PCM/WAV recording. Local participants use ALSA on Linux or WASAPI2 on Windows directly; raw PCM stdio remains an optional external-host backend. Standalone WebRTC runs require a signaling host; `est-server` supplies this for managed experiments.
 
 `est-gui` provides one shared React participant frontend. Electron supplies local native devices/processes/files; the browser supplies remote WebRTC and in-memory WAV recording. Both use the same SCT/LST views, questionnaires, ratings and server-owned session flow. Remote participants install nothing.
 
@@ -59,6 +59,10 @@ bash common/transient-paths.sh path est-gui web
 All project-owned saves write directly to their destinations, including JSON, uploaded WAVs and package resources. There are no new atomic-save `.tmp` files or upload `.part` files. **An interrupted write can leave truncated JSON, an incomplete WAV, or a partial distribution.** A WAV filename alone does not establish completion: validation and matching storage receipts remain required. Existing legacy partial uploads are reconciled without discarding their source before successful receipt/session persistence.
 
 After temporary storage is cleared, rebuild before running tests or packaging that need compiled inputs. Producers recreate their transient directories; persistent application data must never be configured below the disposable root. `/tmp` is not universally cleared on reboot: see the optional Linux boot-cleanup [rule](common/effectstreamer-tmpfiles.conf) and [installation instructions](deployment/README.md#temporary-files). No cleanup service is installed automatically.
+
+## Automated tests
+
+Automated suites, fixtures, test dependencies and runner configurations live in [`test/`](test/README.md), separate from the application components. See its README for setup, native build prerequisites and per-component commands.
 
 ## Contact Info
 

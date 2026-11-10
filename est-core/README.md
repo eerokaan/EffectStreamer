@@ -75,20 +75,9 @@ Optional settings are `--ice-min-port <first> --ice-max-port <last>`, `--webrtc-
 
 The internal RTP/L16 sender now targets 128 mono frames per packet (`--rtp-frames`, 1–480), independent of normal incoming WebRTC/stdio block sizes. This intentionally replaces backend-dependent legacy packet granularity; loss is still applied on the same internal peer branch, not on public SRTP. Partial blocks at EOS or a source discontinuity are retained rather than padded or dropped, so those packets can be shorter. This does not add saved timing/gap-analysis data. Validate native hardware framing for the study before comparing old and new packet-loss results.
 
-The build additionally links GStreamer SDP/WebRTC and needs matching Opus, RTP, libnice, DTLS and SRTP runtime plugins. For source SDKs referencing host metadata such as Linux libdrm, supply `EST_PKG_CONFIG_EXTRA_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig` if that dependency is already installed. Do not point Windows cross-compilation at Linux metadata. `EST_BUILD_TEST_PEER=1` additionally builds a sibling `webrtc-peer` offerer (`webrtc-peer.exe` for Windows) in the managed temporary build directory for integration tests; it is not shipped with the application.
+The build additionally links GStreamer SDP/WebRTC and needs matching Opus, RTP, libnice, DTLS and SRTP runtime plugins. For source SDKs referencing host metadata such as Linux libdrm, supply `EST_PKG_CONFIG_EXTRA_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig` if that dependency is already installed. Do not point Windows cross-compilation at Linux metadata. Integration tests and their separate native peer builder live under [`test/`](../test/README.md).
 
-### Standalone signaling reference
-
-From the repository root, with the matching runtime environment (or a staged core):
-
-```bash
-node est-core/examples/webrtc-host.cjs /absolute/path/to/est-core \
-    --mode sender --device-type webrtc --control ndjson --recording none \
-    --peerip 127.0.0.1 --peer-port 45004 --echo-port 45005 \
-    --ice-min-port 50000 --ice-max-port 50099
-```
-
-Open `http://127.0.0.1:8080`, click Connect and allow audio. This single-peer loopback reference demonstrates offer/answer, server ICE events and explicit start; a receiver example uses `--mode receiver --listen-port 45004 --echo-port 45005` and another `PORT`. Feed its private RTP inputs using the existing sender topology. It is not an Internet study server, multi-peer mixer, or authentication example. Use `est-server` for public admission/ownership/TLS/TURN. A bare core binary cannot negotiate a browser without such a host.
+Use `est-server` for public admission/ownership/TLS/TURN. A bare core binary cannot negotiate a browser without a signaling host.
 
 `build_scripts/stage-runtime.cjs` packages a source core and matching SDK shared libraries, required plugins, scanner and an explicitly supplied custom `EST_NETSIM_PLUGIN` into a new directory; it refuses to overwrite resources. Existing runtime archives remain untouched. See [deployment/README.md](../deployment/README.md) for inputs, matching Linux/Windows layouts, license obligations and packaged acceptance.
 

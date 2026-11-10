@@ -7,9 +7,6 @@
     "author": "Eero Kaan",
     "company": "Quality and Usability Lab | TU Berlin",
     "scripts": {
-        "test": "node build_scripts/run.cjs test",
-        "test:audio-browser": "node build_scripts/run.cjs audio-tests",
-        "test:e2e": "node build_scripts/run.cjs e2e",
         "dev:format": "prettier --write .",
         "dev:lint": "node build_scripts/run.cjs lint",
         "dev:run": "node build_scripts/run.cjs electron-dev",
@@ -41,7 +38,6 @@
     "devDependencies": {
         "@electron-toolkit/eslint-config": "^2.1.0",
         "@electron-toolkit/eslint-config-prettier": "^3.0.0",
-        "@playwright/test": "^1.64.1",
         "@vitejs/plugin-react": "^5.1.1",
         "electron": "^39.2.6",
         "electron-builder": "^26.0.12",
@@ -57,7 +53,6 @@
         "prettier-plugin-tailwindcss": "^0.7.2",
         "react": "^19.2.1",
         "react-dom": "^19.2.1",
-        "vite": "^7.2.6",
-        "vitest": "^5.0.5"
+        "vite": "^7.2.6"
     }
 }

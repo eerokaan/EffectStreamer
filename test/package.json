@@ -1,0 +1,22 @@
+{
+    "name": "@effectstreamer/test",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "test": "npm run test:layout && npm run test:common && npm run test:est-core && npm run test:est-server && npm run test:est-gui -- --run",
+        "test:layout": "node --test layout.test.cjs launcher.test.cjs environment.test.cjs",
+        "test:common": "node run.cjs common",
+        "test:est-core": "node run.cjs est-core",
+        "test:est-server": "node run.cjs est-server",
+        "test:est-gui": "node run.cjs est-gui",
+        "test:e2e": "node run.cjs e2e",
+        "test:audio-browser": "node run.cjs audio-tests",
+        "build:core": "bash est-core/build.sh"
+    },
+    "devDependencies": {
+        "@electron/asar": "^3.4.1",
+        "@playwright/test": "^1.64.1",
+        "socket.io-client": "^4.8.4",
+        "vitest": "^5.0.5"
+    }
+}

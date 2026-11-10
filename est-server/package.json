@@ -7,7 +7,6 @@
     "author": "Eero Kaan",
     "company": "Quality and Usability Lab | TU Berlin",
     "scripts": {
-        "test": "node ../common/run-tool.cjs est-server node --test test/*.test.js",
         "dev:format": "prettier --write .",
         "dev:lint": "node ../common/run-tool.cjs est-server eslint --cache --fix .",
         "dev:run": "EST_SERVER_TYPE=harness node ../common/run-tool.cjs est-server node ./src/index.js",
@@ -28,7 +27,6 @@
         "postject": "^1.0.0-alpha.6",
         "prettier": "^3.8.1",
         "prettier-plugin-brace-style": "^0.9.0",
-        "prettier-plugin-merge": "^0.9.1",
-        "socket.io-client": "^4.8.4"
+        "prettier-plugin-merge": "^0.9.1"
     }
 }
