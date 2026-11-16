@@ -6,10 +6,24 @@ import path from 'node:path';
 const require=createRequire(import.meta.url);
 const {checkoutPaths}=require('../../../common/transient-paths.cjs');
 const {createCoordinator}=require('../../../est-server/src/server.js');
-const {normalizeConfig}=require('../../../est-server/src/bootstraps/configManager.js');
+const {normalizeConfig,publicBootstrap}=require('../../../est-server/src/bootstraps/configManager.js');
+const {iceArguments}=require('../../../est-server/src/media/MediaWorker.js');
 const {remoteConfig}=require('../../est-server/fixtures/config.js');
 
 const tones=[440,660,880,1100];
+function acceptanceConfig(raw,env=process.env) {
+    const config=normalizeConfig(raw);
+    if(env.EST_ACCEPTANCE_ICE_SERVERS)config.remote.iceServers=JSON.parse(env.EST_ACCEPTANCE_ICE_SERVERS);
+    Object.assign(config.remote,{coreExecutable:env.EST_ACCEPTANCE_CORE||env.EST_CORE_EXECUTABLE||checkoutPaths().path('est-core','build','linux','est-core'),internalPortRange:[35400,35499],icePortRange:[48500,48999],playbackDrainMs:100,startupTimeoutMs:30000});
+    return config;
+}
+test('authenticated relay acceptance settings are injected without weakening public config validation',()=>{
+    const servers=[{urls:'turn:relay.example.org:3478?transport=udp',username:'relay-user',credential:'relay-password'}];
+    const raw=remoteConfig(),config=acceptanceConfig(raw,{EST_ACCEPTANCE_ICE_SERVERS:JSON.stringify(servers)});
+    expect(iceArguments(config.remote.iceServers)).toEqual(['--turn-server','turn://relay-user:relay-password@relay.example.org:3478?transport=udp']);
+    expect(JSON.stringify(publicBootstrap(config))).not.toMatch(/relay-user|relay-password/);
+    expect(()=>normalizeConfig({...remoteConfig(),remote:{iceServers:servers}})).toThrow(/username/);
+});
 test('an admission that expires before audio setup shows its early exit without a blocking setup dialog',async({browser})=>{
     const root=checkoutPaths().temporaryDirectory('est-gui','est-admission-ui-'),raw=remoteConfig();
     raw.sessions={pairingTimeoutMs:1000};raw.prolific={enabled:true,studyId:'expiry-study',completionCodes:{completed:'DONE',technicalFailure:'TECH',partnerLeft:'LEFT',waitingTimeout:'WAIT'}};
@@ -46,12 +60,11 @@ async function traffic(pages){const values=await Promise.all(pages.map(page=>pag
 test('production frontend runs two concurrent isolated pairs through SCT/LST and receipt-confirmed completion',async({browser},testInfo)=>{
     test.setTimeout(240000);
     const root=checkoutPaths().temporaryDirectory('est-gui','est-production-pairs-'),raw=remoteConfig();
-    raw.deployment.maxActivePairs=2;raw.conditions={baseline:[{echoGain:0,nativeGain:1}],random:[]};
+    raw.server.maxActivePairs=2;raw.conditions={baseline:[{echoGain:0,nativeGain:1}],random:[]};
     raw.pretestForm=[{name:'age',type:'input',inputType:'number',label:'Age',validation:{valueType:'integer',min:18}}];
     raw.prolific={enabled:true,studyId:'acceptance-study',completionCodes:{completed:'DONE',technicalFailure:'TECH',partnerLeft:'LEFT',waitingTimeout:'WAIT'}};
-    raw.remote={coreExecutable:process.env.EST_ACCEPTANCE_CORE||process.env.EST_CORE_EXECUTABLE||checkoutPaths().path('est-core','build','linux','est-core'),internalPortRange:[35400,35499],icePortRange:[48500,48999],playbackDrainMs:100,startupTimeoutMs:30000};
-    if(process.env.EST_ACCEPTANCE_ICE_SERVERS)raw.remote.iceServers=JSON.parse(process.env.EST_ACCEPTANCE_ICE_SERVERS);
-    const app=createCoordinator({config:normalizeConfig(raw),root,webRoot:checkoutPaths().path('est-gui','web')});await app.ready;
+    const config=acceptanceConfig(raw);
+    const app=createCoordinator({config,root,webRoot:checkoutPaths().path('est-gui','web')});await app.ready;
     app.server.listen(0,'127.0.0.1');await once(app.server,'listening');const url='http://127.0.0.1:'+app.server.address().port;
     const contexts=[],pages=[],samples=[],allPids=new Set();
     const sessions=()=>[...app.registry.sessions.values()];

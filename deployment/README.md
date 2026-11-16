@@ -7,11 +7,11 @@ EffectStreamer runs as standalone applications on Linux and Windows:
 - **Local-use:** one server and two native Electron clients, each with its bundled core/runtime.
 - **Remote-use:** one server with bundled cores/runtime and the browser frontend; participants use desktop browsers without installing a client.
 
-Transfer the complete platform-matched distributions, not just their executables. Keep the server's `core/` and `web/` resources together. Use one coordinator per results directory; distributed matchmaking and shared-directory replicas are not supported.
+Transfer the complete platform-matched distributions, not just their executables. Keep the server's `core/` and `web/` resources together. Use one coordinator per results directory.
 
 ## The configuration files
 
-Choose the example for the intended use; both server examples set `deployment.mode` explicitly:
+Choose the example for the intended use; both server examples set `server.mode` explicitly and expose the same supported settings:
 
 | Component/use | Example | Runtime filename |
 | --- | --- | --- |
@@ -31,7 +31,7 @@ Configure the server's LAN address and give the two Electron clients distinct `c
 
 ### Remote-use
 
-Replace the example study IDs, completion codes, DNS names and experiment settings. Keep the server on `127.0.0.1:3000` behind an HTTPS proxy and configure reachable ICE/TURN services as described below. Set `remote.coreExecutable` to `core/est-core` on Linux or `core/est-core.exe` on Windows; relative core paths resolve beside the packaged server, not the caller's working directory. Start conservatively with `maxActivePairs: 1`; this is an admission limit, not measured capacity. Device/P.501 setup is mandatory remotely.
+Replace the example study IDs, completion codes, DNS names and experiment settings. Keep the server on `127.0.0.1:3000` behind an HTTPS proxy and configure reachable ICE/TURN services as described below. The bundled core is selected automatically as adjacent `core/est-core` on Linux or `core/est-core.exe` on Windows; no core-path setting is needed. Start conservatively with `server.maxActivePairs: 1`; this is an admission limit, not measured capacity. Device/P.501 setup (`sessions.audioSetup`) is mandatory remotely. Older configurations require the [server schema migration](../est-server/README.md#configuration-migration); removed technical knobs cannot be overridden.
 
 ### Linux
 
@@ -51,11 +51,11 @@ set "EST_SERVER_TYPE=harness"
 est-server.exe
 ```
 
-`harness` supervises the coordinator with bounded restart delay; `EST_SERVER_TYPE=server` runs it directly under an external service manager. Services must explicitly use the intended account, configuration and results paths. No service or host configuration is installed automatically.
+`harness` supervises the coordinator with bounded restart delay; `EST_SERVER_TYPE=server` runs it directly under an external service manager. Services must explicitly use the intended account, configuration and results paths.
 
 ## Networking
 
-The following requirements apply to **remote-use**. Use any suitable HTTPS/WebSocket reverse proxy; no particular proxy implementation is required. Serve the frontend, API, uploads and Socket.IO at one HTTPS origin, forwarding to `127.0.0.1:3000` with WebSocket upgrades. Allow the configured upload chunk size plus request framing. Use valid certificates, HSTS, `X-Content-Type-Options: nosniff` and `Referrer-Policy: no-referrer`; permit same-origin microphone/speaker selection. Do not log study query strings containing Prolific identifiers or JWTs, or expose private configuration/results.
+The following requirements apply to **remote-use**. Use an HTTPS/WebSocket reverse proxy. Serve the frontend, API, uploads and Socket.IO at one HTTPS origin, forwarding to `127.0.0.1:3000` with WebSocket upgrades. Allow the fixed 1 MiB upload chunk size plus request framing. Use valid certificates, HSTS, `X-Content-Type-Options: nosniff` and `Referrer-Policy: no-referrer`; permit same-origin microphone/speaker selection. Do not log study query strings containing Prolific identifiers or JWTs, or expose private configuration/results.
 
 Use an existing compatible STUN/TURN service or the optional [coturn example](turnserver.conf). For coturn, copy it to private `turnserver.local.conf`, replace public IP/DNS/certificate paths and generate a private random `static-auth-secret`. Supply the same value to the EffectStreamer server through `EST_TURN_SECRET`; set `remote.iceServers` and `remote.turnUrls` to the reachable service URLs. The template is not runnable as-is. Start coturn independently on a supported host, for example `turnserver -c /absolute/path/to/turnserver.local.conf`; it need not run on the same machine or OS as EffectStreamer. Arrange certificate renewal/reload for both HTTPS and TURN hostnames.
 
@@ -107,10 +107,10 @@ These are operator release checks, not claims that a live deployment, native Win
 
 Disposable builds/caches use `/tmp/effectstreamer` on Linux and the system temporary directory's `effectstreamer` subtree on native Windows. Rebuild required inputs after cleanup; never move configuration, recordings or results there. Reboot cleanup depends on OS policy.
 
-For optional Linux systemd boot cleanup, an administrator may install the shared [tmpfiles rule](../common/effectstreamer-tmpfiles.conf), from the repository root:
+For optional Linux systemd boot cleanup, an administrator may install the [tmpfiles rule](tmpfiles.conf), from the repository root:
 
 ```bash
-sudo install -m 0644 common/effectstreamer-tmpfiles.conf /etc/tmpfiles.d/effectstreamer.conf
+sudo install -m 0644 deployment/tmpfiles.conf /etc/tmpfiles.d/effectstreamer.conf
 ```
 
 The rule removes contents only during boot-mode removal. Do not invoke `systemd-tmpfiles --remove --boot` while builds or experiments are running. Installing this Linux rule does not configure Windows cleanup.

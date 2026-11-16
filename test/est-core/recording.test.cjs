@@ -2,8 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
-const {allocatePorts,startProcess,waitForReady,feedRtp,temporaryHome,runCli}=require('./fixtures.cjs');
-const {corePath}=require('./fixtures.cjs');
+const {corePath,allocatePorts,startProcess,waitForReady,feedRtp,temporaryHome,runCli}=require('./fixtures.cjs');
 const {startCore}=require('../../common/core-process.cjs');
 
 function wav(bytes) {

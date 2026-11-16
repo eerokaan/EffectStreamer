@@ -16,7 +16,7 @@ test('same-origin hosting serves the renderer and real WAV while keeping private
     await fs.writeFile(path.join(webRoot,'index.html'),'<!doctype html><title>Study</title>');
     await fs.mkdir(path.join(webRoot,'audio'));
     await fs.copyFile(path.resolve(__dirname,'../../est-gui/public/audio/P501_C_german_f1_FB_48k.wav'),path.join(webRoot,'audio','P501_C_german_f1_FB_48k.wav'));
-    const raw=remoteConfig();raw.deployment.allowDevelopmentAdmission=true;
+    const raw=remoteConfig();
     const app=createCoordinator({config:normalizeConfig(raw),root:path.join(root,'results'),webRoot});
     t.after(async()=>{await app.close();await fs.rm(root,{recursive:true,force:true});});
     await app.ready;app.server.listen(0,'127.0.0.1');await once(app.server,'listening');const url='http://127.0.0.1:'+app.server.address().port;

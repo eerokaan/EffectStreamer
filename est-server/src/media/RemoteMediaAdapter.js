@@ -3,6 +3,7 @@ const { randomUUID, createHmac } = require("node:crypto");
 const { isSea } = require("node:sea");
 const path = require("node:path");
 const { EVENTS } = require("@effectstreamer/common");
+const { workerRequestTimeoutMs, WORKER_EXIT_TIMEOUT_MS } = require("../bootstraps/runtimePolicy.js");
 
 class RemoteMediaAdapter {
     constructor({ config, allocator, clientRegistry, onFailure = () => {} }) {
@@ -44,7 +45,7 @@ class RemoteMediaAdapter {
         const child = this.child;
         if (!child?.connected) return Promise.reject(new Error("Media worker is disconnected"));
         return new Promise((resolve, reject) => {
-            const id = randomUUID(), timeout = method === "stop" ? 2 * this.config.stopTimeoutMs + 1000 : 4 * this.config.startupTimeoutMs + 1000;
+            const id = randomUUID(), timeout = workerRequestTimeoutMs(method, this.config);
             const timer = setTimeout(() => {this.pending.delete(id);reject(new Error("Worker " + method + " timed out"));}, timeout);
             this.pending.set(id, { resolve, reject, timer });
             child.send({ id, method, payload, participantId, ...(method === "prepare" ? { config: this.config } : {}) }, error => {
@@ -122,7 +123,7 @@ class RemoteMediaAdapter {
         this.disposing = true;
         if (child.connected) await this.request("dispose").catch(() => {});
         let timer;
-        await Promise.race([this.exited, new Promise(resolve => {timer = setTimeout(() => {child.kill("SIGKILL");resolve();}, 2000);})]);clearTimeout(timer);
+        await Promise.race([this.exited, new Promise(resolve => {timer = setTimeout(() => {child.kill("SIGKILL");resolve();}, WORKER_EXIT_TIMEOUT_MS);})]);clearTimeout(timer);
         await this.exited; this.child = null;
     }
     async dispose() {await this.closeWorker();if (this.owner) this.allocator.release(this.owner);}

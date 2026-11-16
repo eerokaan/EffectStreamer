@@ -7,11 +7,11 @@ const {RecordingTransfers}=require('../../est-server/src/services/RecordingTrans
 const {EffectStreamerCore}=require('../../est-server/src/services/EffectStreamerCore.js');
 const {checkoutPaths}=require('../../common/transient-paths.cjs');
 
-function wave() {
-    const bytes=Buffer.alloc(60);bytes.write('RIFF');bytes.writeUInt32LE(52,4);bytes.write('WAVEfmt ',8);
+function wave(frames=8) {
+    const bytes=Buffer.alloc(44+2*frames);bytes.write('RIFF');bytes.writeUInt32LE(bytes.length-8,4);bytes.write('WAVEfmt ',8);
     bytes.writeUInt32LE(16,16);bytes.writeUInt16LE(1,20);bytes.writeUInt16LE(1,22);bytes.writeUInt32LE(48000,24);
-    bytes.writeUInt32LE(96000,28);bytes.writeUInt16LE(2,32);bytes.writeUInt16LE(16,34);bytes.write('data',36);bytes.writeUInt32LE(16,40);
-    for(let i=44;i<60;i+=2) bytes.writeInt16LE(8192,i);
+    bytes.writeUInt32LE(96000,28);bytes.writeUInt16LE(2,32);bytes.writeUInt16LE(16,34);bytes.write('data',36);bytes.writeUInt32LE(bytes.length-44,40);
+    for(let i=44;i<bytes.length;i+=2) bytes.writeInt16LE(8192,i);
     return bytes;
 }
 function fixture(t) {
@@ -23,6 +23,27 @@ function fixture(t) {
     const options={root,getSession:()=>session,config:{chunkBytes:32,maxBytesPerParticipant:1000000,uploadTimeoutMs:10000}};
     return {root,participant,session,manifest,bytes,options,transfers:new RecordingTransfers(options)};
 }
+test('the duration-derived budget stores both full-duration WAV tracks with shutdown headroom',async t=>{
+    const {normalizeConfig}=require('../../est-server/src/bootstraps/configManager.js'),{localConfig}=require('./fixtures/config.js');
+    const raw=localConfig();raw.sessions.maxConditionSeconds=1;
+    const config=normalizeConfig(raw).recordings,f=fixture(t),transfers=new RecordingTransfers({...f.options,config});
+    // One configured second plus the full bounded 139-second stop/dispose tail.
+    const bytes=wave(140*48000),sha256=createHash('sha256').update(bytes).digest('hex');
+    const manifests=['microphone','headphones'].map(track=>({...f.manifest,recordingId:'full-'+track,track,filename:track+'.wav',byteLength:bytes.length,sha256}));
+    await transfers.register(f.participant,manifests);
+    for(const manifest of manifests) {
+        await transfers.begin(f.participant,manifest);
+        for(let offset=0;offset<bytes.length;offset+=config.chunkBytes)await transfers.append(f.participant,manifest.recordingId,offset,bytes.subarray(offset,offset+config.chunkBytes));
+        assert.equal((await transfers.commit(f.participant,manifest.recordingId)).stored,true);
+    }
+});
+test('announced recordings cannot exceed the duration-derived participant budget',async t=>{
+    const {normalizeConfig}=require('../../est-server/src/bootstraps/configManager.js'),{localConfig}=require('./fixtures/config.js');
+    const raw=localConfig();raw.sessions.maxConditionSeconds=1;
+    const f=fixture(t),transfers=new RecordingTransfers({...f.options,config:normalizeConfig(raw).recordings});
+    await assert.rejects(transfers.register(f.participant,[{...f.manifest,byteLength:26888193}]),/byte limit/);
+    assert.equal(f.session.attempts[0].recordings,undefined);
+});
 test('interrupted chunks resume, duplicate chunks are checked, and a lost receipt returns the same durable result',async(t)=>{
     const f=fixture(t);await f.transfers.register(f.participant,[f.manifest]);
     const upload=await f.transfers.begin(f.participant,f.manifest);assert.equal(upload.nextByteOffset,0);

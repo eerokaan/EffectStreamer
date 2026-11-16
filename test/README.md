@@ -27,9 +27,25 @@ SDK=/absolute/path/to/gst-sdk/build/dist/linux_x86_64 TARGET_OS=linux npm --pref
 SDK=/absolute/path/to/gst-sdk/build/dist/mingw_x86_64 TARGET_OS=win npm --prefix test run build:core
 ```
 
-These Bash commands share the application build's SDK/compiler setup and output lock. They compile fixtures from `test/est-core/fixtures/`, writing `est-core[.exe]` and `webrtc-peer[.exe]` as siblings under the managed temporary build directory. They do not modify tracked distribution binaries. `EST_BUILD_TEST_PEER` is no longer used by the application build script.
+These Bash commands share the application build's SDK/compiler setup and output lock. They compile fixtures from `test/est-core/fixtures/`, writing `est-core[.exe]` and `webrtc-peer[.exe]` as siblings under the managed temporary build directory. They do not modify tracked distribution binaries.
 
 Tests default to the managed Linux build. `EST_CORE_EXECUTABLE` selects another compatible core; place its matching `webrtc-peer` beside it. Configure matching GStreamer library/plugin paths as described in the [deployment instructions](../deployment/README.md). Native ALSA integration also needs a working `null` device. Some GUI integration cases additionally require `EST_NATIVE_INTEGRATION=1`.
+
+For source-built Linux executables, keep the matching SDK runtime and the real custom `estnetsim` plugin available when running tests (building alone does not configure the parent shell):
+
+```bash
+export SDK=/absolute/path/to/gst-sdk/build/dist/linux_x86_64
+export EST_NETSIM_PLUGIN=/absolute/path/to/libestnetsim.so
+export LD_LIBRARY_PATH="$SDK/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export GST_PLUGIN_SYSTEM_PATH="$SDK/lib/x86_64-linux-gnu/gstreamer-1.0"
+export GST_PLUGIN_PATH="$(dirname -- "$EST_NETSIM_PLUGIN")"
+export GST_PLUGIN_SCANNER="$SDK/libexec/gstreamer-1.0/gst-plugin-scanner"
+EST_NETSIM_INTEGRATION=1 EST_NATIVE_INTEGRATION=1 npm --prefix test test
+```
+
+`EST_NETSIM_INTEGRATION=1` enables the real packet-loss branch check; `EST_NATIVE_INTEGRATION=1` enables the real native GUI/runtime flows. These use ALSA's `null` device, not physical-device acceptance. `EST_EXPECT_NATIVE_DEVICE` enables the separate check for an explicitly known physical route. Do not substitute GStreamer's standard `netsim` plugin or the packaging tests' text fixtures for `estnetsim`.
+
+If the Linux SDK's pkg-config metadata references host dependencies such as `libdrm.pc`, add their pkg-config directories through `EST_PKG_CONFIG_EXTRA_PATH` when building, for example `/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig`. SDK metadata stays first in the search order. Do not carry Linux-only extra paths into a Windows cross-build.
 
 ## Usage
 
@@ -69,6 +85,25 @@ npm --prefix test run test:audio-browser -- --project firefox
 ```
 
 E2E covers Chromium and Firefox; audio-browser additionally includes WebKit. Discovery with `--list` does not run browser/media acceptance. Synthetic audio coverage does not establish physical-device, real Safari or Edge acceptance. See the [deployment verification checklist](../deployment/README.md#verification).
+
+Browser media tests independently check functional behavior and spectral integrity.
+They cover negotiation, recording, uploads, playback continuity, routing and audio
+integrity. Playwright reports include measurements and WAV recordings.
+
+```bash
+npm --prefix test run test:audio-browser -- --grep 'functional browser media:'
+npm --prefix test run test:audio-browser -- --grep 'spectral browser media:'
+```
+
+Enable `EST_AUDIO_DIAGNOSTICS=1` for additional source-to-WAV captures:
+
+```bash
+EST_AUDIO_DIAGNOSTICS=1 npm --prefix test run test:audio-browser -- --grep 'spectral browser media:' --project webkit
+```
+
+Diagnostics include raw Float32 captures and an `audio-boundaries` JSON report.
+Known limitations include WebKit spectral failures and variable results with
+diagnostic probes enabled.
 
 ### Packaged tests
 

@@ -11,7 +11,7 @@ const {checkoutPaths}=require('../../common/transient-paths.cjs');
 const desktop = { userAgent: "Mozilla/5.0 (X11; Linux x86_64) Chrome/145", platform: "Linux x86_64", maxTouchPoints: 0, mobile: false };
 const query = id => ({ PROLIFIC_PID: "person-" + id, STUDY_ID: "study-1", SESSION_ID: "submission-" + id });
 function rawConfig() {
-    const raw = remoteConfig();raw.deployment.maxActivePairs = 1;raw.conditions = { baseline: [{}], random: [] };raw.tests["listening-speaking-test"] = false;
+    const raw = remoteConfig();raw.server.maxActivePairs = 1;raw.conditions = { baseline: [{}], random: [] };raw.tests["listening-speaking-test"] = false;
     raw.prolific = { enabled: true, studyId: "study-1", completionCodes: { completed: "FINISH", technicalFailure: "TECH", partnerLeft: "LEFT", waitingTimeout: "WAIT" } };
     return raw;
 }
@@ -62,9 +62,11 @@ test("waiting expiry offers only its server-selected early-exit code", async t =
     assert.deepEqual(await prolific.completion(record.participantId), { url: "https://app.prolific.com/submissions/complete?cc=WAIT", code: "WAIT", outcome: "waitingTimeout" });
 });
 test('abandoned pre-setup admissions expire durably and release HTTP admission capacity',async t=>{
-    const {createCoordinator}=require('../../est-server/src/server.js');const raw=rawConfig();raw.sessions={pairingTimeoutMs:1000,maxWaitingParticipants:1};
+    const {createCoordinator}=require('../../est-server/src/server.js');const raw=rawConfig();raw.sessions.pairingTimeoutMs=1000;
     const root=checkoutPaths().temporaryDirectory('est-server','est-admission-expiry-'),app=createCoordinator({config:normalizeConfig(raw),root});await app.ready;
     let time=1000;app.enrollments.now=()=>time;app.prolific.now=()=>time;
+    // Exercise the actual fixed 100-person limit, not a configurable test shortcut.
+    for(let index=0;index<99;index++)app.enrollments.admit({identity:'waiting-'+index});
     app.server.listen(0,'127.0.0.1');await once(app.server,'listening');const url='http://127.0.0.1:'+app.server.address().port;
     t.after(async()=>{await app.close();fs.rmSync(root,{recursive:true,force:true});});
     const enroll=id=>fetch(url+'/api/enrollment',{method:'POST',headers:{'content-type':'application/json','user-agent':desktop.userAgent},body:JSON.stringify({query:query(id),device:desktop})});

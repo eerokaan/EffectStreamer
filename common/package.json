@@ -3,5 +3,5 @@
     "version": "1.0.0",
     "private": true,
     "main": "protocol.cjs",
-    "exports": { ".": "./protocol.cjs", "./client-config": "./client-config.cjs", "./core-process": "./core-process.cjs", "./core-environment": "./core-environment.cjs", "./transient-paths": "./transient-paths.cjs", "./direct-write": "./direct-write.cjs" }
+    "exports": { ".": "./protocol.cjs", "./core-process": "./core-process.cjs", "./core-environment": "./core-environment.cjs", "./transient-paths": "./transient-paths.cjs", "./direct-write": "./direct-write.cjs" }
 }

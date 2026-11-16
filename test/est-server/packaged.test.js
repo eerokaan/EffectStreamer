@@ -42,7 +42,7 @@ test('staged Linux native utilities reopen ALSA null and decode the adjacent P.5
 test('SEA coordinator serves its adjacent production web build from an unrelated working directory',{skip:!packaged,timeout:30000},async t=>{
     const root=checkoutPaths().temporaryDirectory('est-server','est-sea-server-');t.after(()=>fs.rm(root,{recursive:true,force:true}));
     const listener=net.createServer();listener.listen(0,'127.0.0.1');await once(listener,'listening');const port=listener.address().port;await new Promise(resolve=>listener.close(resolve));
-    const raw=remoteConfig();delete raw.remote;raw.deployment.allowDevelopmentAdmission=true;raw.server={ipAddress:'127.0.0.1',port};
+    const raw=remoteConfig();delete raw.remote;raw.server={...raw.server,ipAddress:'127.0.0.1',port};
     raw.prolific={enabled:true,studyId:'sea-study',completionCodes:{completed:'DONE',technicalFailure:'TECH',partnerLeft:'LEFT',waitingTimeout:'WAIT'},secureUrls:true,externalStudyUrl:'https://study.example.org/',workspaceId:'sea-workspace'};
     const file=path.join(root,'config.json');await fs.writeFile(file,JSON.stringify(raw));
     const child=spawn(path.resolve(packaged),[],{cwd:root,env:{...cleanEnv(root),EST_SERVER_TYPE:'server',EST_CONFIG_PATH:file,EST_RESULTS_ROOT:path.join(root,'results')},stdio:['ignore','pipe','pipe']});t.after(()=>reap(child));let stderr='',stdout='';child.stderr.on('data',bytes=>stderr+=bytes);

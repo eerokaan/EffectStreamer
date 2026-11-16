@@ -1,7 +1,6 @@
 const {spawn,spawnSync} = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
-const os = require('node:os');
 const dgram = require('node:dgram');
 const {checkoutPaths}=require('../../common/transient-paths.cjs');
 

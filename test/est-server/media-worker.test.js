@@ -151,8 +151,8 @@ test("controller death closes its worker and all four core children", {timeout:1
 test("authenticated signaling and media barriers reject impersonation and old generations", {timeout:20000},async t=>{
     const {createCoordinator}=require('../../est-server/src/server.js');const {normalizeConfig}=require('../../est-server/src/bootstraps/configManager.js');
     const {remoteConfig}=require('./fixtures/config.js');const {io:connect}=require('socket.io-client');const {randomUUID}=require('node:crypto');
-    const raw=remoteConfig();raw.remote={...settings(),internalPortRange:[32700,32799]};
-    const root=checkoutPaths().temporaryDirectory('est-server','est-signal-');const app=createCoordinator({config:normalizeConfig(raw),root});
+    const config=normalizeConfig(remoteConfig());Object.assign(config.remote,settings(),{internalPortRange:[32700,32799]});
+    const root=checkoutPaths().temporaryDirectory('est-server','est-signal-');const app=createCoordinator({config,root});
     app.server.listen(0,'127.0.0.1');await once(app.server,'listening');const sockets=[];
     t.after(async()=>{for(const socket of sockets)socket.disconnect();await app.close();fs.rmSync(root,{recursive:true,force:true});});
     const people=['signal-a','signal-b'].map(identity=>app.enrollments.admit({identity}));

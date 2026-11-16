@@ -2,7 +2,7 @@ import { app } from "electron";
 import fs from "fs";
 import net from "net";
 import path from "path";
-import clientConfig from "@effectstreamer/common/client-config";
+import { normalizeAudioConfig, serverUrl } from "./clientConfig.js";
 import { writeFileDirect } from "@effectstreamer/common/direct-write";
 
 const configFileName = "est-gui.config.json";
@@ -16,7 +16,7 @@ function validateConfig(config, configPath) {
     if (!config || typeof config !== "object" || Array.isArray(config)) {
         throw new Error("The GUI configuration must contain a JSON object: " + configPath);
     }
-    const url = clientConfig.serverUrl(config.server);
+    const url = serverUrl(config.server);
     if (!config.client || typeof config.client.identity !== "string" || !clientIdPattern.test(config.client.identity.trim())) {
         throw new Error("Missing or invalid client configuration in " + configPath);
     }
@@ -36,7 +36,7 @@ function validateConfig(config, configPath) {
             ipAddress: config.server.ipAddress?.trim(),
             port: config.server.port == null ? undefined : Number(config.server.port)
         },
-        audio: clientConfig.normalizeAudioConfig(config),
+        audio: normalizeAudioConfig(config),
         client: {
             ...config.client,
             identity: config.client.identity.trim(),
@@ -66,7 +66,7 @@ async function readGuiConfig(configPath = getGuiConfigPath()) {
 }
 
 function getAudioDeviceIds(config) {
-    return clientConfig.normalizeAudioConfig(config).devices;
+    return normalizeAudioConfig(config).devices;
 }
 
 function validateDeviceId(value, name) {

@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import protocol from "@effectstreamer/common";
-import clientConfig from "@effectstreamer/common/client-config";
+import { normalizeAudioConfig } from "../lib/clientConfig.js";
 import managedCore from "@effectstreamer/common/core-process";
 import { writeFileDirect } from "@effectstreamer/common/direct-write";
 import { uploadRecording } from "../../shared/recording-transfer.js";
@@ -34,7 +34,7 @@ export function coreArguments({ platform, component, devices, condition = {}, pe
 
 export class NativeAudioRuntime {
     constructor({ config, executable, env = process.env, platform = process.platform, recordingRoot, testAsset, runUtility, startCore = managedCore.startCore, onFailure = () => {} }) {
-        this.config = config; this.audio = clientConfig.normalizeAudioConfig(config); this.executable = executable;
+        this.config = config; this.audio = normalizeAudioConfig(config); this.executable = executable;
         this.env = env; this.platform = platform; this.root = path.resolve(this.audio.recordingDir || recordingRoot);
         this.testAsset = testAsset; this.startCore = startCore; this.onFailure = onFailure;
         this.runUtility = runUtility || (async args => {

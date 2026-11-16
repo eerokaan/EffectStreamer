@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import syncFs from 'node:fs';
-const require=createRequire(import.meta.url);
+const require=createRequire(import.meta.url),guiRequire=createRequire(new URL('../../est-gui/package.json',import.meta.url));
 const {checkoutPaths}=require('../../common/transient-paths.cjs');
 function afterPack(context){expect(syncFs.existsSync(path.resolve(import.meta.dirname,'../../est-gui/build_scripts/afterPack.js'))).toBe(true);return require('../../est-gui/build_scripts/afterPack.js')(context);}
 const {runtimeFixture}=require('../est-core/fixtures/runtime-sdk.cjs');
@@ -38,6 +38,9 @@ it('package orchestration reserves new dist output and consumes managed applicat
         expect(config.directories.output).toBe(process.env.EST_DISTRIBUTION_DIR);
         expect(config.directories.app).toBe(checkoutPaths().path('est-gui','app'));
         expect(calls[1].args[calls[1].args.indexOf('--projectDir')+1]).toBe(config.directories.app);
+        const {getConfig}=guiRequire('app-builder-lib/out/util/config/config.js');
+        const effective=await getConfig(config.directories.app,calls[1].args[calls[1].args.indexOf('--config')+1],null);
+        expect(effective.extraResources).toEqual([{from:path.resolve(import.meta.dirname,'../../est-gui/public/audio'),to:'audio'}]);
         await expect(runGui('package',['linux'],{spawnTool:async()=>0})).rejects.toThrow(/exist|overwrite/i);
     } finally {await fs.rm(root,{recursive:true,force:true});if(original===undefined)delete process.env.EST_DISTRIBUTION_DIR;else process.env.EST_DISTRIBUTION_DIR=original;}
 });

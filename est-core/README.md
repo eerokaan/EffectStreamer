@@ -20,8 +20,6 @@ The following impairment arguments are supported:
 
 ## Usage
 
-`--device-type` is required. Linux accepts `alsa`, `stdio` and `webrtc`; Windows accepts `wasapi2`, `stdio` and `webrtc`. `--device-id` is optional for host backends and invalid for `stdio`/`webrtc`. If a host device ID is omitted, the first matching source in sender mode or sink in receiver mode is selected; use explicit `default` for the backend default route. Device IDs are backend identifiers such as ALSA `hw:0,1` or a WASAPI2 endpoint ID, not display labels.
-
 ```
 Sender mode:
 ./est-core \
@@ -37,9 +35,11 @@ Receiver mode:
     [--native-gain <GAIN>] [--echo-gain <GAIN>] [--help]
 ```
 
+`--mode` and `--device-type` are required. Linux accepts `alsa`, `stdio` and `webrtc`; Windows accepts `wasapi2`, `stdio` and `webrtc`. `--device-id` is optional for host backends and invalid for `stdio`/`webrtc`. If a host device ID is omitted, the first matching source in sender mode or sink in receiver mode is selected; use explicit `default` for the backend default route. Device IDs are backend identifiers such as ALSA `hw:0,1` or a WASAPI2 endpoint ID, not display labels.
+
 Each peer runs one sender and one receiver. Start both senders before the receivers so the receiver streams are available when playback and recording begin. The sender applies native delay, echo delay, and peer-branch packet loss. The receiver applies native and echo gain and records `microphone.wav` and `headphones.wav` under `~/effectstreamer`.
 
-Recordings are mono, 48 kHz, signed 16-bit little-endian PCM WAV. Set `--recording-dir <directory>` on the receiver to choose their destination. Set `--recording none` on both roles to omit recording and the recording-only RTP branch. The default is `--recording wav`; managed applications use a unique directory per attempt. Existing microphone/playback taps and ordinary start/stop mechanics are retained, without saved alignment offsets, sample-count sidecars, gap logs or calibration.
+Recordings are mono, 48 kHz, signed 16-bit little-endian PCM WAV. Set `--recording-dir <directory>` on the receiver to choose their destination. Set `--recording none` on both roles to omit recording and the recording-only RTP branch. The default is `--recording wav`; managed applications use a unique directory per attempt.
 
 Standalone RTP ports retain their defaults: sender `--peer-port 9004`, receiver `--listen-port 9004`, and both roles `--echo-port 9005 --record-port 9006`. Receivers additionally accept `--bind-address` (default `0.0.0.0`) and refuse port sharing. Assign unique port sets when running multiple participants on one machine, and keep server-hosted internal RTP on loopback/private interfaces.
 
@@ -53,7 +53,7 @@ Standalone RTP ports retain their defaults: sender `--peer-port 9004`, receiver 
 
 Use `wasapi2` on Windows. Discovery emits JSON `{inputs,outputs}` with backend-native IDs, labels and default indicators, including devices hidden by desktop audio services. The explicit `default` choice uses the ALSA `default` route or the WASAPI2 system default; on ALSA this is not a promise that the first hardware device is the OS default. Availability is checked by opening the route. Omitted experiment device IDs retain first-matching-native-device discovery.
 
-Input checks emit finite JSON access/peak feedback without audible monitoring or recording. Output checks decode the selected WAV through the same native sink as the experiment. Checks release their devices before exiting; a failed open emits `{ok:false,error:...}` and a nonzero exit code. Successful playback still requires the participant to confirm that they heard the sample. No additional audio-analysis files are saved.
+Input checks emit finite JSON access/peak feedback without audible monitoring or recording. Output checks decode the selected WAV through the same native sink as the experiment. Checks release their devices before exiting; a failed open emits `{ok:false,error:...}` and a nonzero exit code. Successful playback still requires the participant to confirm that they heard the sample.
 
 For ALSA device IDs, use `arecord -l` for sources and `aplay -l` for sinks. For example, card 0, device 1 maps to `hw:0,1`. WASAPI2 endpoint IDs can normally be omitted and auto-detected.
 
@@ -73,13 +73,13 @@ Preparation emits `control-ready` without waiting for packets. Observe separate 
 
 Optional settings are `--ice-min-port <first> --ice-max-port <last>`, `--webrtc-jitter-ms` (default 20), `--opus-bitrate` (default 128000), `--stun-server stun://host:port`, and up to eight `--turn-server turn[s]://user:password@host:port` arguments. Use GStreamer-compatible URL escaping for TURN credentials. These are transport settings, not measured end-to-end latency promises. ICE discovers interfaces normally; it is not pinned to localhost. Keep private RTP endpoints separate from the public ICE range.
 
-The internal RTP/L16 sender now targets 128 mono frames per packet (`--rtp-frames`, 1–480), independent of normal incoming WebRTC/stdio block sizes. This intentionally replaces backend-dependent legacy packet granularity; loss is still applied on the same internal peer branch, not on public SRTP. Partial blocks at EOS or a source discontinuity are retained rather than padded or dropped, so those packets can be shorter. This does not add saved timing/gap-analysis data. Validate native hardware framing for the study before comparing old and new packet-loss results.
+The internal RTP/L16 sender targets 128 mono frames per packet (`--rtp-frames`, 1–480), independent of incoming WebRTC/stdio block sizes. Packet loss is applied on the internal peer branch, not on public SRTP. Partial blocks at EOS or a source discontinuity are retained, so those packets can be shorter. Validate native hardware framing for the study before comparing packet-loss results.
 
 The build additionally links GStreamer SDP/WebRTC and needs matching Opus, RTP, libnice, DTLS and SRTP runtime plugins. For source SDKs referencing host metadata such as Linux libdrm, supply `EST_PKG_CONFIG_EXTRA_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig` if that dependency is already installed. Do not point Windows cross-compilation at Linux metadata. Integration tests and their separate native peer builder live under [`test/`](../test/README.md).
 
 Use `est-server` for public admission/ownership/TLS/TURN. A bare core binary cannot negotiate a browser without a signaling host.
 
-`build_scripts/stage-runtime.cjs` packages a source core and matching SDK shared libraries, required plugins, scanner and an explicitly supplied custom `EST_NETSIM_PLUGIN` into a new directory; it refuses to overwrite resources. Existing runtime archives remain untouched. See [deployment/README.md](../deployment/README.md) for inputs, matching Linux/Windows layouts, license obligations and packaged acceptance.
+`build_scripts/stage-runtime.cjs` packages a source core and matching SDK shared libraries, required plugins, scanner and an explicitly supplied custom `EST_NETSIM_PLUGIN` into a new directory; it refuses to overwrite resources. See [deployment/README.md](../deployment/README.md) for inputs, matching Linux/Windows layouts, license obligations and packaged acceptance.
 
 As the EffectStreamer Core uses GStreamer internally, the following paragraphs will lay out how to compile GStreamer and other prerequisites, as well as compiling and running EffectStreamer Core itself.
 
@@ -146,7 +146,7 @@ The EffectStreamer NetSim plugin is being discovered and loaded in by GStreamer 
 
 However, make sure the `estnetsim` plugin `.so` and `.dll` artifacts were built against the same GStreamer SDK version and target architecture as `est-core`.
 
-Use the Node runtime assembler with the matching `SDK`, `EST_NETSIM_PLUGIN` and source-built `EST_CORE_EXECUTABLE` inputs; see [deployment/README.md](../deployment/README.md). It copies directly into a **new final** core-resource directory, refuses existing destinations, and records input hashes. There is no intermediate publication directory. A failed copy may leave partial resources; inspect/remove only that failed output or choose another new destination before retrying. Node is needed for packaging, not for the C-only build.
+Use the Node runtime assembler with the matching `SDK`, `EST_NETSIM_PLUGIN` and source-built `EST_CORE_EXECUTABLE` inputs; see [deployment/README.md](../deployment/README.md). It copies directly into a **new final** core-resource directory, refuses existing destinations, and records input hashes. A failed copy may leave partial resources; inspect/remove only that failed output or choose another new destination before retrying. Node is needed for packaging, not for the C-only build.
 
 ### Step 5) Run EffectStreamer Core
 

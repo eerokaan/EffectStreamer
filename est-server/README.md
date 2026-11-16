@@ -4,9 +4,9 @@
 
 This is the EffectStreamer Server – it orchestrates the entire experiment; managing state, coordinating all connected participants, collecting evaluation data, and serving as the single source of truth via a central configuration file.
 
-The server writes to `~/effectstreamer/sessions` (override with `EST_RESULTS_ROOT`). Each pair has a UUID directory with `session.json`, condition settings/forms/ratings, and recording attempts under `attempts/<attemptId>/<participantId>/{microphone,headphones}.wav`. `enrollments.json` stores stable identities and hashed reconnect credentials; chunk/receipt bookkeeping allows retries. No audio transport/timing-analysis sidecars are written.
+The server writes to `~/effectstreamer/sessions` (override with `EST_RESULTS_ROOT`). Each pair has a UUID directory with `session.json`, condition settings/forms/ratings, and recording attempts under `attempts/<attemptId>/<participantId>/{microphone,headphones}.wav`. `enrollments.json` stores stable identities and hashed reconnect credentials; chunk/receipt bookkeeping allows retries.
 
-All application files are saved directly, without atomic replacement files. Upload chunks go directly to the final WAV path; a partial or invalid WAV can exist there before completion. Format/size/checksum validation and persisted storage receipts—not filename existence—gate completion and client cleanup. Existing `.uploads/<id>.part` recordings are copied/reconciled into their final paths with prefix-conflict checks and retained until validation, receipt persistence and session reconciliation succeed. No new `.part` files are created. Interrupted JSON/WAV writes can leave corrupt/incomplete data; keep study data on persistent storage, back it up, and do not interpret successful ordinary restarts as power-loss-safe saving.
+Application files are saved directly to their destinations. Upload chunks go directly to the final WAV path; a partial or invalid WAV can exist there before completion. Format/size/checksum validation and persisted storage receipts—not filename existence—gate completion and client cleanup. Existing `.uploads/<id>.part` recordings are copied/reconciled into their final paths with prefix-conflict checks and retained until validation, receipt persistence and session reconciliation succeed. Interrupted JSON/WAV writes can leave corrupt or incomplete data; keep study data on persistent storage and back it up.
 
 EffectStreamer Server is distributed as a standalone Node.js executable and should be started before the GUI clients connect.
 
@@ -17,7 +17,7 @@ Before starting the server, choose the example for your intended use:
 - **Local-use:** `est-server.config.local.example.json` for participants using native Electron clients.
 - **Remote-use:** `est-server.config.remote.example.json` for participants using browsers.
 
-Both examples set `deployment.mode` explicitly. Copy the selected example to the runtime location and adjust it for your needs:
+Both examples expose the same settings in the same order: `server`, `remote`, `prolific`, `sessions`, `tests`, `conditions`, `pretestForm`. Set `server.mode` to `local` or `remote`; local-use disables recruitment and optionally audio setup. Copy the selected example to the runtime location and adjust it for your needs:
 
 | Platform | Server configuration, local-use or remote-use |
 | --- | --- |
@@ -46,10 +46,33 @@ An example local-use configuration looks like this:
 
 ```
 {
-    "deployment": { "mode": "local", "maxActivePairs": 1 },
     "server": {
         "ipAddress": "0.0.0.0",
-        "port": "3000"
+        "port": 3000,
+        "mode": "local",
+        "maxActivePairs": 1
+    },
+    "remote": {
+        "icePortRange": [50000, 59999],
+        "iceServers": [],
+        "turnUrls": [],
+        "turnSecret": ""
+    },
+    "prolific": {
+        "enabled": false,
+        "studyId": "",
+        "completionCodes": { "completed": "", "technicalFailure": "", "partnerLeft": "", "waitingTimeout": "" },
+        "secureUrls": false,
+        "externalStudyUrl": "",
+        "workspaceId": "",
+        "organisationId": null
+    },
+    "sessions": {
+        "pairingTimeoutMs": 300000,
+        "reconnectGraceMs": 60000,
+        "maxRetries": 1,
+        "maxConditionSeconds": 600,
+        "audioSetup": { "enabled": false, "testAsset": "P501_C_german_f1_FB_48k.wav" }
     },
     "tests": {
         "short-conversation-test": true,
@@ -113,6 +136,45 @@ An example local-use configuration looks like this:
 ### Server config
 
 The `server` values define where the server listens for `est-gui` clients. `ipAddress` must be an IPv4 or IPv6 address and `port` must be an integer from `1` through `65535`. Ports supplied as numeric strings are normalized to numbers.
+
+`mode` selects native clients (`local`) or browser clients (`remote`). `maxActivePairs` limits simultaneous pairs (integer `1`–`1000`, default `1`); it is not a measured capacity guarantee. Run one coordinator per results directory.
+
+### Remote config
+
+Only deployment networking is configurable here: `icePortRange` is the public UDP range for core ICE candidates; `iceServers` contains objects with `urls` (a URL string or list); `turnUrls` lists the TURN UDP/TCP/TLS endpoints; `turnSecret` is the private shared secret used to generate expiring credentials. The ICE range must not overlap the fixed private RTP range `40000`–`49999`. Prefer `EST_TURN_SECRET` over storing a secret in JSON. Local-use retains these same fields with empty server/URL lists.
+
+### Prolific config
+
+`enabled`, `studyId`, and the four `completionCodes` configure recruitment and outcomes. `secureUrls`, `externalStudyUrl`, `workspaceId`, and `organisationId` configure optional signed entry URLs; see [local and remote controls](#local-and-remote-controls). Local-use sets `enabled` to `false`. Remote HTTP enrollment requires Prolific.
+
+### Sessions config
+
+| Parameter | Meaning |
+| --- | --- |
+| `pairingTimeoutMs` | Pre-pair inactivity/ready-queue timeout; default `300000` ms. |
+| `reconnectGraceMs` | Reconnection grace; default `60000` ms. |
+| `maxRetries` | Condition retries after interruption; integer `0`–`10`, default `1`. |
+| `maxConditionSeconds` | Maximum condition duration; integer `1`–`11045`, default `600`. |
+| `audioSetup.enabled` | Audio checks are optional locally and mandatory remotely. |
+| `audioSetup.testAsset` | WAV asset filename for setup; default `P501_C_german_f1_FB_48k.wav`. |
+
+Recording storage limits are derived from `sessions.maxConditionSeconds` for two mono 48 kHz S16LE tracks per participant, with allowance for shutdown and WAV headers. HTTP upload chunks are 1 MiB, uploads expire after ten minutes, and at most 100 unpaired participants can be admitted.
+
+### Configuration migration
+
+Only the options shown in the examples are supported for server/session/media operation. Unknown and removed keys fail startup rather than being silently ignored or treated as advanced overrides. Existing experiment conditions and pretest field definitions retain their documented options.
+
+| Previous location | Replacement |
+| --- | --- |
+| `deployment.mode`, `deployment.maxActivePairs` | `server.mode`, `server.maxActivePairs` |
+| Top-level `audioSetup` | `sessions.audioSetup` |
+| `recordings.maxConditionSeconds` | `sessions.maxConditionSeconds` |
+| Other `recordings` keys, `sessions.maxWaitingParticipants` | Remove; fixed/derived internal safeguards. |
+| `remote.coreExecutable`, `internalPortRange`, codec/jitter/drain/process settings | Remove; automatic resource selection and internal constants. |
+| `deployment.allowDevelopmentAdmission` | Remove; production remote enrollment requires recruitment. |
+| Static ICE `username`/`credential` overrides | Use `turnUrls` and `turnSecret` for generated TURN credentials. |
+
+Remove the old `deployment`, top-level `audioSetup`, and `recordings` sections after moving retained values. There is no legacy-schema compatibility mode.
 
 ### Tests config
 
@@ -206,20 +268,18 @@ For `select`, `label` is what participants see and `value` is what is saved. The
 
 ## Usage
 
-`EST_SERVER_TYPE=server` runs the coordinator directly; `harness` supervises it with bounded restart delay, and `media-worker` is private child IPC entry, not a public service. Remote media workers execute the same SEA binary without requiring external Node. Relative `remote.coreExecutable` resolves beside the server executable in a distribution, not relative to the caller's working directory. On Windows select `core/est-core.exe`.
+`EST_SERVER_TYPE=server` runs the coordinator directly; `harness` supervises it with bounded restart delay, and `media-worker` is private child IPC entry, not a public service. Remote media workers execute the same SEA binary without requiring external Node. The core is selected automatically beside the packaged server (`core/est-core` on Linux, `core/est-core.exe` on Windows), independently of the caller's working directory. Source execution uses the managed platform-specific `est-core/build` output.
 
 ### Local and remote controls
 
 | Section | Operational policy |
 | --- | --- |
-| `deployment` | `mode: local|remote`, explicit `maxActivePairs` (default 1), development admission opt-in only. One coordinator, no distributed matchmaking. |
-| `audioSetup` | Local optional, remote mandatory; default route selections and P.501 input/playback/confirmation gates. |
-| `sessions` | FIFO after setup/pretest, 5-minute waiting timeout, 60-second reconnect grace, one retry, 100 unpaired admissions by default. |
-| `recordings` | Default maximum 600 seconds/134217728 bytes per participant, 1 MiB HTTP chunks, 10-minute upload deadline. Bounds must hold both WAVs. |
-| `remote` | Core path, disjoint private/public port ranges, 128-frame internal RTP, Opus 128000 bit/s, 20 ms WebRTC jitter target, 250 ms bounded playback drain, 30-second startup/7-second stop deadlines. These are not end-to-end delay guarantees. |
+| `server` | Listen address/port, `mode: local|remote`, `maxActivePairs` (default 1). One coordinator per results directory. |
+| `remote` | Public ICE range and ICE/TURN services. Keep public ICE ports separate from private RTP ports. |
 | `prolific` | Study ID, all four completion codes, optional secured URLs; answers plus matching durable WAV receipts gate normal completion. |
+| `sessions` | FIFO after setup/pretest, waiting/reconnect/retry policy, condition duration and audio setup. Defaults: 5-minute wait, 60-second grace, one retry, 600-second condition limit. Setup is optional locally and mandatory remotely. |
 
-Browser entry: `https://study.example.org/?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}`. Raw identifiers are recorded as unverified, never used as paths or A/B role selectors. Set `secureUrls`, exact `externalStudyUrl`, `workspaceId` and optional `organisationId` for Prolific's RS256 `prolific_token` verification against its fixed JWKS endpoint. The token lifetime/issuer/audience/query/subject/identifier claims are checked. No Prolific API payment or rejection calls are made. The researcher configures completed/technicalFailure/partnerLeft/waitingTimeout codes and their meaning in Prolific. A successful return link and copyable code come only from server-owned outcome state.
+Browser entry: `https://study.example.org/?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}`. Raw identifiers are recorded as unverified, never used as paths or A/B role selectors. Set `secureUrls`, exact `externalStudyUrl`, `workspaceId` and optional `organisationId` for Prolific's RS256 `prolific_token` verification against its fixed JWKS endpoint. The token lifetime/issuer/audience/query/subject/identifier claims are checked. Manage participant payments and rejections in Prolific. The researcher configures completed/technicalFailure/partnerLeft/waitingTimeout codes and their meaning in Prolific. A successful return link and copyable code come only from server-owned outcome state.
 
 Use `EST_TURN_SECRET` for an environment-secret override, shared with coturn; the secret never appears in public bootstrap. Authenticated per-attempt preparation issues expiring HMAC TURN credentials scoped to the session. `turnUrls` should include reachable UDP, TCP and TLS endpoints. HTTPS is not a media relay. See [deployment networking](../deployment/README.md).
 
@@ -244,6 +304,12 @@ Start the server from a command prompt with:
 set "EST_SERVER_TYPE=harness"
 est-server.exe
 ```
+
+## Application protocol
+
+Electron and browser clients use the version-1 Socket.IO contract defined in [`common/protocol.cjs`](../common/protocol.cjs). The `@effectstreamer/common` entry is browser-safe; native core supervision uses the separate `@effectstreamer/common/core-process` entry.
+
+Actions carry request, participant, session and attempt identifiers, but identifiers are not authentication. The server authenticates membership, validates the current state and publishes snapshots with increasing `revision`. Clients retain recordings until a matching `{recordingId, sha256, stored: true}` receipt confirms storage.
 
 ## Compilation
 

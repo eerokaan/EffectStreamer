@@ -23,7 +23,7 @@ for(const target of ['linux','win'])test(`${target} SEA build writes final resou
         const filename=`est-server.config.${mode}.example.json`,packaged=path.join(destination,filename);
         assert.ok(fs.existsSync(packaged),`Missing ${mode}-use example: ${filename}`);
         const config=JSON.parse(fs.readFileSync(packaged,'utf8'));
-        assert.equal(config.deployment.mode,mode);
+        assert.equal(config.server.mode,mode);
         assert.deepEqual(config,JSON.parse(fs.readFileSync(path.resolve(__dirname,'../../est-server',filename),'utf8')));
     }
     const again=spawnSync('bash',[script],{env,encoding:'utf8'});assert.notEqual(again.status,0);assert.match(again.stderr,/overwrite|exist/i);

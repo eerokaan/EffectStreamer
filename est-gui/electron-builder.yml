@@ -8,10 +8,6 @@ directories:
 
 afterPack: ./build_scripts/afterPack.js
 
-extraResources:
-    - from: "public/audio"
-      to: "audio"
-
 linux:
     target:
         - AppImage

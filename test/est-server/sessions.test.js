@@ -19,7 +19,10 @@ async function fixture(t,raw=localConfig()) {
     const sockets=[];
     t.after(async()=>{for(const socket of sockets) socket.disconnect();await app.close();fs.rmSync(root,{recursive:true,force:true});});
     async function enroll(identity) {
-        const response=await fetch(url+'/api/enrollment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({identity,ipAddress:'127.0.0.1',operatingSystem:'linux'})});
+        // Session isolation tests seed the store; HTTP recruitment has separate coverage.
+        if (raw.server.mode==='remote' && !raw.prolific.enabled) return app.enrollments.admit({identity});
+        const query=raw.server.mode==='remote'?{PROLIFIC_PID:identity,STUDY_ID:raw.prolific.studyId,SESSION_ID:identity}:undefined;
+        const response=await fetch(url+'/api/enrollment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({identity,ipAddress:'127.0.0.1',operatingSystem:'linux',query})});
         assert.equal(response.status,201,await response.clone().text());return response.json();
     }
     async function join(enrollment) {
@@ -34,7 +37,7 @@ async function action(session,participant,type='nextView',payload={}) {
     return session.dispatch(participant.participantId,{version:1,requestId:require('node:crypto').randomUUID(),sessionId:session.sessionId,participantId:participant.participantId,attemptId:snapshot.attemptId,type,payload:{currentView:snapshot.currentView,...payload}});
 }
 test('two pairs own independent views, role assets, conditions, and result directories',async(t)=>{
-    const raw=remoteConfig();raw.deployment.allowDevelopmentAdmission=true;
+    const raw=remoteConfig();
     const app=await fixture(t,raw);
     const people=await Promise.all(['prolific-person-1','person-2','person-3','person-4'].map(app.enroll));
     const first=app.registry.createPair(people.slice(0,2).map(p=>app.enrollments.get(p.participantId)));
@@ -89,11 +92,12 @@ test('local clients can start a fresh run after an ended pair without reopening 
     await assert.rejects(app.enroll('client-a'),/201/,'a duplicate live label must still be rejected');
 });
 test('local run renewal does not allow a terminal remote identity to enroll again',async t=>{
-    const raw=remoteConfig();raw.deployment.allowDevelopmentAdmission=true;const app=await fixture(t,raw);
+    const raw=remoteConfig();raw.prolific={enabled:true,studyId:'renewal-study',completionCodes:{completed:'DONE',technicalFailure:'TECH',partnerLeft:'LEFT',waitingTimeout:'WAIT'}};const app=await fixture(t,raw);
     const a=await app.enroll('client-a'),b=await app.enroll('client-b');const session=app.registry.createPair([a,b].map(person=>app.enrollments.get(person.participantId)));
     await app.recovery.end(session,'technicalFailure');
-    const response=await fetch(app.url+'/api/enrollment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({identity:'client-a',reconnectToken:a.reconnectToken})});
+    const response=await fetch(app.url+'/api/enrollment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({identity:'client-a',reconnectToken:a.reconnectToken,query:{PROLIFIC_PID:'client-a',STUDY_ID:'renewal-study',SESSION_ID:'client-a'}})});
     assert.equal(response.status,409);assert.equal(app.registry.getForParticipant(a.participantId).outcome,'technicalFailure');
+    assert.match((await response.json()).error,/already enrolled/);
 });
 test('another session, participant, stale view or stale attempt cannot change experiment state',async(t)=>{
     const app=await fixture(t);
@@ -139,7 +143,7 @@ test('authenticated socket actions cannot impersonate another participant',async
     assert.equal(valid.ok,true);assert.equal(valid.snapshot.currentView,'viewPretest');
 });
 test('replacing a paired browser socket does not interrupt the active participant slot',async t=>{
-    const raw=remoteConfig();raw.deployment.allowDevelopmentAdmission=true;const app=await fixture(t,raw);
+    const raw=remoteConfig();const app=await fixture(t,raw);
     const a=await app.enroll('tab-a'),b=await app.enroll('tab-b');
     const session=app.registry.createPair([app.enrollments.get(a.participantId),app.enrollments.get(b.participantId)]);
     await app.join(a);await app.join(b);

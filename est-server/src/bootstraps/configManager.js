@@ -46,9 +46,9 @@ function loadConfig() {
     }
 
     if (process.env.EST_TURN_SECRET !== undefined) {
-        validateObject(parsedConfig, 'config');
+        validateObject(parsedConfig, "config");
         parsedConfig.remote ??= {};
-        validateObject(parsedConfig.remote, 'remote');
+        validateObject(parsedConfig.remote, "remote");
         parsedConfig.remote.turnSecret = process.env.EST_TURN_SECRET;
     }
     return normalizeConfig(parsedConfig);
@@ -57,15 +57,20 @@ function loadConfig() {
 function normalizeConfig(parsedConfig) {
     // Validate step: Enforce the known top-level keys
     validateObject(parsedConfig, "config");
-    validateKnownKeys(parsedConfig, ["server", "tests", "conditions", "pretestForm", "deployment", "audioSetup", "sessions", "recordings", "remote", "prolific"], "config");
+    const movedSections = { deployment: "server.mode and server.maxActivePairs", audioSetup: "sessions.audioSetup", recordings: "sessions.maxConditionSeconds (upload policies are now internal constants)" };
+    for (const [key, replacement] of Object.entries(movedSections)) {
+        if (Object.hasOwn(parsedConfig, key)) configError(key, "was removed; use " + replacement);
+    }
+    validateKnownKeys(parsedConfig, ["server", "remote", "prolific", "sessions", "tests", "conditions", "pretestForm"], "config");
+    const server = normalizeServerConfig(parsedConfig.server);
 
     // Return step
     return {
-        server: normalizeServerConfig(parsedConfig.server),
+        server,
         tests: normalizeTestsConfig(parsedConfig.tests),
         conditions: normalizeConditionsConfig(parsedConfig.conditions),
         pretestForm: configManagerPretestForm.normalizeConfig(parsedConfig.pretestForm),
-        ...normalizeDeployment(parsedConfig)
+        ...normalizeDeployment(parsedConfig, server)
     };
 }
 
@@ -75,7 +80,7 @@ function normalizeConfig(parsedConfig) {
 
 function normalizeServerConfig(serverConfig) {
     validateObject(serverConfig, "server");
-    validateKnownKeys(serverConfig, ["ipAddress", "port"], "server");
+    validateKnownKeys(serverConfig, ["ipAddress", "port", "mode", "maxActivePairs"], "server");
 
     // Validate step: Enforce a valid IP address
     const ipAddress = normalizeString(serverConfig.ipAddress, "server.ipAddress");
@@ -85,9 +90,12 @@ function normalizeServerConfig(serverConfig) {
 
     // Normalize step: Determine the port number
     const port = normalizeNumeric(serverConfig.port, "server.port", { allowString: true, integer: true, min: 1, max: 65535 });
+    const mode = serverConfig.mode === undefined ? "local" : serverConfig.mode;
+    if (!["local", "remote"].includes(mode)) configError("server.mode", "must be local or remote");
+    const maxActivePairs = normalizeNumeric(serverConfig.maxActivePairs === undefined ? 1 : serverConfig.maxActivePairs, "server.maxActivePairs", { integer: true, min: 1, max: 1000 });
 
     // Return step
-    return { ipAddress, port };
+    return { ipAddress, port, mode, maxActivePairs };
 }
 
 function normalizeTestsConfig(testsConfig) {

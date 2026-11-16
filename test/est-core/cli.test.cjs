@@ -2,8 +2,7 @@ const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const dgram = require('node:dgram');
 const {spawnSync}=require('node:child_process');
-const {corePath}=require('./fixtures.cjs');
-const {runCli,allocatePorts,startProcess,waitForReady,feedRtp} = require('./fixtures.cjs');
+const {corePath,runCli,allocatePorts,startProcess,waitForReady,feedRtp} = require('./fixtures.cjs');
 
 test('help preserves standalone modes and documents configurable ports',()=>{
     const result=runCli(['--help']);assert.equal(result.status,0);

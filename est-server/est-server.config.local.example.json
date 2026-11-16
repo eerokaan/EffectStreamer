@@ -1,11 +1,31 @@
 {
-    "deployment": { "mode": "local", "maxActivePairs": 1 },
-    "audioSetup": { "enabled": false, "testAsset": "P501_C_german_f1_FB_48k.wav" },
-    "sessions": { "pairingTimeoutMs": 300000, "reconnectGraceMs": 60000, "maxRetries": 1 },
-    "recordings": { "maxConditionSeconds": 600, "maxBytesPerParticipant": 134217728, "uploadTimeoutMs": 600000, "chunkBytes": 1048576 },
     "server": {
         "ipAddress": "0.0.0.0",
-        "port": "3000"
+        "port": 3000,
+        "mode": "local",
+        "maxActivePairs": 1
+    },
+    "remote": {
+        "icePortRange": [50000, 59999],
+        "iceServers": [],
+        "turnUrls": [],
+        "turnSecret": ""
+    },
+    "prolific": {
+        "enabled": false,
+        "studyId": "",
+        "completionCodes": { "completed": "", "technicalFailure": "", "partnerLeft": "", "waitingTimeout": "" },
+        "secureUrls": false,
+        "externalStudyUrl": "",
+        "workspaceId": "",
+        "organisationId": null
+    },
+    "sessions": {
+        "pairingTimeoutMs": 300000,
+        "reconnectGraceMs": 60000,
+        "maxRetries": 1,
+        "maxConditionSeconds": 600,
+        "audioSetup": { "enabled": false, "testAsset": "P501_C_german_f1_FB_48k.wav" }
     },
     "tests": {
         "short-conversation-test": true,
