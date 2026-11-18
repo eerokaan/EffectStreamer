@@ -1,7 +1,6 @@
 const http = require("node:http");
 const os = require("node:os");
 const path = require("node:path");
-const fs = require("node:fs/promises");
 const express = require("express");
 const { Server } = require("socket.io");
 const { EVENTS } = require("@effectstreamer/common");
@@ -15,7 +14,7 @@ const { AdmissionFlow } = require("./services/AdmissionFlow.js");
 const { RecoveryPolicy } = require("./services/RecoveryPolicy.js");
 const {createTransientPaths}=require('@effectstreamer/common/transient-paths');
 
-function createCoordinator({ config, root = path.join(os.homedir(), "effectstreamer", "sessions"), webRoot = null }) {
+function createCoordinator({ config, root = path.join(os.homedir(), "effectstreamer", "sessions") }) {
     const release=createTransientPaths({anchor:root}).acquireProcessLock('est-server','results');
     try {
     const enrollments = new EnrollmentStore(root, { sessionLanguage: config.sessionLanguage });
@@ -32,19 +31,11 @@ function createCoordinator({ config, root = path.join(os.homedir(), "effectstrea
     const admission = new AdmissionFlow({ config, enrollments, registry, prolific });
     registry.onChange = () => admission.match();
     const recovery = new RecoveryPolicy({ config, registry });registry.recovery = recovery;
-    const ready = Promise.all([
-        registry.store.loadAll().then(manifests => recovery.recoverAfterRestart(manifests)),
-        webRoot ? fs.access(path.join(webRoot, 'index.html')) : Promise.resolve()
-    ]);
+    const ready = registry.store.loadAll().then(manifests => recovery.recoverAfterRestart(manifests));
     app.use(async (_request, response, next) => {try {await ready;next();} catch {response.status(503).json({ error: "Session recovery failed; operator intervention required" });}});
     app.use('/api', (_request, response, next) => {response.set('Cache-Control', 'no-store');next();});
     registerEnrollmentRoutes(app, { config, enrollments, registry, prolific });
     registerRecordingRoutes(app, { config: config.recordings, enrollments, transfers });
-    if (webRoot) {
-        const directory = path.resolve(webRoot);
-        app.get(['/', '/experiment'], (_request, response) => {response.set('Cache-Control', 'no-cache');response.sendFile('index.html', {root: directory});});
-        for (const prefix of ['assets', 'audio']) app.use('/' + prefix, express.static(path.join(directory, prefix), {dotfiles: 'deny', index: false, maxAge: '1h'}));
-    }
 
     io.use(async (socket, next) => {
         try {await ready;} catch {return next(new Error("Session recovery failed"));}

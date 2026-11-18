@@ -11,7 +11,7 @@ else if (process.env.EST_SERVER_TYPE === "server") {
     try {
         const config = loadConfig();
         const { createCoordinator } = require("./server.js");
-        const coordinator = createCoordinator(require('./bootstraps/resources.js').resources(config));
+        const coordinator = createCoordinator({ config });
         void coordinator.ready.then(() => coordinator.server.listen(config.server.port, config.server.ipAddress, () => console.log("[Server] Listening on " + config.server.ipAddress + ":" + config.server.port))).catch(error => {console.error("[Server] Recovery failed: " + error.message);process.exitCode = 1;});
         for (const signal of ["SIGINT", "SIGTERM"]) process.once(signal, () => { void coordinator.close().then(() => process.exit(0)); });
     }

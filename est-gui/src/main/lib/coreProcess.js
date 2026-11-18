@@ -17,7 +17,7 @@ function getCoreSpawnOptions(component, { base = path.join(process.resourcesPath
     const platform = getOperatingSystem();
     const stdio = component === "sender" ? ["pipe", "ignore", "pipe"] : ["pipe", "pipe", "pipe"];
 
-    const executable = process.env.EST_CORE_EXECUTABLE || path.join(base, platform === 'windows' ? 'est-core.exe' : 'est-core');
+    const executable = path.join(base, platform === 'windows' ? 'est-core.exe' : 'est-core');
     if (platform === "linux" || platform === "windows") return {executable, options: {stdio, env: coreEnvironment({executable})}};
     throw new Error("Unsupported platform: " + process.platform);
 }

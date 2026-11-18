@@ -37,7 +37,7 @@ it.skipIf(process.env.EST_NATIVE_INTEGRATION !== "1")("runs SCT and both LST rol
     await Promise.all(sockets.map(socket => new Promise(resolve => socket.close(resolve))));
     [...session.clientsData.values()].forEach((client, index) => {client.ports = { listen: ports[index * 3], echo: ports[index * 3 + 1], record: ports[index * 3 + 2] };});
     const errors = [], deviceCalls = [];
-    const audios = credentials.map((_, index) => new NativeAudioRuntime({ config: { audio: { backend: "native", devices: { source: "null", sink: "null" } } }, executable: process.env.EST_CORE_EXECUTABLE || checkoutPaths().path('est-core','build','linux','est-core'), platform: "linux", recordingRoot: path.join(root, "client-" + index), setupSample: "unused", onFailure: error => errors.push(error.message) }));
+    const audios = credentials.map((_, index) => new NativeAudioRuntime({ config: { audio: { backend: "native", devices: { source: "null", sink: "null" } } }, executable: checkoutPaths().path('est-core','build','linux','est-core'), platform: "linux", recordingRoot: path.join(root, "client-" + index), setupSample: "unused", onFailure: error => errors.push(error.message) }));
     const runtimes = credentials.map((item, index) => {
         const initialized = { url, credentials: item, config: { mode: "local", setupRequired: false, sessionLanguage: config.sessionLanguage, recordings: config.recordings } };
         return createRuntime({ bridge: { invoke(operation, payload) {

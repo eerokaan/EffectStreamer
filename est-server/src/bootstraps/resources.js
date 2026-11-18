@@ -11,13 +11,4 @@ function coreExecutable({ packaged = isSea(), platform = process.platform, execu
     return checkoutPaths().path("est-core", "build", platform === "win32" ? "win" : "linux", name);
 }
 
-function resources(config) {
-    const base = path.dirname(process.execPath);
-    config.remote.coreExecutable = coreExecutable();
-    return {
-        config,
-        ...(process.env.EST_RESULTS_ROOT ? { root: path.resolve(process.env.EST_RESULTS_ROOT) } : {}),
-        ...(config.deployment.mode === "remote" ? { webRoot: path.resolve(process.env.EST_WEB_ROOT || (isSea() ? path.join(base, "web") : checkoutPaths().path("est-gui", "web"))) } : {})
-    };
-}
-module.exports = { resources, coreExecutable };
+module.exports = { coreExecutable };

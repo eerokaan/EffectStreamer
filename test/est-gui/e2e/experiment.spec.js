@@ -1,11 +1,10 @@
-import {test,expect} from '@playwright/test';
+import {expect} from '@playwright/test';
+import {test} from '../helpers/production-site.mjs';
 import {createRequire} from 'node:module';
-import {once} from 'node:events';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 const require=createRequire(import.meta.url);
 const {checkoutPaths}=require('../../../common/transient-paths.cjs');
-const {createCoordinator}=require('../../../est-server/src/server.js');
 const {normalizeConfig,publicBootstrap}=require('../../../est-server/src/bootstraps/configManager.js');
 const {iceArguments}=require('../../../est-server/src/media/MediaWorker.js');
 const {remoteConfig}=require('../../est-server/fixtures/config.js');
@@ -14,7 +13,7 @@ const tones=[440,660,880,1100];
 function acceptanceConfig(raw,env=process.env) {
     const config=normalizeConfig(raw);
     if(env.EST_ACCEPTANCE_ICE_SERVERS)config.remote.iceServers=JSON.parse(env.EST_ACCEPTANCE_ICE_SERVERS);
-    Object.assign(config.remote,{coreExecutable:env.EST_ACCEPTANCE_CORE||env.EST_CORE_EXECUTABLE||checkoutPaths().path('est-core','build','linux','est-core'),internalPortRange:[35400,35499],icePortRange:[48500,48999],playbackDrainMs:100,startupTimeoutMs:30000});
+    Object.assign(config.remote,{coreExecutable:env.EST_ACCEPTANCE_CORE||checkoutPaths().path('est-core','build','linux','est-core'),internalPortRange:[35400,35499],icePortRange:[48500,48999],playbackDrainMs:100,startupTimeoutMs:30000});
     return config;
 }
 test('authenticated relay acceptance settings are injected without weakening public config validation',()=>{
@@ -24,19 +23,17 @@ test('authenticated relay acceptance settings are injected without weakening pub
     expect(JSON.stringify(publicBootstrap(config))).not.toMatch(/relay-user|relay-password/);
     expect(()=>normalizeConfig({...remoteConfig(),remote:{iceServers:servers}})).toThrow(/username/);
 });
-test('an admission that expires before audio setup shows its early exit without a blocking setup dialog',async({browser})=>{
-    const root=checkoutPaths().temporaryDirectory('est-gui','est-admission-ui-'),raw=remoteConfig();
+test('an admission that expires before audio setup shows its early exit without a blocking setup dialog',async({page,startProductionSite})=>{
+    const raw=remoteConfig();
     raw.sessions.operatingLimits.pairingTimeoutSeconds=1;raw.prolific={enabled:true,studyId:'expiry-study',completionCodes:{completed:'DONE',technicalFailure:'TECH',partnerLeft:'LEFT',waitingTimeout:'WAIT'}};
-    const app=createCoordinator({config:normalizeConfig(raw),root,webRoot:checkoutPaths().path('est-gui','web')});await app.ready;
+    const {app,url}=await startProductionSite(normalizeConfig(raw));
     let time=1000;app.enrollments.now=()=>time;app.prolific.now=()=>time;
-    app.server.listen(0,'127.0.0.1');await once(app.server,'listening');const context=await browser.newContext(),page=await context.newPage();
-    try {
-        await page.goto('http://127.0.0.1:'+app.server.address().port+'/?PROLIFIC_PID=expired-person&STUDY_ID=expiry-study&SESSION_ID=expired-submission');
-        await expect(page.getByRole('dialog')).toBeVisible();
-        time=2001;app.prolific.expireWaiting();app.admission.publish();
-        await expect(page.getByRole('link',{name:'Zurück zu Prolific'})).toHaveAttribute('href','https://app.prolific.com/submissions/complete?cc=WAIT');
-        await expect(page.getByRole('dialog')).toHaveCount(0);
-    } finally {await context.close();await app.close();await fs.rm(root,{recursive:true,force:true});}
+    await page.goto(url+'/experiment?PROLIFIC_PID=expired-person&STUDY_ID=expiry-study&SESSION_ID=expired-submission');
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect.poll(()=>[...app.io.sockets.sockets.values()].map(socket=>socket.conn.transport.name)).toEqual(['websocket']);
+    time=2001;app.prolific.expireWaiting();app.admission.publish();
+    await expect(page.getByRole('link',{name:'Zurück zu Prolific'})).toHaveAttribute('href','https://app.prolific.com/submissions/complete?cc=WAIT');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 async function syntheticAudio({tone,relay}) {
     window.__acceptancePeers=[];window.__acceptanceSources=[];
@@ -53,20 +50,18 @@ for (const locale of [
     { language: 'en', other: 'de', audio: 'english', devices: 'Audio devices', load: 'Load or refresh devices', check: 'Check the microphone and play the P.501 sample', next: 'Continue', welcome: 'Welcome to the experiment', pretest: 'Before we begin', age: 'Age', woman: 'Female' },
     { language: 'de', other: 'en', audio: 'german', devices: 'Audiogeräte', load: 'Geräteliste laden oder aktualisieren', check: 'Mikrofon prüfen und P.501-Hörbeispiel abspielen', next: 'Weiter', welcome: 'Willkommen beim Experiment', pretest: 'Bevor es losgeht', age: 'Alter', woman: 'Weiblich' }
 ]) {
-    test(`remote ${locale.language} selects server language before the device check`, async ({browser}) => {
-        const root = checkoutPaths().temporaryDirectory('est-gui','est-localized-admission-');
+    test(`remote ${locale.language} selects server language before the device check`, async ({browser,startProductionSite}) => {
         const raw = remoteConfig(); raw.sessions.general.language = locale.language;
         raw.pretestForm = raw.pretestForm.filter(field => ['input-age', 'select-gender'].includes(field.name));
         raw.prolific = {enabled:true, studyId:'language-study', completionCodes:{completed:'DONE',technicalFailure:'TECH',partnerLeft:'LEFT',waitingTimeout:'WAIT'}};
-        const app = createCoordinator({ config: normalizeConfig(raw), root, webRoot: checkoutPaths().path('est-gui','web') });
-        await app.ready; app.server.listen(0, '127.0.0.1'); await once(app.server, 'listening');
+        const {app,url} = await startProductionSite(normalizeConfig(raw));
         const context = await browser.newContext({ locale: locale.other });
         await context.addInitScript(syntheticAudio, {tone: 440, relay: false});
         const page = await context.newPage();
         const release = Promise.withResolvers(), requested = Promise.withResolvers();
         await page.route('**/api/config', async route => { requested.resolve(); await release.promise; await route.continue(); });
         try {
-            await page.goto(`http://127.0.0.1:${app.server.address().port}/?PROLIFIC_PID=language-person&STUDY_ID=language-study&SESSION_ID=language-submission&language=${locale.other}`, {waitUntil:'domcontentloaded'});
+            await page.goto(`${url}/?PROLIFIC_PID=language-person&STUDY_ID=language-study&SESSION_ID=language-submission&language=${locale.other}`, {waitUntil:'domcontentloaded'});
             await requested.promise;
             await expect(page.locator('#root')).toBeEmpty();
             release.resolve();
@@ -87,7 +82,7 @@ for (const locale of [
             await page.getByRole('option', {name: locale.woman, exact:true}).click();
             await page.getByRole('button', {name: locale.next, exact:true}).click();
             await expect.poll(() => [...app.enrollments.participants.values()][0]?.formData).toEqual({'input-age':25,'select-gender':'female'});
-        } finally { release.resolve(); await context.close(); await app.close(); await fs.rm(root,{recursive:true,force:true}); }
+        } finally { release.resolve(); await context.close(); }
     });
 }
 function spectralPower(bytes,hz){let power=0;const frames=(bytes.length-44)/2;
@@ -99,15 +94,14 @@ function spectralPower(bytes,hz){let power=0;const frames=(bytes.length-44)/2;
 async function cpuMemory(pids){let ticks=0,rssKb=0;for(const pid of pids){const stat=(await fs.readFile('/proc/'+pid+'/stat','utf8')).split(') ')[1].split(' ');ticks+=Number(stat[11])+Number(stat[12]);const status=await fs.readFile('/proc/'+pid+'/status','utf8');rssKb+=Number(status.match(/^VmRSS:\s+(\d+)/m)[1]);}return {ticks,rssKb};}
 async function traffic(pages){const values=await Promise.all(pages.map(page=>page.evaluate(async()=>{let bytes=0;const candidates=[];for(const peer of window.__acceptancePeers.filter(peer=>peer.connectionState==='connected')){const stats=await peer.getStats();for(const value of stats.values()){if(value.type==='transport')bytes+=(value.bytesSent||0)+(value.bytesReceived||0);if(value.type==='candidate-pair'&&value.state==='succeeded'&&value.nominated){const local=stats.get(value.localCandidateId);candidates.push(local?.candidateType);}}}return {bytes,candidates};})));return {bytes:values.reduce((sum,value)=>sum+value.bytes,0),candidates:values.flatMap(value=>value.candidates)};}
 
-test('production frontend runs two concurrent isolated pairs through SCT/LST and receipt-confirmed completion',async({browser},testInfo)=>{
+test('production frontend runs two concurrent isolated pairs through SCT/LST and receipt-confirmed completion',async({browser,startProductionSite},testInfo)=>{
     test.setTimeout(240000);
-    const root=checkoutPaths().temporaryDirectory('est-gui','est-production-pairs-'),raw=remoteConfig();
+    const raw=remoteConfig();
     raw.server.maxActivePairs=2;raw.conditions={baseline:[{echoGain:0,nativeGain:1}],random:[]};
     raw.pretestForm=[{name:'age',type:'input',inputType:'number',label:'Age',validation:{valueType:'integer',min:18}}];
     raw.prolific={enabled:true,studyId:'acceptance-study',completionCodes:{completed:'DONE',technicalFailure:'TECH',partnerLeft:'LEFT',waitingTimeout:'WAIT'}};
     const config=acceptanceConfig(raw);
-    const app=createCoordinator({config,root,webRoot:checkoutPaths().path('est-gui','web')});await app.ready;
-    app.server.listen(0,'127.0.0.1');await once(app.server,'listening');const url='http://127.0.0.1:'+app.server.address().port;
+    const {app,url}=await startProductionSite(config);
     const contexts=[],pages=[],samples=[],allPids=new Set();
     const sessions=()=>[...app.registry.sessions.values()];
     const next=async chosen=>Promise.all(chosen.map(page=>page.getByRole('button',{name:'Weiter',exact:true}).click()));
@@ -128,7 +122,7 @@ test('production frontend runs two concurrent isolated pairs through SCT/LST and
     async function prepare(index){const context=await browser.newContext({viewport:{width:1280,height:1000}});contexts[index]=context;await context.addInitScript(syntheticAudio,{tone:tones[index],relay:process.env.EST_ACCEPTANCE_RELAY==='1'});const page=await context.newPage();pages[index]=page;
         const partnerNotice=page.getByRole('dialog').filter({has:page.getByRole('heading',{name:'Der Gesprächspartner hat das Gespräch verlassen'})});
         await page.addLocatorHandler(partnerNotice,async()=>{
-            try {await partnerNotice.getByRole('button',{name:'Schließen',exact:true}).click({timeout:3000});}
+            try {await partnerNotice.locator('[data-slot="dialog-footer"]').getByRole('button',{name:'Schließen',exact:true}).click({timeout:3000});}
             catch(error){if(await partnerNotice.isVisible())throw error;} // The peer may finish and unmount the notice first.
         });
         await page.goto(url+'/?PROLIFIC_PID=acceptance-person-'+index+'&STUDY_ID=acceptance-study&SESSION_ID=acceptance-submission-'+index);
@@ -180,6 +174,6 @@ test('production frontend runs two concurrent isolated pairs through SCT/LST and
         for(const pid of allPids)expect(()=>process.kill(pid,0)).toThrow(/ESRCH/);
         expect(app.registry.ports.leases.size).toBe(0);expect(sessions().every(session=>session.mediaAdapter.child===null)).toBe(true);
         await testInfo.attach('development-resource-sample',{body:JSON.stringify({browser:browser.version(),samples},null,2),contentType:'application/json'});console.log('Acceptance resources:',JSON.stringify({browser:browser.version(),samples}));
-    } catch(error){await fs.cp(root,testInfo.outputPath('synthetic-failure-fixture'),{recursive:true});console.error('Production UI diagnostic:',JSON.stringify({sessions:sessions().map(session=>session.manifest()),pages:await Promise.all(pages.map(page=>page.locator('body').innerText().catch(()=>'')))}));throw error;}
-    finally {await Promise.allSettled(contexts.map(context=>context.close()));await app.close();await fs.rm(root,{recursive:true,force:true});}
+    } catch(error){console.error('Production UI diagnostic:',JSON.stringify({sessions:sessions().map(session=>session.manifest()),pages:await Promise.all(pages.map(page=>page.locator('body').innerText().catch(()=>'')))}));throw error;}
+    finally {await Promise.allSettled(contexts.map(context=>context.close()));}
 });

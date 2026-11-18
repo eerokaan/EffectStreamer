@@ -15,7 +15,7 @@ export async function withBrowserMedia({ browser, testInfo, diagnostics = proces
     if (diagnostics) testInfo.setTimeout(90000); // Bounded raw tracing adds overhead; normal acceptance stays at 60 s.
     const root = checkoutPaths().temporaryDirectory('est-gui','est-browser-media-');
     const config = normalizeConfig(remoteConfig());
-    Object.assign(config.remote, { coreExecutable: process.env.EST_CORE_EXECUTABLE || checkoutPaths().path('est-core','build','linux','est-core'), internalPortRange: [35100, 35199], icePortRange: [47000, 47499], playbackDrainMs: 20, startupTimeoutMs: 20000 });
+    Object.assign(config.remote, { coreExecutable: checkoutPaths().path('est-core','build','linux','est-core'), internalPortRange: [35100, 35199], icePortRange: [47000, 47499], playbackDrainMs: 20, startupTimeoutMs: 20000 });
     const app = createCoordinator({ config, root });
     const vite = await createServer({ configFile: path.resolve("vite.web.config.mjs"), configLoader:'runner', server: { middlewareMode: true }, appType: "custom" });
     if (diagnostics) {

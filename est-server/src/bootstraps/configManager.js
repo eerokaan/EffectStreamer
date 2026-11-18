@@ -25,7 +25,7 @@ const numericConditionFields = {
 // =======================================
 
 function loadConfig() {
-    const configPath = process.env.EST_CONFIG_PATH || path.join(os.homedir(), "effectstreamer", "est-server.config.json");
+    const configPath = path.join(os.homedir(), "effectstreamer", "est-server.config.json");
     let configFile = null;
     let parsedConfig = null;
 
@@ -45,12 +45,6 @@ function loadConfig() {
         throw new Error("Unable to parse " + configPath + " as JSON: " + error.message);
     }
 
-    if (process.env.EST_TURN_SECRET !== undefined) {
-        validateObject(parsedConfig, "config");
-        parsedConfig.remote ??= {};
-        validateObject(parsedConfig.remote, "remote");
-        parsedConfig.remote.turnSecret = process.env.EST_TURN_SECRET;
-    }
     return normalizeConfig(parsedConfig);
 }
 

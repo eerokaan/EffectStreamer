@@ -51,7 +51,7 @@ function normalizeDeployment(raw, server) {
     remote.icePortRange = range(remote.icePortRange, "remote.icePortRange");
     if (remote.internalPortRange[0] <= remote.icePortRange[1] && remote.icePortRange[0] <= remote.internalPortRange[1]) configError("remote", "port ranges overlap");
     if (typeof remote.turnSecret !== "string" || !Array.isArray(remote.turnUrls) || remote.turnUrls.some((url) => typeof url !== "string" || !/^turns?:[^\s]+$/.test(url))) configError("remote", "invalid TURN settings");
-    if (remote.turnUrls.length && !remote.turnSecret.trim()) configError("remote.turnSecret", "TURN URLs require a nonempty shared secret (or EST_TURN_SECRET override)");
+    if (remote.turnUrls.length && !remote.turnSecret.trim()) configError("remote.turnSecret", "TURN URLs require a nonempty shared secret");
     remote.turnUrls = [...remote.turnUrls];
     if (!Array.isArray(remote.iceServers)) configError("remote.iceServers", "must be an array");
     remote.iceServers = remote.iceServers.map((server) => {

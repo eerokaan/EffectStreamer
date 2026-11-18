@@ -6,5 +6,5 @@ import {pathToFileURL} from 'node:url';
 const require=createRequire(new URL('../../est-gui/package.json',import.meta.url));
 const vite=await import(pathToFileURL(require.resolve('vite')).href);
 const electronVite=await import(pathToFileURL(require.resolve('electron-vite')).href);
-export const {build,createServer}=vite;
+export const {build,createServer,preview}=vite;
 export const {loadConfigFromFile}=electronVite;

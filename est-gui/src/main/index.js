@@ -63,7 +63,7 @@ async function bootstrap() {
             transport = new AudioTransport({ window: windowMain, requestRendererControl, onFatal: options.onFailure });
             audio = new StdioAudioRuntime({ ...options, transport, spawnOptions });
         }
-        else audio = new NativeAudioRuntime({ ...options, setupSample: app.isPackaged ? path.join(process.resourcesPath, "audio", sample) : path.join(source, "public", "audio", sample) });
+        else audio = new NativeAudioRuntime({ ...options, setupSample: app.isPackaged ? path.join(process.resourcesPath, "audio", sample) : path.join(source, "src", "shared", "public", "audio", sample) });
         return { config: { ...publicConfig, audioBackend: config.audio.backend, selectedAudioDevices: config.audio.devices }, credentials: saved.credentials, url };
     })();
     return initialization;

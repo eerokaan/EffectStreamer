@@ -3,7 +3,7 @@ node_modules/
 build/**/gst-lib/
 out/
 
-# ===== PARTIAL DIRECTORIES ===============
+# Ignore generated distributions (web/, linux/, win/); retain legacy binaries.
 dist/*
 !dist/EffectStreamer*.AppImage
 !dist/EffectStreamer*.exe

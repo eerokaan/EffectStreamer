@@ -22,7 +22,7 @@ export default defineConfig({
         }
     },
     renderer: {
-        cacheDir:cache('renderer'), publicDir: resolve(source, "public"),
+        cacheDir:cache('renderer'), publicDir: resolve(source, "src/shared/public"),
         build: {
             outDir:output('renderer'),emptyOutDir:true,
             commonjsOptions: { include: [/node_modules/, /[/\\]common[/\\]/] },

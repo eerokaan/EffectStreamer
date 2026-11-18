@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {spawnSync} = require('node:child_process');
 const {checkoutPaths}=require('../../common/transient-paths.cjs');
-const {normalizeConfig,publicBootstrap,loadConfig} = require('../../est-server/src/bootstraps/configManager.js');
+const {normalizeConfig,publicBootstrap} = require('../../est-server/src/bootstraps/configManager.js');
 const {localConfig,remoteConfig} = require('./fixtures/config.js');
 
 function groupedConfig(mode = 'local') {
@@ -199,31 +199,43 @@ test('runtime configuration objects do not share mutable policy or supplied obje
 });
 
 test('core resource selection is automatic for source builds and packaged Linux/Windows', () => {
-    const {resources,coreExecutable}=require('../../est-server/src/bootstraps/resources.js');
+    const {coreExecutable}=require('../../est-server/src/bootstraps/resources.js');
     assert.equal(coreExecutable({packaged:true,platform:'linux',executable:'/opt/study/est-server'}),'/opt/study/core/est-core');
     assert.equal(coreExecutable({packaged:true,platform:'win32',executable:'C:\\study\\est-server.exe'}),'C:\\study\\core\\est-core.exe');
     assert.equal(coreExecutable({packaged:false,platform:'linux'}),checkoutPaths().path('est-core','build','linux','est-core'));
     assert.equal(coreExecutable({packaged:false,platform:'win32'}),checkoutPaths().path('est-core','build','win','est-core.exe'));
-    const config=normalizeConfig(remoteConfig()),result=resources(config);
-    assert.equal(result.config.remote.coreExecutable,coreExecutable());
+    assert.equal(normalizeConfig(remoteConfig()).remote.coreExecutable,coreExecutable());
 });
 for(const mode of ['local','remote'])test(`${mode}-use server loads est-server.config.json from the account home`,t=>{
     const home=checkoutPaths().temporaryDirectory('est-server','config home-');
     t.after(()=>fs.rmSync(home,{recursive:true,force:true}));
     const directory=path.join(home,'effectstreamer');fs.mkdirSync(directory);
     fs.writeFileSync(path.join(directory,'est-server.config.json'),JSON.stringify(mode==='local'?localConfig():remoteConfig()));
-    const env={...process.env,HOME:home,USERPROFILE:home};delete env.EST_CONFIG_PATH;
+    const env={...process.env,HOME:home,USERPROFILE:home};
     const module=path.resolve(__dirname,'../../est-server/src/bootstraps/configManager.js');
     const result=spawnSync(process.execPath,['-e',`console.log(require(${JSON.stringify(module)}).loadConfig().deployment.mode)`],{cwd:home,env,encoding:'utf8'});
     assert.equal(result.status,0,result.stderr);
     assert.equal(result.stdout.trim(),mode);
 });
-test('EST_CONFIG_PATH overrides the home path without changing working directory', (t) => {
-    const dir=checkoutPaths().temporaryDirectory('est-server','est-config-');
-    t.after(() => fs.rmSync(dir,{recursive:true,force:true}));
-    const p=path.join(dir,'config.json'); fs.writeFileSync(p,JSON.stringify(localConfig()));
-    const old=process.env.EST_CONFIG_PATH;
-    t.after(() => { if(old === undefined) delete process.env.EST_CONFIG_PATH; else process.env.EST_CONFIG_PATH=old; });
-    process.env.EST_CONFIG_PATH=p;
-    assert.equal(loadConfig().deployment.mode,'local');
+test('server startup stores enrollments under the account home', t=>{
+    const home=checkoutPaths().temporaryDirectory('est-server','results home-');
+    t.after(()=>fs.rmSync(home,{recursive:true,force:true}));
+    const directory=path.join(home,'effectstreamer');fs.mkdirSync(directory);
+    fs.writeFileSync(path.join(directory,'est-server.config.json'),JSON.stringify(localConfig()));
+    const result=spawnSync(process.execPath,['-e',`
+        const {loadConfig}=require('./src/bootstraps/configManager.js');
+        const {createCoordinator}=require('./src/server.js');
+        (async()=>{
+            const app=createCoordinator({config:loadConfig()});
+            try {
+                await app.ready;
+                app.enrollments.admit({identity:'client-a'});
+            } finally {
+                await app.close();
+            }
+        })().catch(error=>{console.error(error);process.exitCode=1;});
+    `],{cwd:path.resolve(__dirname,'../../est-server'),env:{...process.env,HOME:home,USERPROFILE:home},encoding:'utf8',timeout:10000});
+    assert.equal(result.status,0,result.stderr || result.error?.message);
+    const records=JSON.parse(fs.readFileSync(path.join(directory,'sessions','enrollments.json'),'utf8'));
+    assert.deepEqual(records.map(record=>record.identity),['client-a']);
 });

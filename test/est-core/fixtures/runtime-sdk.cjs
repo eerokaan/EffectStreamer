@@ -1,5 +1,6 @@
 const fs=require('node:fs');
 const path=require('node:path');
+const {createTransientPaths}=require('../../../common/transient-paths.cjs');
 function runtimeFixture(root,target='linux') {
     const win=target==='win',sdk=path.join(root,'sdk'),lib=path.join(sdk,win?'lib':'lib/x86_64-linux-gnu'),plugins=path.join(lib,'gstreamer-1.0');
     fs.mkdirSync(plugins,{recursive:true});
@@ -12,4 +13,15 @@ function runtimeFixture(root,target='linux') {
     fs.writeFileSync(executable,'source-built-core');fs.writeFileSync(netsimPlugin,'netsim');
     return {target,sdk,executable,netsimPlugin};
 }
-module.exports={runtimeFixture};
+function runtimeCheckout(root,input,files) {
+    const checkout=path.join(root,'checkout'),repo=path.resolve(__dirname,'../../..');
+    for(const file of ['common/transient-paths.cjs',...files]) {
+        const destination=path.join(checkout,file);
+        fs.mkdirSync(path.dirname(destination),{recursive:true});
+        fs.copyFileSync(path.join(repo,file),destination);
+    }
+    const paths=createTransientPaths({anchor:checkout});
+    fs.copyFileSync(input.executable,path.join(paths.directory('est-core','build',input.target),input.target==='win'?'est-core.exe':'est-core'));
+    return {checkout,paths};
+}
+module.exports={runtimeFixture,runtimeCheckout};

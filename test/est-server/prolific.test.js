@@ -145,7 +145,7 @@ test('queued setup and pretest resume only under the language selected at enroll
     const file=path.join(root,'enrollments.json'),bytes=fs.readFileSync(file,'utf8'),entries=fs.readdirSync(root).sort();
     await app.close();app=null;
 
-    assert.throws(()=>{app=start('en');},/sessions\.general\.language.*de.*en.*original language.*clean.*data root/i);
+    assert.throws(()=>{app=start('en');},/sessions\.general\.language.*study language de; configured language is en\b/i);
     assert.equal(fs.readFileSync(file,'utf8'),bytes,'refusal must not retag, discard answers or assign an outcome');
     assert.deepEqual(fs.readdirSync(root).sort(),entries);
 
@@ -153,7 +153,7 @@ test('queued setup and pretest resume only under the language selected at enroll
     assert.equal(stored.sessionLanguage,'de');
     const legacy={...stored};delete legacy.sessionLanguage;
     const legacyBytes=JSON.stringify([legacy]);fs.writeFileSync(file,legacyBytes);
-    assert.throws(()=>{app=start('de');},/sessions\.general\.language.*missing.*original language.*clean.*data root/i);
+    assert.throws(()=>{app=start('de');},/sessions\.general\.language.*study language missing or invalid; configured language is de\b/i);
     assert.equal(fs.readFileSync(file,'utf8'),legacyBytes);
     fs.writeFileSync(file,bytes);
 

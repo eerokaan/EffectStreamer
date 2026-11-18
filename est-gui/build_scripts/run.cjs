@@ -17,6 +17,24 @@ function application(paths) {
     writeFileDirectSync(path.join(app,'package.json'),JSON.stringify({...require('../package.json'),main:'out/main/index.js'},null,2)+'\n');
     return app;
 }
+function reserveDistribution(target) {
+    const output=path.resolve(process.env.EST_DISTRIBUTION_DIR || path.join(project,'dist',target));
+    // Walk one component at a time: recursive mkdir would follow a symlinked
+    // dist (or override ancestor) and create the new release outside it.
+    let parent=path.parse(output).root;
+    for(const part of path.relative(parent,path.dirname(output)).split(path.sep).filter(Boolean)) {
+        parent=path.join(parent,part);
+        try {fs.mkdirSync(parent,{mode:0o700});} catch(error) {
+            if(error.code!=='EEXIST')throw error;
+            if(!fs.lstatSync(parent).isDirectory())throw new Error('Unsafe distribution ancestor (symlink or non-directory): '+parent);
+        }
+    }
+    try {fs.mkdirSync(output,{mode:0o700});} catch(error) {
+        if(error.code==='EEXIST')throw new Error('Refusing to overwrite existing distribution: '+output+'; choose a new EST_DISTRIBUTION_DIR');
+        throw error;
+    }
+    return output;
+}
 function validateArguments(command,args) {
     const flags={
         'web-build':['--watch','--sourcemap','--emptyOutDir','--help','-h'],
@@ -58,12 +76,7 @@ async function runGui(command,args=[],{spawnTool=(executable,argv,options)=>runT
             const target=command==='package'?args[0]:null;
             if(target && !['linux','win'].includes(target))throw new Error('Package target must be linux or win');
             if(command==='package' && !target)throw new Error('Package target is required');
-            const output=command==='package'?path.resolve(process.env.EST_DISTRIBUTION_DIR || path.join(project,'dist')):null;
-            if(output) {
-                fs.mkdirSync(path.dirname(output),{recursive:true});
-                try{fs.mkdirSync(output,{mode:0o700});}catch(error){if(error.code==='EEXIST')throw new Error('Refusing to overwrite existing distribution: '+output+'; choose a new EST_DISTRIBUTION_DIR');throw error;}
-                reservedOutput=output;
-            }
+            if(command==='package')reservedOutput=reserveDistribution(target);
             const action=command==='package'?'build':{'electron-dev':'dev','electron-preview':'preview','electron-build':'build'}[command];
             if(!action)throw new Error('Unknown GUI command: '+command);
             const app=application(paths),work=paths.temporaryDirectory('est-gui','electron-config-'),proxy=path.join(work,'electron.config.cjs');
@@ -74,12 +87,16 @@ async function runGui(command,args=[],{spawnTool=(executable,argv,options)=>runT
             const code=await spawn([bin('electron-vite'),action,'--config',proxy,...(action==='build'?[]:['--entry',app]),...(command==='package'?[]:args),...(action==='build'?[]:['--','--no-sandbox'])]);
             if(command!=='package' || code!==0)return finish(code);
             const config=path.join(work,'electron-builder.json');
-            writeFileDirectSync(config,JSON.stringify({extends:path.join(project,'electron-builder.yml'),directories:{app,output,buildResources:path.join(project,'build')},
-                files:['out/**/*','package.json'],extraResources:[{from:path.join(project,'public/audio'),to:'audio'}],afterPack:path.join(project,'build_scripts/afterPack.js'),npmRebuild:false,
+            writeFileDirectSync(config,JSON.stringify({extends:path.join(project,'electron-builder.yml'),directories:{app,output:reservedOutput,buildResources:path.join(project,'build')},
+                files:['out/**/*','package.json'],extraResources:[{from:path.join(project,'src/shared/public/audio'),to:'audio'}],afterPack:path.join(project,'build_scripts/afterPack.js'),npmRebuild:false,
                 ...(target==='linux' && process.platform==='linux' || target==='win' && process.platform==='win32'?{electronDist:path.join(project,'node_modules/electron/dist')}:{})},null,2)+'\n');
             return finish(await spawn([bin('electron-builder','electron-builder'),'--'+target,'--projectDir',app,'--config',config,'--publish','never',...args.slice(1)]));
         }
-        if(command==='web-build') {paths.directory('est-gui','web');return await spawn([bin('vite'),'build','--config',path.join(project,'vite.web.config.mjs'),'--configLoader','runner',...args]);}
+        if(command==='web-build') {
+            if(args.includes('--help') || args.includes('-h'))return await spawn([bin('vite'),'build','--help']);
+            reservedOutput=reserveDistribution('web');
+            return finish(await spawn([bin('vite'),'build','--config',path.join(project,'vite.web.config.mjs'),'--configLoader','runner','--outDir',reservedOutput,...args]));
+        }
         if(command==='lint')return await spawn([bin('eslint'),'--cache','--cache-location',paths.path('est-gui','cache','eslint'),'--fix','.',...args]);
         throw new Error('Unknown GUI command: '+command);
     } catch(error) {if(reservedOutput)console.error('Build failed; incomplete distribution may remain at '+reservedOutput);throw error;}

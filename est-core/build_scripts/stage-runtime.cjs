@@ -1,13 +1,15 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const {createHash} = require('node:crypto');
+const {checkoutPaths} = require('../../common/transient-paths.cjs');
 
 async function stageRuntime({target, sdk, executable, netsimPlugin, destination}) {
     if (!['linux', 'win'].includes(target)) throw new Error('TARGET_OS must be linux or win');
     if (!destination) throw new Error('A new destination directory is required');
     try {await fs.access(destination);throw new Error('Refusing to overwrite existing resources: ' + destination);} catch (error) {if (error.code !== 'ENOENT') throw error;}
-    if (!sdk || !executable || !netsimPlugin) throw new Error('SDK, source-built core and EST_NETSIM_PLUGIN inputs are required');
+    if (!sdk || !netsimPlugin) throw new Error('SDK and EST_NETSIM_PLUGIN inputs are required');
     const windows = target === 'win', suffix = windows ? '.dll' : '.so';
+    executable ??= checkoutPaths().path('est-core', 'build', target, windows ? 'est-core.exe' : 'est-core');
     const sourceLib = path.join(sdk, windows ? 'lib' : 'lib/x86_64-linux-gnu');
     const sourcePlugins = path.join(sourceLib, 'gstreamer-1.0');
     const plugins = ['coreelements','app','audioconvert','audioresample','audiobuffersplit','adder','volume','rawparse','wavenc','wavparse','webrtc','opus','nice','dtls','srtp','rtp','rtpmanager','udp',windows ? 'wasapi2' : 'alsa'];
@@ -39,5 +41,5 @@ async function stageRuntime({target, sdk, executable, netsimPlugin, destination}
         return destination;
     } catch (error) {error.message+='; incomplete resources may remain at '+output;throw error;}
 }
-if (require.main === module) void stageRuntime({target:process.env.TARGET_OS || 'linux',sdk:process.env.SDK,executable:process.env.EST_CORE_EXECUTABLE,netsimPlugin:process.env.EST_NETSIM_PLUGIN,destination:process.argv[2]}).then(value=>console.log('Staged runtime: '+value)).catch(error=>{console.error(error.message);process.exitCode=1;});
+if (require.main === module) void stageRuntime({target:process.env.TARGET_OS || 'linux',sdk:process.env.SDK,netsimPlugin:process.env.EST_NETSIM_PLUGIN,destination:process.argv[2]}).then(value=>console.log('Staged runtime: '+value)).catch(error=>{console.error(error.message);process.exitCode=1;});
 module.exports = {stageRuntime};

@@ -10,7 +10,7 @@ const { PortAllocator } = require("../../est-server/src/media/PortAllocator.js")
 const { MediaWorker } = require("../../est-server/src/media/MediaWorker.js");
 const { RemoteMediaAdapter } = require("../../est-server/src/media/RemoteMediaAdapter.js");
 
-const executable = process.env.EST_CORE_EXECUTABLE || checkoutPaths().path('est-core','build','linux','est-core');
+const executable = checkoutPaths().path('est-core','build','linux','est-core');
 const peerExecutable = path.join(path.dirname(executable), "webrtc-peer");
 function settings() { return { coreExecutable: executable, icePortRange: [46000, 46999], iceServers: [], playbackDrainMs: 10, startupTimeoutMs: 6000, stopTimeoutMs: 7000, jitterMs: 20, opusBitrate: 128000, rtpFrames: 128 }; }
 function scope(id) { return { sessionId: "session-" + id, attemptId: "attempt-" + id, participants: ["a-" + id, "b-" + id] }; }

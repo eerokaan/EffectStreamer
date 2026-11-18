@@ -4,7 +4,7 @@
 
 This is the EffectStreamer Server – it orchestrates the entire experiment; managing state, coordinating all connected participants, collecting evaluation data, and serving as the single source of truth via a central configuration file.
 
-The server writes to `~/effectstreamer/sessions` (override with `EST_RESULTS_ROOT`). Each pair has a UUID directory with `session.json`, condition settings/forms/ratings, and recording attempts under `attempts/<attemptId>/<participantId>/{microphone,headphones}.wav`. New session manifests and enrollments record `sessionLanguage`. `enrollments.json` stores stable identities and hashed reconnect credentials; chunk/receipt bookkeeping allows retries.
+The server writes to `~/effectstreamer/sessions` on Linux or `%USERPROFILE%\effectstreamer\sessions` on Windows. Each pair has a UUID directory with `session.json`, condition settings/forms/ratings, and recording attempts under `attempts/<attemptId>/<participantId>/{microphone,headphones}.wav`. New session manifests and enrollments record `sessionLanguage`. `enrollments.json` stores stable identities and hashed reconnect credentials; chunk/receipt bookkeeping allows retries.
 
 Application files are saved directly to their destinations. Upload chunks go directly to the final WAV path; a partial or invalid WAV can exist there before completion. Format/size/checksum validation and persisted storage receipts—not filename existence—gate completion and client cleanup. Interrupted JSON/WAV writes can leave corrupt or incomplete data; keep study data on persistent storage and back it up. Stored enrollments require a finite, nonnegative integer `admissionLastActiveAt`; invalid records fail startup without being rewritten.
 
@@ -24,9 +24,9 @@ Both examples expose the same settings in the same order: `server`, `remote`, `p
 | Linux | `~/effectstreamer/est-server.config.json` |
 | Windows | `%USERPROFILE%\effectstreamer\est-server.config.json` |
 
-The home directory belongs to the account running the server, which may be a service account. Set `EST_CONFIG_PATH` to select another private file for a standalone deployment or service. Remote-use browser participants need no GUI configuration file.
+The home directory belongs to the account running the server, which may be a service account. Remote-use browser participants need no GUI configuration file.
 
-For remote-use, replace study IDs/codes/DNS and provide a private TURN secret before deployment. For remote same-origin hosting, `EST_WEB_ROOT` overrides the adjacent packaged `web` directory (development default: managed `est-gui/web` under `/tmp/effectstreamer`). A missing web build prevents startup; rebuild it after transient cleanup.
+For remote-use, replace study IDs/codes/DNS and provide a private TURN secret before deployment. The coordinator serves only the API and Socket.IO; it neither packages nor serves the frontend. Publish the contents of `est-gui/dist/web/` at the external HTTPS document root and proxy same-origin `/api/` (including uploads) and `/socket.io/` to the coordinator. See [deployment networking](../deployment/README.md#networking) for entry routes and WebSocket upgrade configuration.
 
 For local-use on Linux:
 
@@ -146,7 +146,7 @@ The `server` values define where the server listens for `est-gui` clients. `ipAd
 
 ### Remote config
 
-Only deployment networking is configurable here: `icePortRange` is the public UDP range for core ICE candidates; `iceServers` contains objects with `urls` (a URL string or list); `turnUrls` lists the TURN UDP/TCP/TLS endpoints; `turnSecret` is the private shared secret used to generate expiring credentials. The ICE range must not overlap the fixed private RTP range `40000`–`49999`. Prefer `EST_TURN_SECRET` over storing a secret in JSON. Local-use retains these same fields with empty server/URL lists.
+Only deployment networking is configurable here: `icePortRange` is the public UDP range for core ICE candidates; `iceServers` contains objects with `urls` (a URL string or list); `turnUrls` lists the TURN UDP/TCP/TLS endpoints; `turnSecret` is the private shared secret used to generate expiring credentials. The ICE range must not overlap the fixed private RTP range `40000`–`49999`. Local-use retains these same fields with empty server/URL lists.
 
 ### Prolific config
 
@@ -169,7 +169,7 @@ Set `sessions.general.language` explicitly in the server config. Missing, null o
 
 All clients derive the audio-check sample from the study language: `P501_C_english_f1_FB_48k.wav` for `en` and `P501_C_german_f1_FB_48k.wav` for `de`. There is no filename override or fallback to the other language. This does not change live audio or recordings.
 
-An open, unpaired enrollment with a different or missing language prevents startup before enrollment state is written. To preserve unfinished setup and questionnaires, finish the previous run under its original language and release (use the previous release for records that predate language tagging), or use a separate clean `EST_RESULTS_ROOT`. Do not edit the existing enrollment records. Finished enrollments do not block startup. The session configuration hash includes the language, so an incompatible unfinished pair cannot resume; existing recovery policy ends it with `technicalFailure` without retagging the manifest. Deploy the server, web assets and both local clients as one matching release between studies.
+An open, unpaired enrollment with a different or missing language prevents startup before enrollment state is written. To preserve unfinished setup and questionnaires, finish the study with its original settings and release. Finished enrollments do not block startup. An incompatible unfinished pair ends with `technicalFailure` and keeps its original manifest language. See [Starting a new study](../deployment/README.md#starting-a-new-study) for archiving instructions. Deploy the server, web assets and both local clients as one matching release between studies.
 
 Recording storage limits are derived from `sessions.operatingLimits.maxConditionSeconds` for two mono 48 kHz S16LE tracks per participant, with allowance for shutdown and WAV headers. HTTP upload chunks are 1 MiB, uploads expire after ten minutes, and at most 100 unpaired participants can be admitted.
 
@@ -278,11 +278,19 @@ For `select`, `label` is what participants see and `value` is what is saved. The
 
 Browser entry: `https://study.example.org/?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}`. Raw identifiers are recorded as unverified, never used as paths or A/B role selectors. Set `secureUrls`, exact `externalStudyUrl`, `workspaceId` and optional `organisationId` for Prolific's RS256 `prolific_token` verification against its fixed JWKS endpoint. The token lifetime/issuer/audience/query/subject/identifier claims are checked. Manage participant payments and rejections in Prolific. The researcher configures completed/technicalFailure/partnerLeft/waitingTimeout codes and their meaning in Prolific. A successful return link and copyable code come only from server-owned outcome state.
 
-Use `EST_TURN_SECRET` for an environment-secret override, shared with coturn; the secret never appears in public bootstrap. Authenticated per-attempt preparation issues expiring HMAC TURN credentials scoped to the session. `turnUrls` should include reachable UDP, TCP and TLS endpoints. HTTPS is not a media relay. See [deployment networking](../deployment/README.md).
+Set `remote.turnSecret` in the private server config to the shared secret configured in coturn. Authenticated per-attempt preparation uses it to issue expiring HMAC TURN credentials scoped to the session. `turnUrls` should include reachable UDP, TCP and TLS endpoints. HTTPS is not a media relay. See [deployment networking](../deployment/README.md#networking).
 
 Before joining the ready queue, remote admissions expire after `sessions.operatingLimits.pairingTimeoutSeconds` without a successful setup/questionnaire/navigation action (default five minutes). Progress renews this inactivity window; once queued, the original FIFO waiting deadline is not extended by repeated actions. Expiration persists `waitingTimeout`, releases admission capacity, and never permits normal completion or duplicate Prolific reenrollment.
 
 For another local laboratory run, finish/end the current session, then close and relaunch both Electron clients. Each launch uses its saved credentials to resume an unfinished session or obtain a new participant enrollment after a terminal one. The machine labels remain `client-a`/`client-b`; old session directories, tokens and outcomes remain intact. Do not delete enrollment/results files between runs. Remote Prolific submissions remain terminal and cannot use this local renewal path.
+
+#### Interrupted sessions and recording collection
+
+If a remote participant disconnects during a conversation, the coordinator stops the condition and marks the attempt incomplete. If the pair recovers within `reconnectGraceSeconds` and has a retry left under `maxRetries`, the same two participants restart the condition from the beginning. Otherwise the session ends early; neither participant is replaced.
+
+Clients upload recordings after each condition and keep their copies until they receive a [matching storage receipt](#application-protocol). Remote participants should keep the [browser tab](../est-gui/README.md#browser-deployment) open: closing or reloading it can lose audio still in memory.
+
+A coordinator restart ends an active conversation with `technicalFailure`. If the conversation had already stopped and only uploads were pending, clients can still finish them before the original upload deadline when the study configuration is unchanged. The coordinator uses saved credentials, recording manifests and receipts to check what remains to be collected.
 
 ### Linux
 
@@ -310,7 +318,7 @@ Actions carry request, participant, session and attempt identifiers, but identif
 
 ## Compilation
 
-The build bundles the coordinator and worker entry with `ncc` and injects a SEA blob with `postject`. Bundler/SEA inputs and caches use `/tmp/effectstreamer/<user>/<checkout>/est-server`; the executable, core/runtime and web resources are assembled directly in the new final distribution. Existing destinations are never overwritten, but failure may leave partial output. Required inputs: matching `SDK`, `EST_NETSIM_PLUGIN`, a source-built core and managed web build. Defaults are queried with `bash common/transient-paths.sh path est-core build linux est-core` and `... path est-gui web` from the repository root. Set `EST_DISTRIBUTION_DIR` for another new final output. Runtime caches are also disposable; `EST_RESULTS_ROOT` is not. See [deployment/README.md](../deployment/README.md); old tracked core/runtime archives are not source-build evidence.
+The build bundles the coordinator and worker entry with `ncc` and injects a SEA blob with `postject`. Bundler/SEA inputs and caches use `/tmp/effectstreamer/<user>/<checkout>/est-server` on Linux; the executable and core/runtime are assembled directly in the new final distribution. Existing destinations are never overwritten, but failure may leave partial output. Required inputs: matching `SDK`, `EST_NETSIM_PLUGIN` and a source-built core. From the repository root, query the default Linux core path with `bash common/transient-paths.sh path est-core build linux est-core`. Set `EST_DISTRIBUTION_DIR` for another new final output. See [deployment/README.md](../deployment/README.md); old tracked core/runtime archives are not source-build evidence.
 
 ### Linux
 
@@ -321,7 +329,7 @@ npm install
 npm run build:linux
 ```
 
-The Linux distribution is written to `est-server/dist/linux`. Transfer the whole directory, not just the executable. Both local-use and remote-use example configurations are included. The runtime configuration path is `~/effectstreamer/est-server.config.json`, overridable with `EST_CONFIG_PATH`.
+The Linux distribution is written to `est-server/dist/linux`. Transfer the whole directory, not just the executable. Both local-use and remote-use example configurations are included. Copy the selected example to `~/effectstreamer/est-server.config.json`.
 
 ### Windows
 
@@ -332,4 +340,4 @@ npm install
 npm run build:win
 ```
 
-The Windows distribution is written to `est-server/dist/win` with `est-server.exe`, `core/est-core.exe`, matching DLLs, `web/`, and both local-use/remote-use example configurations. The runtime configuration path is `%USERPROFILE%\effectstreamer\est-server.config.json`, overridable with `EST_CONFIG_PATH`. Cross-building it is not a Windows runtime/device acceptance result. Use the matching Node target version and run the installer/package smoke checks on Windows before release.
+The Windows distribution is written to `est-server/dist/win` with `est-server.exe`, `core/est-core.exe`, matching DLLs and both local-use/remote-use example configurations. Copy the selected example to `%USERPROFILE%\effectstreamer\est-server.config.json`. Use the matching Node target version and run the installer/package smoke checks on Windows before release.

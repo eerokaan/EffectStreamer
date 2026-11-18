@@ -20,7 +20,7 @@ class EnrollmentStore {
                 }
                 if (!participant.sessionId && !participant.outcome && participant.sessionLanguage !== sessionLanguage) {
                     const storedLanguage = ["en", "de"].includes(participant.sessionLanguage) ? participant.sessionLanguage : "missing or invalid";
-                    throw new Error(`Cannot start with sessions.general.language: an open, unpaired enrollment in ${this.file} has study language ${storedLanguage}; configured language is ${sessionLanguage}. Finish the previous run under its original language and release, or use a separate clean study data root (EST_RESULTS_ROOT).`);
+                    throw new Error(`Cannot start with sessions.general.language: an open, unpaired enrollment in ${this.file} has study language ${storedLanguage}; configured language is ${sessionLanguage}. Finish the previous study with its original settings and release. To start a new study, archive the sessions directory after finishing the previous study and stopping the coordinator.`);
                 }
                 this.participants.set(participant.participantId, participant);
             }

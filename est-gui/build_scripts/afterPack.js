@@ -1,7 +1,6 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const {stageRuntime} = require('../../est-core/build_scripts/stage-runtime.cjs');
-const {checkoutPaths}=require('../../common/transient-paths.cjs');
 
 module.exports = async function(context) {
     const target = context.electronPlatformName === 'win32' ? 'win' : context.electronPlatformName;
@@ -9,8 +8,7 @@ module.exports = async function(context) {
     const resources = process.env.EST_GUI_CORE_RESOURCES;
     const destination=path.join(context.appOutDir,'resources','est-core');
     if (!resources) {
-        await stageRuntime({target, sdk:process.env.SDK, netsimPlugin:process.env.EST_NETSIM_PLUGIN,
-            executable:process.env.EST_CORE_EXECUTABLE || checkoutPaths().path('est-core','build',target,target === 'win' ? 'est-core.exe' : 'est-core'), destination});
+        await stageRuntime({target, sdk:process.env.SDK, netsimPlugin:process.env.EST_NETSIM_PLUGIN, destination});
         return;
     }
     await fs.access(path.join(resources, target === 'win' ? 'est-core.exe' : 'est-core'));

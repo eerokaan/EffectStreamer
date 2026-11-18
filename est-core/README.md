@@ -136,7 +136,14 @@ SDK=/absolute/path/to/gst-sdk/build/dist/linux_x86_64 TARGET_OS=linux bash build
 SDK=/absolute/path/to/gst-sdk/build/dist/mingw_x86_64 TARGET_OS=win bash build_scripts/build.sh
 ```
 
-Outputs default to `/tmp/effectstreamer/<user>/<checkout>/est-core/build/linux/est-core` and the corresponding `build/win/est-core.exe`. Query the exact path with `bash ../common/transient-paths.sh path est-core build linux est-core` from `est-core`. `EST_CORE_OUTPUT` and the test-home override `EST_TEST_TMP` must remain inside this checkout's managed temporary namespace. Build locks reject concurrent writes to the same target. The standalone C build does not require Node.js, can run from any working directory, and never copies or deletes SDK/runtime inputs.
+From `est-core/` on the Linux build host, print the default output path for either target without creating any files:
+
+```bash
+bash ../common/transient-paths.sh path est-core build linux est-core
+bash ../common/transient-paths.sh path est-core build win est-core.exe
+```
+
+Both outputs are under `/tmp/effectstreamer/<user>/<checkout>/est-core/build/`. `EST_CORE_OUTPUT` and the test-home override `EST_TEST_TMP` must remain inside this checkout's managed temporary namespace. Build locks reject concurrent writes to the same target. The standalone C build does not require Node.js, can run from any working directory, and never copies or deletes SDK/runtime inputs.
 
 Prefer the script above to hand-maintained compiler commands: it includes the standalone transient-cache initializer and directs compiler scratch into the managed tree. The executable initializes its own temporary/GStreamer registry paths before GStreamer starts, even without a Node host. WAV destinations remain persistent; native recordings write directly to their WAV filenames and are finalized during normal shutdown, not atomically renamed.
 
@@ -146,7 +153,7 @@ The EffectStreamer NetSim plugin is being discovered and loaded in by GStreamer 
 
 However, make sure the `estnetsim` plugin `.so` and `.dll` artifacts were built against the same GStreamer SDK version and target architecture as `est-core`.
 
-Use the Node runtime assembler with the matching `SDK`, `EST_NETSIM_PLUGIN` and source-built `EST_CORE_EXECUTABLE` inputs; see [deployment/README.md](../deployment/README.md). It copies directly into a **new final** core-resource directory, refuses existing destinations, and records input hashes. A failed copy may leave partial resources; inspect/remove only that failed output or choose another new destination before retrying. Node is needed for packaging, not for the C-only build.
+Build the target core before running the Node runtime assembler with the matching `SDK` and `EST_NETSIM_PLUGIN`; see [deployment/README.md](../deployment/README.md). The assembler uses the managed build output for the target, copies directly into a **new final** core-resource directory, refuses existing destinations, and records input hashes. A failed copy may leave partial resources; inspect/remove only that failed output or choose another new destination before retrying. Node is needed for packaging, not for the C-only build.
 
 ### Step 5) Run EffectStreamer Core
 

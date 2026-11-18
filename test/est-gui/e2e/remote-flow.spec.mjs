@@ -17,7 +17,7 @@ for (const recover of [false,true]) test("public Prolific entry pairs the defaul
     raw.pretestForm=[{name:'age',type:'input',inputType:'number',label:'Age',validation:{valueType:'integer',min:18}}];
     raw.prolific={enabled:true,studyId:'browser-study',completionCodes:{completed:'FINISH',technicalFailure:'TECH',partnerLeft:'LEFT',waitingTimeout:'WAIT'}};
     const config = normalizeConfig(raw);
-    Object.assign(config.remote, { coreExecutable: process.env.EST_CORE_EXECUTABLE || checkoutPaths().path('est-core','build','linux','est-core'), internalPortRange: [35200, 35299], icePortRange: [47500, 47999], playbackDrainMs: 50, startupTimeoutMs: 20000 });
+    Object.assign(config.remote, { coreExecutable: checkoutPaths().path('est-core','build','linux','est-core'), internalPortRange: [35200, 35299], icePortRange: [47500, 47999], playbackDrainMs: 50, startupTimeoutMs: 20000 });
     const app = createCoordinator({ config, root });
     const vite = await createServer({ configFile: path.resolve("vite.web.config.mjs"), configLoader:'runner', server: { middlewareMode: true }, appType: "custom" });
     app.app.use(vite.middlewares);app.app.get("/flow-test", (_request, response) => response.type("html").send('<!doctype html><button id="setup">Test audio</button>'));

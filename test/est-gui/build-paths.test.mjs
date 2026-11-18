@@ -1,17 +1,19 @@
-import {it,expect} from 'vitest';
+import {it,expect,vi,beforeEach,afterEach} from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import {createRequire} from 'node:module';
-import {loadConfigFromFile} from './tools.mjs';
-import {pathToFileURL} from 'node:url';
+import {build,loadConfigFromFile} from './tools.mjs';
 const require=createRequire(import.meta.url),{checkoutPaths}=require('../../common/transient-paths.cjs');
 const project=path.resolve(import.meta.dirname,'../../est-gui');
-it('web builds and dependency caches are outside the source checkout',async()=>{
+beforeEach(()=>vi.stubEnv('EST_DISTRIBUTION_DIR',undefined));
+afterEach(()=>vi.unstubAllEnvs());
+it('the browser entry is isolated from native entries, with shared public assets and private caches',async()=>{
     const {default:config}=await import('../../est-gui/vite.web.config.mjs');
     const base=checkoutPaths().base;
-    expect(config.build.outDir).toBe(base+'/est-gui/web');
     expect(config.cacheDir).toBe(base+'/est-gui/cache/vite-web');
-    expect(config.root).toBe(project);
+    expect(config.root).toBe(path.join(project,'src/web'));
+    expect(fs.existsSync(path.join(config.root,'index.html'))).toBe(true);
+    expect(config.publicDir).toBe(path.join(project,'src/shared/public'));
 });
 it('Electron dev/preview resolve a managed app and source inputs without bundled-config siblings',async()=>{
     expect(fs.existsSync(path.join(project,'build_scripts/run.cjs'))).toBe(true);
@@ -29,6 +31,7 @@ it('Electron dev/preview resolve a managed app and source inputs without bundled
         const proxy=call.args[call.args.indexOf('--config')+1];
         expect(proxy.startsWith('/tmp/effectstreamer/')).toBe(true);
         const loaded=await loadConfigFromFile({command:'build',mode:'production'},proxy,project,'silent');
+        expect(loaded.config.renderer.publicDir).toBe(path.join(project,'src/shared/public'));
         for(const part of ['main','preload','renderer']) {
             expect(loaded.config[part].build.outDir).toBe(path.join(app,'out',part));
             expect(loaded.config[part].cacheDir.startsWith(checkoutPaths().base+'/est-gui/cache/')).toBe(true);
@@ -44,13 +47,50 @@ function clonedTooling() {
     return {root,paths,runGui:require(path.join(root,'est-gui/build_scripts/run.cjs')).runGui,
         close(){fs.rmSync(paths.base,{recursive:true,force:true});fs.rmSync(root,{recursive:true,force:true});}};
 }
-for(const command of ['web-build','electron-build'])it(`${command} rejects symlinked outputs before a tool can empty another directory`,async()=>{
-    const fixture=clonedTooling(),outside=path.join(fixture.root,'outside');fs.mkdirSync(outside);fs.writeFileSync(path.join(outside,'keep'),'keep');
-    const link=command==='web-build'?path.join(fixture.paths.directory('est-gui'),'web'):path.join(fixture.paths.directory('est-gui','app'),'out');
-    fs.symlinkSync(outside,link);
+it('standalone Vite builds require an explicit destination instead of silently publishing a second bundle',async()=>{
+    const fixture=clonedTooling();
     try {
-        await expect(fixture.runGui(command,[],{spawnTool:async()=>0})).rejects.toThrow(/symlink|unsafe/i);
-        if(command==='web-build')await expect(import(pathToFileURL(path.join(fixture.root,'est-gui/vite.web.config.mjs')).href)).rejects.toThrow(/symlink|unsafe/i);
+        const gui=path.join(fixture.root,'est-gui');
+        fs.mkdirSync(path.join(gui,'src/web'),{recursive:true});
+        fs.writeFileSync(path.join(gui,'src/web/index.html'),'<!doctype html><title>Build fixture</title>');
+        await expect(build({configFile:path.join(gui,'vite.web.config.mjs'),configLoader:'runner',logLevel:'silent'})).rejects.toThrow(/build:web|outDir/);
+    } finally {fixture.close();}
+});
+it('electron-build rejects a symlinked application output before a tool can empty another directory',async()=>{
+    const fixture=clonedTooling(),outside=path.join(fixture.root,'outside');fs.mkdirSync(outside);fs.writeFileSync(path.join(outside,'keep'),'keep');
+    fs.symlinkSync(outside,path.join(fixture.paths.directory('est-gui','app'),'out'));
+    try {
+        await expect(fixture.runGui('electron-build',[],{spawnTool:async()=>0})).rejects.toThrow(/symlink|unsafe/i);
+        expect(fs.readFileSync(path.join(outside,'keep'),'utf8')).toBe('keep');
+    } finally {fixture.close();}
+});
+const releases=[['web','web-build',[]],['linux','package',['linux']],['win','package',['win']]];
+for(const [target,command,args] of releases)it(`${target} reserves only its target under dist and refuses an existing release`,async()=>{
+    const fixture=clonedTooling(),dist=path.join(fixture.root,'est-gui/dist'),targetDir=path.join(dist,target);
+    const legacy=path.join(dist,'EffectStreamer-1.0.0-Linux.AppImage');
+    try {
+        fs.mkdirSync(dist);fs.writeFileSync(legacy,'legacy');
+        const calls=[];
+        expect(await fixture.runGui(command,args,{spawnTool:async(_node,argv)=>{calls.push(argv);return 0;}})).toBe(0);
+        expect(fs.statSync(targetDir).isDirectory()).toBe(true);
+        const argv=calls.at(-1);
+        const output=command==='web-build'?argv[argv.indexOf('--outDir')+1]:JSON.parse(fs.readFileSync(argv[argv.indexOf('--config')+1])).directories.output;
+        expect(output).toBe(targetDir);
+        fs.writeFileSync(path.join(targetDir,'keep'),'release');
+        await expect(fixture.runGui(command,args,{spawnTool:async()=>0})).rejects.toThrow(/exist|overwrite/i);
+        expect(fs.readFileSync(path.join(targetDir,'keep'),'utf8')).toBe('release');
+        expect(fs.readFileSync(legacy,'utf8')).toBe('legacy');
+    } finally {fixture.close();}
+});
+for(const [target,command,args] of releases)it(`${target} refuses a symlinked dist ancestor or target`,async()=>{
+    const fixture=clonedTooling(),dist=path.join(fixture.root,'est-gui/dist'),outside=path.join(fixture.root,'outside');
+    try {
+        fs.mkdirSync(outside);fs.writeFileSync(path.join(outside,'keep'),'keep');
+        fs.symlinkSync(outside,dist);
+        await expect(fixture.runGui(command,args,{spawnTool:async()=>0})).rejects.toThrow(/symlink|unsafe/i);
+        fs.unlinkSync(dist);fs.mkdirSync(dist);fs.symlinkSync(outside,path.join(dist,target));
+        await expect(fixture.runGui(command,args,{spawnTool:async()=>0})).rejects.toThrow(/symlink|unsafe|exist|overwrite/i);
+        expect(fs.readdirSync(outside)).toEqual(['keep']);
         expect(fs.readFileSync(path.join(outside,'keep'),'utf8')).toBe('keep');
     } finally {fixture.close();}
 });

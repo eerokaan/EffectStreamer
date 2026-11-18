@@ -29,7 +29,7 @@ SDK=/absolute/path/to/gst-sdk/build/dist/mingw_x86_64 TARGET_OS=win npm --prefix
 
 These Bash commands share the application build's SDK/compiler setup and output lock. They compile fixtures from `test/est-core/fixtures/`, writing `est-core[.exe]` and `webrtc-peer[.exe]` as siblings under the managed temporary build directory. They do not modify tracked distribution binaries.
 
-Tests default to the managed Linux build. `EST_CORE_EXECUTABLE` selects another compatible core; place its matching `webrtc-peer` beside it. Configure matching GStreamer library/plugin paths as described in the [deployment instructions](../deployment/README.md). Native ALSA integration also needs a working `null` device. Some GUI integration cases additionally require `EST_NATIVE_INTEGRATION=1`.
+Native integration tests use `est-core` and its matching `webrtc-peer` from the managed Linux build. Configure matching GStreamer library/plugin paths as shown below. Native ALSA integration also needs a working `null` device. Some GUI integration cases additionally require `EST_NATIVE_INTEGRATION=1`.
 
 For source-built Linux executables, keep the matching SDK runtime and the real custom `estnetsim` plugin available when running tests (building alone does not configure the parent shell):
 
@@ -75,7 +75,7 @@ npm --prefix test run test:audio-browser -- --list
 
 ### Browser tests
 
-Install Playwright's browsers and required host libraries using its normal platform setup, then run the browser suites explicitly:
+Install Playwright's browsers and required host libraries using its normal platform setup, then run the browser suites explicitly. The production-frontend E2E tests serve `est-gui/dist/web/` using the test harness. Build the current site at that default path first; if rebuilding, move the previous `dist/web` aside because release builds refuse existing destinations.
 
 ```bash
 npm --prefix test exec -- playwright install chromium firefox webkit
@@ -111,4 +111,4 @@ Optional packaged checks use `EST_PACKAGED_SERVER` for a packaged server, `EST_P
 
 ## Temporary files
 
-Launchers work independently of the caller's working directory and preserve child exit codes. Reports, coverage, browser profiles, compiler scratch and fixtures use the managed `/tmp/effectstreamer/<user>/<checkout>/...` tree on Linux and the system temporary directory's equivalent subtree on native Windows. Installed dependencies and npm lockfiles remain in the test directory. Explicit report, configuration and output overrides that escape managed paths are rejected. Clearing temporary storage requires rebuilding native/web prerequisites.
+Launchers work independently of the caller's working directory and preserve child exit codes. Reports, coverage, browser profiles, compiler scratch and fixtures use the managed `/tmp/effectstreamer/<user>/<checkout>/...` tree on Linux and the system temporary directory's equivalent subtree on native Windows. Installed dependencies and npm lockfiles remain in the test directory. Explicit report, configuration and output overrides that escape managed paths are rejected. Clearing temporary storage requires rebuilding native test executables; the `est-gui/dist/web/` release persists.

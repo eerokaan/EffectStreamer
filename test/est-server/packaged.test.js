@@ -9,7 +9,7 @@ const net=require('node:net');
 const {remoteConfig}=require('./fixtures/config.js');
 const {checkoutPaths}=require('../../common/transient-paths.cjs');
 const packaged=process.env.EST_PACKAGED_SERVER;
-function cleanEnv(home){return {HOME:home,PATH:'/no-external-node',EST_SERVER_TYPE:'media-worker'};}
+function cleanEnv(home){return {HOME:home,USERPROFILE:home,PATH:'/no-external-node',EST_SERVER_TYPE:'media-worker'};}
 function message(child,predicate,timeout=20000){return new Promise((resolve,reject)=>{
     const timer=setTimeout(()=>finish(new Error('Packaged process message timeout')),timeout);
     const read=value=>{if(predicate(value))finish(null,value);},exit=code=>finish(new Error('Packaged process exited '+code));
@@ -31,21 +31,23 @@ test('SEA worker starts four bundled cores with loss enabled and no external Nod
     for(const pid of pids)assert.throws(()=>process.kill(pid,0),/ESRCH/);
     await request('dispose');await once(child,'close');assert.equal(child.exitCode,0,stderr);
 });
-test('staged Linux native utilities reopen ALSA null and decode both adjacent P.501 assets',{skip:!packaged,timeout:15000},async t=>{
+test('staged Linux native utilities reopen ALSA null and decode both external P.501 samples',{skip:!packaged,timeout:15000},async t=>{
     const root=checkoutPaths().temporaryDirectory('est-server','est-staged-native-');t.after(()=>fs.rm(root,{recursive:true,force:true}));
     const base=path.dirname(path.resolve(packaged)),executable=path.join(base,'core','est-core'),env=coreEnvironment({executable,env:cleanEnv(root)});
     for(const args of [
         ['--mode','test-input','--device-type','alsa','--device-id','null','--test-duration-ms','50'],
-        ...['german','english'].map(language=>['--mode','test-output','--device-type','alsa','--device-id','null','--test-file',path.join(base,`web/audio/P501_C_${language}_f1_FB_48k.wav`)])
+        ...['german','english'].map(language=>['--mode','test-output','--device-type','alsa','--device-id','null','--test-file',path.resolve(__dirname,`../../est-gui/src/shared/public/audio/P501_C_${language}_f1_FB_48k.wav`)])
     ]) {const result=spawnSync(executable,args,{env,cwd:root,encoding:'utf8',timeout:10000});assert.equal(result.status,0,result.stderr);assert.equal(JSON.parse(result.stdout).ok,true);}
 });
-test('SEA coordinator serves its adjacent production web build from an unrelated working directory',{skip:!packaged,timeout:30000},async t=>{
+test('SEA coordinator serves API and Socket.IO without a bundled web directory',{skip:!packaged,timeout:30000},async t=>{
+    await assert.rejects(fs.stat(path.join(path.dirname(path.resolve(packaged)),'web')),{code:'ENOENT'});
     const root=checkoutPaths().temporaryDirectory('est-server','est-sea-server-');t.after(()=>fs.rm(root,{recursive:true,force:true}));
     const listener=net.createServer();listener.listen(0,'127.0.0.1');await once(listener,'listening');const port=listener.address().port;await new Promise(resolve=>listener.close(resolve));
     const raw=remoteConfig();delete raw.remote;raw.server={...raw.server,ipAddress:'127.0.0.1',port};raw.sessions.general.language='en';
     raw.prolific={enabled:true,studyId:'sea-study',completionCodes:{completed:'DONE',technicalFailure:'TECH',partnerLeft:'LEFT',waitingTimeout:'WAIT'},secureUrls:true,externalStudyUrl:'https://study.example.org/',workspaceId:'sea-workspace'};
-    const file=path.join(root,'config.json');await fs.writeFile(file,JSON.stringify(raw));
-    const child=spawn(path.resolve(packaged),[],{cwd:root,env:{...cleanEnv(root),EST_SERVER_TYPE:'server',EST_CONFIG_PATH:file,EST_RESULTS_ROOT:path.join(root,'results')},stdio:['ignore','pipe','pipe']});t.after(()=>reap(child));let stderr='',stdout='';child.stderr.on('data',bytes=>stderr+=bytes);
+    const home=path.join(root,'home'),directory=path.join(home,'effectstreamer');await fs.mkdir(directory,{recursive:true});
+    await fs.writeFile(path.join(directory,'est-server.config.json'),JSON.stringify(raw));
+    const child=spawn(path.resolve(packaged),[],{cwd:root,env:{...cleanEnv(home),EST_SERVER_TYPE:'server'},stdio:['ignore','pipe','pipe']});t.after(()=>reap(child));let stderr='',stdout='';child.stderr.on('data',bytes=>stderr+=bytes);
     await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('Server startup timeout: '+stderr)),15000);child.stdout.on('data',bytes=>{stdout+=bytes;if(stdout.includes('Listening on')){clearTimeout(timer);resolve();}});child.once('exit',()=>{clearTimeout(timer);reject(new Error(stderr));});});
     const url='http://127.0.0.1:'+port;
     const invalidToken=Buffer.from(JSON.stringify({alg:'HS256',kid:'test'})).toString('base64url')+'.'+Buffer.from('{}').toString('base64url')+'.AAAA';
@@ -53,7 +55,8 @@ test('SEA coordinator serves its adjacent production web build from an unrelated
     assert.equal(admission.status,409);assert.match((await admission.json()).error,/algorithm|alg.*allowed/i,'SEA must include its secured-URL verifier, not fail on a missing JS chunk');
     const config=await(await fetch(url+'/api/config')).json();assert.equal(config.mode,'remote');assert.equal(config.remote,undefined);
     assert.equal(config.sessionLanguage,'en');assert.ok(!Object.hasOwn(config,'testAsset'));
-    for(const route of ['/', '/audio/P501_C_german_f1_FB_48k.wav', '/audio/P501_C_english_f1_FB_48k.wav']){const response=await fetch(url+route);assert.equal(response.status,200,route+': '+(response.ok?'':await response.text())+' '+stderr);}
-    const html=await(await fetch(url+'/')).text();const asset=html.match(/src="([^"]+\.js)"/)[1];const script=await fetch(url+asset);assert.equal(script.status,200);assert.match(script.headers.get('content-type'),/javascript/);
+    for(const route of ['/', '/experiment', '/audio/P501_C_german_f1_FB_48k.wav', '/audio/P501_C_english_f1_FB_48k.wav']) assert.equal((await fetch(url+route)).status,404,route);
+    const handshake=await fetch(url+'/socket.io/?EIO=4&transport=polling');assert.equal(handshake.status,200);
+    const packet=await handshake.text();assert.equal(packet[0],'0');assert.ok(JSON.parse(packet.slice(1)).upgrades.includes('websocket'));
     await reap(child);assert.equal(child.exitCode,0,stderr);
 });
