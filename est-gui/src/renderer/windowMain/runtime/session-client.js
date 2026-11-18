@@ -26,9 +26,6 @@ export function createSessionClient({ transport, participantId, onSnapshot = () 
     listen(EVENTS.recordingRequest, value => command({ ...value, type: "collectRecordings" }));
     listen("connect_error", onError);
     listen("disconnect", reason => command({ type: "disconnected", reason }));
-    // Temporary translation while native coordinator commands migrate to MediaAdapter.
-    listen("est-event:coreStartRequest", value => command({ ...value, type: "prepareCore" }));
-    listen("est-event:coreStopRequest", value => command({ ...value, type: "stopCore" }));
     return {
         snapshot: () => current,
         dispatch(type, payload = {}, { scope } = {}) {

@@ -32,7 +32,7 @@ Runtime configuration belongs to the account running the application, not its in
 | Server, local-use or remote-use | `~/effectstreamer/est-server.config.json` | `%USERPROFILE%\effectstreamer\est-server.config.json` |
 | Electron GUI, local-use | `~/effectstreamer/est-gui.config.json` | `%USERPROFILE%\effectstreamer\est-gui.config.json` |
 
-Copy the chosen example to its runtime filename; both server examples explicitly set `server.mode` and share the same supported settings. Remote-use browser participants need no GUI JSON file. `EST_CONFIG_PATH` selects an alternative server configuration, including a private service/container mount. Existing installations must rename the previous `config-server.json`/`config-gui.json` files; there is no automatic migration or fallback lookup. Older server configurations must also move deployment settings into `server` and audio setup/duration into `sessions`; removed transport tuning options are rejected. See the [server configuration migration](est-server/README.md#configuration-migration).
+Copy the chosen example to its runtime filename; both server examples explicitly set `server.mode` and share the same supported settings. Remote-use browser participants need no GUI JSON file. `EST_CONFIG_PATH` selects an alternative server configuration, including a private service/container mount. Only the documented configuration fields are supported; unknown keys are rejected.
 
 Both modes save `microphone.wav` and `headphones.wav` as 48 kHz mono S16LE PCM. Local taps are the core microphone and playback mix; remote taps are the original microphone stream before Opus encoding and the received decoded playback stream. They do not represent physical sound at the ears, system output-volume changes, or hardware processing.
 
@@ -56,9 +56,9 @@ bash common/transient-paths.sh path est-core build win est-core.exe
 bash common/transient-paths.sh path est-gui web
 ```
 
-All project-owned saves write directly to their destinations, including JSON, uploaded WAVs and package resources. **An interrupted write can leave truncated JSON, an incomplete WAV, or a partial distribution.** A WAV filename alone does not establish completion: validation and matching storage receipts remain required. Existing legacy partial uploads are reconciled without discarding their source before successful receipt/session persistence.
+All project-owned saves write directly to their destinations, including JSON, uploaded WAVs and package resources. **An interrupted write can leave truncated JSON, an incomplete WAV, or a partial distribution.** A WAV filename alone does not establish completion: validation and matching storage receipts remain required.
 
-After temporary storage is cleared, rebuild before running tests or packaging that need compiled inputs. Producers recreate their transient directories; persistent application data must never be configured below the disposable root. `/tmp` is not universally cleared on reboot: see the optional Linux boot-cleanup [rule](deployment/tmpfiles.conf) and [installation instructions](deployment/README.md#temporary-files). No cleanup service is installed automatically.
+After temporary storage is cleared, rebuild before running tests or packaging that need compiled inputs. Producers recreate their transient directories; persistent application data must never be configured below the disposable root. `/tmp` is not universally cleared on reboot: see the optional Linux boot-cleanup [example](deployment/tmpfiles.example.conf) and [installation instructions](deployment/README.md#temporary-files). No cleanup service is installed automatically.
 
 ## Automated tests
 

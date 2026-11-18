@@ -21,24 +21,24 @@ class EffectStreamerCore {
         this.recordingContextCompletedHandler = handler;
     }
 
-    handleCoreStartResponse(socket, data) {
+    handleMediaPrepared(socket, data) {
         // Ignore responses with missing or invalid data
         if (!isObject(data)) {
-            this.clientRegistry.logEventError(socket, "coreStartResponse", "Data is missing or invalid");
+            this.clientRegistry.logEventError(socket, "mediaPrepared", "Data is missing or invalid");
             return;
         }
 
         // Ignore responses from unknown clients
         const client = this.clientRegistry.fetchClient(socket.id);
         if (!client) {
-            this.clientRegistry.logEventError(socket, "coreStartResponse", "Client is unknown (Perhaps ongoing shutdown?)");
+            this.clientRegistry.logEventError(socket, "mediaPrepared", "Client is unknown (Perhaps ongoing shutdown?)");
             return;
         }
 
         // Ignore responses for unknown recording contexts
         const recordingContext = this.state.recordingContexts.get(data.contextKey);
         if (!recordingContext) {
-            this.clientRegistry.logEventError(socket, "coreStartResponse", "Recording context is unknown");
+            this.clientRegistry.logEventError(socket, "mediaPrepared", "Recording context is unknown");
             return;
         }
 
@@ -63,7 +63,7 @@ class EffectStreamerCore {
         // Sender startup barrier: Start receivers after every client sender is ready
         if (data.component === "sender") {
             if (recordingContext.status !== "startingSender") {
-                this.clientRegistry.logEventError(socket, "coreStartResponse", "Recording context is not starting sender components");
+                this.clientRegistry.logEventError(socket, "mediaPrepared", "Recording context is not starting sender components");
                 return;
             }
 
@@ -74,13 +74,6 @@ class EffectStreamerCore {
                 recordingContext.status = "startingReceiver";
 
                 // prettier-ignore
-                this.clientRegistry.emitToAll("est-event:recordingStateUpdateRequest", {
-                    contextKey: recordingContext.contextKey,
-                    testType: recordingContext.scope.testType,
-                    status: "startingReceiver"
-                });
-
-                // prettier-ignore
                 this.state.runMedia(() => this.state.mediaAdapter.prepare({ session: this.state, attempt: recordingContext, condition: currentCondition, component: "receiver" }));
             }
         }
@@ -88,7 +81,7 @@ class EffectStreamerCore {
         // Receiver startup barrier: Mark the context running after every client receiver is ready
         else if (data.component === "receiver") {
             if (recordingContext.status !== "startingReceiver") {
-                this.clientRegistry.logEventError(socket, "coreStartResponse", "Recording context is not starting receiver components");
+                this.clientRegistry.logEventError(socket, "mediaPrepared", "Recording context is not starting receiver components");
                 return;
             }
 
@@ -117,29 +110,24 @@ class EffectStreamerCore {
         }
     }
 
-    handleCoreStopResponse(socket, data) {
+    handleMediaStopped(socket, data) {
         // Ignore responses with missing or invalid data
         if (!isObject(data)) {
-            this.clientRegistry.logEventError(socket, "coreStopResponse", "Data is missing or invalid");
-            return;
-        }
-
-        // Ignore responses without a context key when no upload is expected
-        if (data.upload === false && !data.contextKey) {
+            this.clientRegistry.logEventError(socket, "mediaStopped", "Data is missing or invalid");
             return;
         }
 
         // Ignore responses from unknown clients
         const client = this.clientRegistry.fetchClient(socket.id);
         if (!client) {
-            this.clientRegistry.logEventError(socket, "coreStopResponse", "Client is unknown (Perhaps ongoing shutdown?)");
+            this.clientRegistry.logEventError(socket, "mediaStopped", "Client is unknown (Perhaps ongoing shutdown?)");
             return;
         }
 
         // Ignore responses for unknown recording contexts
         const recordingContext = this.state.recordingContexts.get(data.contextKey);
         if (!recordingContext) {
-            this.clientRegistry.logEventError(socket, "coreStopResponse", "Recording context is unknown");
+            this.clientRegistry.logEventError(socket, "mediaStopped", "Recording context is unknown");
             return;
         }
 
@@ -154,31 +142,10 @@ class EffectStreamerCore {
 
                 console.log("[Server] Recording context uploading: " + recordingContext.contextKey);
 
-                // prettier-ignore
-                this.clientRegistry.emitToAll("est-event:recordingStateUpdateRequest", {
-                    contextKey: recordingContext.contextKey,
-                    testType: recordingContext.scope.testType,
-                    status: "uploading"
-                });
             }
 
             this.recordingContextFinalizeUpload(recordingContext);
         }
-    }
-
-    handleRecordingStateUpdateResponse(socket, data) {
-        // Ignore responses with missing or invalid data
-        if (!isObject(data)) {
-            this.clientRegistry.logEventError(socket, "recordingStateUpdateResponse", "Data is missing or invalid");
-            return;
-        }
-
-        // Determine the client ID for the log output
-        const client = this.clientRegistry.fetchClient(socket.id);
-        const clientId = client ? client.clientId : "unknown client";
-
-        // Simply acknowledge state change in console output
-        console.log("[Server] Recording state update response from " + clientId + ": " + JSON.stringify(data));
     }
 
     recordingContextStart(testType) {
@@ -250,13 +217,6 @@ class EffectStreamerCore {
 
         console.log("[Server] Recording context starting: " + contextKey);
 
-        // prettier-ignore
-        this.clientRegistry.emitToAll("est-event:recordingStateUpdateRequest", {
-            contextKey,
-            testType,
-            status: "startingSender"
-        });
-
         // Start sender components with peer and condition settings
         this.state.runMedia(() => this.state.mediaAdapter.prepare({ session: this.state, attempt: recordingContext, condition: currentCondition, component: "sender" }));
 
@@ -317,12 +277,7 @@ class EffectStreamerCore {
         clearTimeout(recordingContext.conditionTimeout);
         console.log("[Server] Recording context stopping: " + recordingContext.contextKey);
 
-        // Notify the clients and request the core stop
-        this.clientRegistry.emitToAll("est-event:recordingStateUpdateRequest", {
-            contextKey: recordingContext.contextKey,
-            testType: recordingContext.scope.testType,
-            status: "stopping"
-        });
+        // Request the media stop; status is published in snapshots.
         this.state.runMedia(async () => {
             try {await this.state.mediaAdapter.stop({ session: this.state, attempt: recordingContext, reason: recordingContext.interrupted ? "interrupted" : "completed" });}
             finally {recordingContext.workerStopped = true;}

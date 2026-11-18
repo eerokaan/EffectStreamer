@@ -12,10 +12,12 @@ class EnrollmentStore {
         this.participants = new Map();
         this.now = now;
         if (fs.existsSync(this.file)) {
-            for (const participant of JSON.parse(fs.readFileSync(this.file, "utf8"))) this.participants.set(participant.participantId, participant);
-            let migrated = false;
-            for (const person of this.participants.values()) if (!person.sessionId && !person.outcome && person.admissionLastActiveAt == null) {person.admissionLastActiveAt = this.now();migrated = true;}
-            if (migrated) this.save();
+            for (const participant of JSON.parse(fs.readFileSync(this.file, "utf8"))) {
+                if (!participant || !Number.isInteger(participant.admissionLastActiveAt) || participant.admissionLastActiveAt < 0) {
+                    throw new Error("Invalid enrollment admissionLastActiveAt in " + this.file);
+                }
+                this.participants.set(participant.participantId, participant);
+            }
         }
     }
 

@@ -4,8 +4,8 @@
 
 EffectStreamer runs as standalone applications on Linux and Windows:
 
-- **Local-use:** one server and two native Electron clients, each with its bundled core/runtime.
-- **Remote-use:** one server with bundled cores/runtime and the browser frontend; participants use desktop browsers without installing a client.
+- **Local-use:** One server and two native Electron clients, each with its bundled core.
+- **Remote-use:** One server with bundled cores and the browser frontend.
 
 Transfer the complete platform-matched distributions, not just their executables. Keep the server's `core/` and `web/` resources together. Use one coordinator per results directory.
 
@@ -19,7 +19,7 @@ Choose the example for the intended use; both server examples set `server.mode` 
 | Server, remote-use | [est-server.config.remote.example.json](../est-server/est-server.config.remote.example.json) | `est-server.config.json` |
 | Electron GUI, local-use | [est-gui.config.example.json](../est-gui/est-gui.config.example.json) | `est-gui.config.json` |
 
-Copy the selected examples to `~/effectstreamer/` on Linux or `%USERPROFILE%\effectstreamer\` on Windows, using the account running each application. `EST_CONFIG_PATH` selects another private server configuration. Remote-use browsers need no GUI JSON file. See the [server](../est-server/README.md) and [GUI](../est-gui/README.md) READMEs for configuration fields and legacy filename migration.
+Copy the selected examples to `~/effectstreamer/` on Linux or `%USERPROFILE%\effectstreamer\` on Windows, using the account running each application. `EST_CONFIG_PATH` selects another private server configuration. Remote-use browsers need no GUI JSON file. See the [server](../est-server/README.md) and [GUI](../est-gui/README.md) READMEs for supported configuration fields.
 
 The server saves results under `~/effectstreamer/sessions` unless `EST_RESULTS_ROOT` selects another durable, writable directory. Protect configuration, credentials, certificates and study results; back them up and never place them in temporary storage. Saves are direct and non-atomic: an interrupted write can leave incomplete JSON/WAV files, and a WAV filename alone does not prove successful collection.
 
@@ -27,11 +27,11 @@ The server saves results under `~/effectstreamer/sessions` unless `EST_RESULTS_R
 
 ### Local-use
 
-Configure the server's LAN address and give the two Electron clients distinct `client-a`/`client-b` identities and reachable LAN addresses. Permit only their configured signaling/RTP routes. Start the server before both clients; use the [GUI launch instructions](../est-gui/README.md#usage) for the matching AppImage or Windows installer. Audio setup is optional only when disabled by the local-use server configuration.
+Configure the server's LAN address and give the two Electron clients distinct `client-a`/`client-b` identities and reachable LAN addresses. Start the server before both clients; use the [GUI launch instructions](../est-gui/README.md#usage) for the matching AppImage or Windows installer. Audio setup is optional only when disabled by the local-use server configuration.
 
 ### Remote-use
 
-Replace the example study IDs, completion codes, DNS names and experiment settings. Keep the server on `127.0.0.1:3000` behind an HTTPS proxy and configure reachable ICE/TURN services as described below. The bundled core is selected automatically as adjacent `core/est-core` on Linux or `core/est-core.exe` on Windows; no core-path setting is needed. Start conservatively with `server.maxActivePairs: 1`; this is an admission limit, not measured capacity. Device/P.501 setup (`sessions.audioSetup`) is mandatory remotely. Older configurations require the [server schema migration](../est-server/README.md#configuration-migration); removed technical knobs cannot be overridden.
+Replace the example study IDs, completion codes, DNS names and experiment settings. Keep the server on `127.0.0.1:3000` behind an HTTPS proxy and configure reachable ICE/TURN services as described below. The bundled core is selected automatically as adjacent `core/est-core` on Linux or `core/est-core.exe` on Windows; no core-path setting is needed. Start conservatively with `server.maxActivePairs: 1`; this is an admission limit, not measured capacity. Device/P.501 setup (`sessions.audioSetup`) is mandatory remotely.
 
 ### Linux
 
@@ -57,7 +57,7 @@ est-server.exe
 
 The following requirements apply to **remote-use**. Use an HTTPS/WebSocket reverse proxy. Serve the frontend, API, uploads and Socket.IO at one HTTPS origin, forwarding to `127.0.0.1:3000` with WebSocket upgrades. Allow the fixed 1 MiB upload chunk size plus request framing. Use valid certificates, HSTS, `X-Content-Type-Options: nosniff` and `Referrer-Policy: no-referrer`; permit same-origin microphone/speaker selection. Do not log study query strings containing Prolific identifiers or JWTs, or expose private configuration/results.
 
-Use an existing compatible STUN/TURN service or the optional [coturn example](turnserver.conf). For coturn, copy it to private `turnserver.local.conf`, replace public IP/DNS/certificate paths and generate a private random `static-auth-secret`. Supply the same value to the EffectStreamer server through `EST_TURN_SECRET`; set `remote.iceServers` and `remote.turnUrls` to the reachable service URLs. The template is not runnable as-is. Start coturn independently on a supported host, for example `turnserver -c /absolute/path/to/turnserver.local.conf`; it need not run on the same machine or OS as EffectStreamer. Arrange certificate renewal/reload for both HTTPS and TURN hostnames.
+Use an existing compatible STUN/TURN service or the optional [coturn example](turnserver.example.conf). For coturn, copy it to private `turnserver.local.conf`, replace public IP/DNS/certificate paths and generate a private random `static-auth-secret`. Supply the same value to the EffectStreamer server through `EST_TURN_SECRET`; set `remote.iceServers` and `remote.turnUrls` to the reachable service URLs. The template is not runnable as-is. Start coturn independently on a supported host, for example `turnserver -c /absolute/path/to/turnserver.local.conf`; it need not run on the same machine or OS as EffectStreamer. Arrange certificate renewal/reload for both HTTPS and TURN hostnames.
 
 Keep the coordinator and TURN hosts' system clocks synchronized so expiring authentication credentials remain valid.
 
@@ -107,10 +107,10 @@ These are operator release checks, not claims that a live deployment, native Win
 
 Disposable builds/caches use `/tmp/effectstreamer` on Linux and the system temporary directory's `effectstreamer` subtree on native Windows. Rebuild required inputs after cleanup; never move configuration, recordings or results there. Reboot cleanup depends on OS policy.
 
-For optional Linux systemd boot cleanup, an administrator may install the [tmpfiles rule](tmpfiles.conf), from the repository root:
+For optional Linux systemd boot cleanup, an administrator may install the [tmpfiles example](tmpfiles.example.conf), from the repository root:
 
 ```bash
-sudo install -m 0644 deployment/tmpfiles.conf /etc/tmpfiles.d/effectstreamer.conf
+sudo install -m 0644 deployment/tmpfiles.example.conf /etc/tmpfiles.d/effectstreamer.conf
 ```
 
 The rule removes contents only during boot-mode removal. Do not invoke `systemd-tmpfiles --remove --boot` while builds or experiments are running. Installing this Linux rule does not configure Windows cleanup.

@@ -16,8 +16,8 @@ it('native arguments use the selected OS backend, native IDs, endpoints and atte
         expect(args).toContain('--control');expect(args).not.toContain('stdio');
     }
 });
-it('native setup lists backend defaults and cannot reuse historical browser IDs',async()=>{
-    const runtime=new NativeAudioRuntime({config:{client:{audioDevices:{source:'browser-id',sink:'other'}}},platform:'linux',executable:'unused',recordingRoot:'/unused',testAsset:'/packaged/P501.wav',runUtility:async()=>({inputs:[{id:'default',label:'Default microphone'}],outputs:[{id:'default',label:'Default output'}]})});
+it('native setup lists backend defaults when no devices have been selected',async()=>{
+    const runtime=new NativeAudioRuntime({config:{audio:{backend:'native'}},platform:'linux',executable:'unused',recordingRoot:'/unused',testAsset:'/packaged/P501.wav',runUtility:async()=>({inputs:[{id:'default',label:'Default microphone'}],outputs:[{id:'default',label:'Default output'}]})});
     expect((await runtime.listDevices()).selection).toEqual({sourceId:'default',sinkId:'default'});
 });
 it('a receipt cannot delete a pending file unless both ID and digest match',async()=>{

@@ -81,14 +81,14 @@ class ExperimentFlow {
             // Stop active recording context before leaving the test view
             const stopResult = this.effectStreamerCore.recordingContextStopPrepare(socket, currentViewTestType);
             if (stopResult.status === "completed") {
-                this.clientRegistry.emitToSocket(socket.id, "est-event:viewChangeResponse", this.viewFlow.getViewData(nextView, client));
+                this.clientRegistry.setView(client.participantId, this.viewFlow.getViewData(nextView, client));
                 return;
             }
 
             // Notify peer that they were left in the room while this recording context is being stopped and uploaded
             const peerClient = this.clientRegistry.fetchPeerClient(client);
             if (peerClient) {
-                this.clientRegistry.emitToSocket(peerClient.socketId, "est-event:viewChangeResponse", {
+                this.clientRegistry.setView(peerClient.participantId, {
                     showDialog: true
                 });
             }
@@ -96,7 +96,7 @@ class ExperimentFlow {
         }
 
         // Continue direct navigation when no recording context is active
-        this.clientRegistry.emitToSocket(socket.id, "est-event:viewChangeResponse", this.viewFlow.getViewData(nextView, client));
+        this.clientRegistry.setView(client.participantId, this.viewFlow.getViewData(nextView, client));
     }
 
     resolveGatedViewChange(currentView) {
@@ -142,7 +142,7 @@ class ExperimentFlow {
         if (nextView.name === this.views.ending && !this.state.completionReady()) throw new Error("Required responses and recordings are not complete");
 
         for (const client of this.state.clientsData.values()) {
-            this.clientRegistry.emitToSocket(client.socketId, "est-event:viewChangeResponse", this.viewFlow.getViewData(responseView, client));
+            this.clientRegistry.setView(client.participantId, this.viewFlow.getViewData(responseView, client));
         }
 
         this.state.gates.viewChange.clear();
@@ -168,8 +168,7 @@ class ExperimentFlow {
             if (client) {
                 // Persist the authoritative next view even when the participant
                 // is offline during the last receipt/restart reconciliation.
-                client.currentView = nextView.name;client.viewData = this.viewFlow.getViewData(nextView, client);
-                this.clientRegistry.emitToSocket(client.socketId, "est-event:viewChangeResponse", client.viewData);
+                this.clientRegistry.setView(participantId, this.viewFlow.getViewData(nextView, client));
             }
         }
 

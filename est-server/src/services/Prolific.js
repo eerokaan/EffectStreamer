@@ -34,7 +34,7 @@ class Prolific {
         assertDesktop(device);
         const recruitment = recruitmentIds(query);
         if (recruitment.studyId !== this.config.prolific.studyId) throw new Error("Wrong Prolific study");
-        const token = query.prolific_token || query.PROLIFIC_TOKEN;
+        const token = query.prolific_token;
         recruitment.verified = this.config.prolific.secureUrls ? await this.verifyToken(token, query) : false;
         const identity = "prolific-" + createHash("sha256").update(recruitment.studyId + "\0" + recruitment.submissionId).digest("hex");
         return this.enrollments.admit({ identity, recruitment });

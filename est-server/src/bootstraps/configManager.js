@@ -57,10 +57,6 @@ function loadConfig() {
 function normalizeConfig(parsedConfig) {
     // Validate step: Enforce the known top-level keys
     validateObject(parsedConfig, "config");
-    const movedSections = { deployment: "server.mode and server.maxActivePairs", audioSetup: "sessions.audioSetup", recordings: "sessions.maxConditionSeconds (upload policies are now internal constants)" };
-    for (const [key, replacement] of Object.entries(movedSections)) {
-        if (Object.hasOwn(parsedConfig, key)) configError(key, "was removed; use " + replacement);
-    }
     validateKnownKeys(parsedConfig, ["server", "remote", "prolific", "sessions", "tests", "conditions", "pretestForm"], "config");
     const server = normalizeServerConfig(parsedConfig.server);
 

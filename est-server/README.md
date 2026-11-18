@@ -6,7 +6,7 @@ This is the EffectStreamer Server – it orchestrates the entire experiment; man
 
 The server writes to `~/effectstreamer/sessions` (override with `EST_RESULTS_ROOT`). Each pair has a UUID directory with `session.json`, condition settings/forms/ratings, and recording attempts under `attempts/<attemptId>/<participantId>/{microphone,headphones}.wav`. `enrollments.json` stores stable identities and hashed reconnect credentials; chunk/receipt bookkeeping allows retries.
 
-Application files are saved directly to their destinations. Upload chunks go directly to the final WAV path; a partial or invalid WAV can exist there before completion. Format/size/checksum validation and persisted storage receipts—not filename existence—gate completion and client cleanup. Existing `.uploads/<id>.part` recordings are copied/reconciled into their final paths with prefix-conflict checks and retained until validation, receipt persistence and session reconciliation succeed. Interrupted JSON/WAV writes can leave corrupt or incomplete data; keep study data on persistent storage and back it up.
+Application files are saved directly to their destinations. Upload chunks go directly to the final WAV path; a partial or invalid WAV can exist there before completion. Format/size/checksum validation and persisted storage receipts—not filename existence—gate completion and client cleanup. Interrupted JSON/WAV writes can leave corrupt or incomplete data; keep study data on persistent storage and back it up. Stored enrollments require a finite, nonnegative integer `admissionLastActiveAt`; invalid records fail startup without being rewritten.
 
 EffectStreamer Server is distributed as a standalone Node.js executable and should be started before the GUI clients connect.
 
@@ -24,7 +24,7 @@ Both examples expose the same settings in the same order: `server`, `remote`, `p
 | Linux | `~/effectstreamer/est-server.config.json` |
 | Windows | `%USERPROFILE%\effectstreamer\est-server.config.json` |
 
-The home directory belongs to the account running the server, which may be a service account. Set `EST_CONFIG_PATH` to select another private file for a standalone deployment or service. The loader does not automatically migrate or fall back to `config-server.json`; rename an existing configuration or explicitly select it with `EST_CONFIG_PATH`. Remote-use browser participants need no GUI configuration file.
+The home directory belongs to the account running the server, which may be a service account. Set `EST_CONFIG_PATH` to select another private file for a standalone deployment or service. Remote-use browser participants need no GUI configuration file.
 
 For remote-use, replace study IDs/codes/DNS and provide a private TURN secret before deployment. For remote same-origin hosting, `EST_WEB_ROOT` overrides the adjacent packaged `web` directory (development default: managed `est-gui/web` under `/tmp/effectstreamer`). A missing web build prevents startup; rebuild it after transient cleanup.
 
@@ -160,21 +160,7 @@ Only deployment networking is configurable here: `icePortRange` is the public UD
 
 Recording storage limits are derived from `sessions.maxConditionSeconds` for two mono 48 kHz S16LE tracks per participant, with allowance for shutdown and WAV headers. HTTP upload chunks are 1 MiB, uploads expire after ten minutes, and at most 100 unpaired participants can be admitted.
 
-### Configuration migration
-
-Only the options shown in the examples are supported for server/session/media operation. Unknown and removed keys fail startup rather than being silently ignored or treated as advanced overrides. Existing experiment conditions and pretest field definitions retain their documented options.
-
-| Previous location | Replacement |
-| --- | --- |
-| `deployment.mode`, `deployment.maxActivePairs` | `server.mode`, `server.maxActivePairs` |
-| Top-level `audioSetup` | `sessions.audioSetup` |
-| `recordings.maxConditionSeconds` | `sessions.maxConditionSeconds` |
-| Other `recordings` keys, `sessions.maxWaitingParticipants` | Remove; fixed/derived internal safeguards. |
-| `remote.coreExecutable`, `internalPortRange`, codec/jitter/drain/process settings | Remove; automatic resource selection and internal constants. |
-| `deployment.allowDevelopmentAdmission` | Remove; production remote enrollment requires recruitment. |
-| Static ICE `username`/`credential` overrides | Use `turnUrls` and `turnSecret` for generated TURN credentials. |
-
-Remove the old `deployment`, top-level `audioSetup`, and `recordings` sections after moving retained values. There is no legacy-schema compatibility mode.
+Only the options shown in the examples are supported for server/session/media operation. Unknown keys fail startup rather than being silently ignored or treated as advanced overrides. Experiment conditions and pretest field definitions support the documented options below.
 
 ### Tests config
 

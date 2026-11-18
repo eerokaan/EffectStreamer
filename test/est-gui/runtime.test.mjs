@@ -17,6 +17,17 @@ function transport() {
 }
 const snapshot={revision:2,participantId:'p-1',sessionId:'s-1',role:'a',phase:'experiment',currentView:'viewPretest',setupRequired:false,setupComplete:false,attemptId:null,viewData:{pretestForm:[{name:'age'}]},outcome:null};
 describe('shared participant runtime',()=>{
+    it('only current media commands can prepare or stop audio',()=>{
+        const socket=transport(),commands=[];
+        const client=createSessionClient({transport:socket,participantId:'p-1',onCommand:value=>commands.push(value)});
+        socket.receive('est-event:coreStartRequest',{component:'sender',attemptId:'old'});
+        socket.receive('est-event:coreStopRequest',{attemptId:'old'});
+        expect(commands).toEqual([]);
+        socket.receive('est-event:mediaCommand',{type:'prepareCore',component:'sender',attemptId:'current'});
+        socket.receive('est-event:mediaCommand',{type:'stopCore',attemptId:'current'});
+        expect(commands).toEqual([{type:'prepareCore',component:'sender',attemptId:'current'},{type:'stopCore',attemptId:'current'}]);
+        client.dispose();
+    });
     it('both adapters consume identical snapshots and emit identical scoped actions',async()=>{
         const states=[],requests=[];
         for(const target of ['browser','electron']) {

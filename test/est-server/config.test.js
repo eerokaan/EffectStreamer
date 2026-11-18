@@ -91,9 +91,9 @@ test('server settings and nested session settings reach the existing runtime con
     assert.equal(publicBootstrap(config).testAsset,'/audio/custom.wav');
 });
 
-test('removed configuration sections report where to move retained settings', () => {
-    for (const [section,hint] of [['deployment','server'],['audioSetup','sessions.audioSetup'],['recordings','sessions.maxConditionSeconds']]) {
-        assert.throws(()=>normalizeConfig({...localConfig(),[section]:{}}),error=>error.message.includes(section)&&error.message.includes(hint));
+test('unsupported configuration sections fail normal known-key validation', () => {
+    for (const section of ['deployment','audioSetup','recordings']) {
+        assert.throws(()=>normalizeConfig({...localConfig(),[section]:{}}),{message:`[Config] config.${section} is unknown`});
     }
 });
 

@@ -102,7 +102,6 @@ class RecordingTransfers {
     }
 
     metadataPath(id) { return path.join(this.root, id + ".json"); }
-    legacyPartPath(id) { return path.join(this.root, id + ".part"); }
 
     async load(id) {
         try { return JSON.parse(await fs.promises.readFile(this.metadataPath(id), "utf8")); }
@@ -131,33 +130,6 @@ class RecordingTransfers {
             if(!stat.isDirectory() || stat.isSymbolicLink())throw new Error('Recording directory contains an unsafe symlink or non-directory');
         }
         return path.join(current,manifest.filename);
-    }
-
-    async migrateLegacyUpload(record, session) {
-        const destination=this.destination(session,record.manifest),legacy=this.legacyPartPath(record.manifest.recordingId);
-        let source;
-        try {source=await openRecording(legacy,true);} catch(error) {if(error.code==='ENOENT')return destination;throw error;}
-        let target;
-        try {
-            const sourceLength=(await source.stat()).size;
-            if(sourceLength>record.manifest.byteLength)throw new Error('Invalid legacy upload length');
-            this.destination(session,record.manifest,true);target=await openRecording(destination);
-            const targetLength=(await target.stat()).size;
-            if(targetLength>record.manifest.byteLength)throw new Error('Invalid stored upload length');
-            const overlap=Math.min(sourceLength,targetLength),buffer=Buffer.alloc(1048576),existing=Buffer.alloc(1048576);
-            for(let offset=0;offset<overlap;) {
-                const length=Math.min(buffer.length,overlap-offset);
-                const a=await source.read(buffer,0,length,offset),b=await target.read(existing,0,length,offset);
-                if(a.bytesRead!==length || b.bytesRead!==length || !buffer.subarray(0,length).equals(existing.subarray(0,length))) throw new Error('Conflicting legacy and final recording bytes');
-                offset+=length;
-            }
-            for(let offset=targetLength;offset<sourceLength;) {
-                const length=Math.min(buffer.length,sourceLength-offset),result=await source.read(buffer,0,length,offset);
-                if(result.bytesRead!==length)throw new Error('Legacy recording is truncated');
-                await writeBytes(target,buffer.subarray(0,length),offset);offset+=length;
-            }
-            await target.sync();return destination;
-        } finally {if(target)await target.close();await source.close();}
     }
 
     async register(participant, manifests) {
@@ -197,7 +169,7 @@ class RecordingTransfers {
             const record = await this.load(supplied.recordingId);
             const { session } = this.authorize(participant, record);
             if (JSON.stringify(validateManifest(supplied)) !== JSON.stringify(record.manifest)) throw new Error("Recording manifest mismatch");
-            const destination = await this.migrateLegacyUpload(record, session);
+            const destination = this.destination(session, record.manifest);
             const offset = record.receipt ? record.manifest.byteLength : await byteLength(destination);
             if (offset > record.manifest.byteLength) throw new Error("Invalid stored upload length");
             return { uploadId: supplied.recordingId, nextByteOffset: offset };
@@ -209,7 +181,7 @@ class RecordingTransfers {
             const record = await this.load(id); const {session}=this.authorize(participant, record);
             if (!Buffer.isBuffer(data) || !data.length || data.length > this.config.chunkBytes || !Number.isSafeInteger(offset) || offset < 0 || offset + data.length > record.manifest.byteLength) throw new Error("Invalid recording chunk");
             if (record.receipt) return { nextByteOffset: record.manifest.byteLength };
-            const filePath = await this.migrateLegacyUpload(record,session), size = await byteLength(filePath);
+            const filePath = this.destination(session,record.manifest), size = await byteLength(filePath);
             if (offset > size || (offset < size && offset + data.length > size)) throw new Error("Unexpected chunk offset");
             this.destination(session,record.manifest,true);
             const file = await openRecording(filePath);
@@ -233,7 +205,7 @@ class RecordingTransfers {
         const { session, manifest, receipt } = await this.locked(id, async () => {
             const record = await this.load(id), { session } = this.authorize(participant, record);
             if (record.receipt) return { session, manifest: record.manifest, receipt: record.receipt };
-            const destination = await this.migrateLegacyUpload(record, session);
+            const destination = this.destination(session, record.manifest);
             await validateWav(destination, record.manifest);
             await syncDirectory(path.dirname(destination));
             record.receipt = { recordingId: id, sha256: record.manifest.sha256, stored: true };
@@ -244,7 +216,6 @@ class RecordingTransfers {
         // Release it before joining the session queue, including receipt retries.
         // Still await reconciliation before acknowledging the client.
         await this.onReceipt(session, manifest, receipt);
-        await fs.promises.rm(this.legacyPartPath(id), {force:true});
         return receipt;
     }
 }

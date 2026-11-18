@@ -44,6 +44,7 @@ test("secured URLs use Prolific RS256/KID/issuer/audience/workspace and reject t
     const token = (changes = {}, header = {}) => {const data = [Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT", kid: "test-key", ...header })).toString("base64url"), Buffer.from(JSON.stringify({ ...payload, ...changes })).toString("base64url")].join(".");return data + "." + sign("RSA-SHA256", Buffer.from(data), privateKey).toString("base64url");};
     for (const [changes, header] of [[{ exp: now - 1 }, {}], [{ iss: "https://attacker.example" }, {}], [{ aud: "https://attacker.example/experiment" }, {}], [{ prolific: { ...payload.prolific, workspace_id: "other" } }, {}], [{}, { alg: "HS256" }], [{}, { kid: "unknown" }]]) await assert.rejects(prolific.enroll({ query: { ...ids, prolific_token: token(changes, header) }, device: desktop }), /token|signature|claim|JWT|key|audience|workspace|algorithm|exp|issuer/i);
     await assert.rejects(prolific.enroll({ query: { ...ids, SESSION_ID: "tampered", prolific_token: token() }, device: desktop }), /match|token|claim/i);
+    await assert.rejects(prolific.enroll({ query: { ...ids, PROLIFIC_TOKEN: token() }, device: desktop }), /token.*required/i);
     const enrolled = await prolific.enroll({ query: { ...ids, prolific_token: token() }, device: desktop });assert.ok(enrolled.reconnectToken);
 });
 test("FIFO contains only setup/pretest-ready participants and duplicate readiness cannot consume two places", t => {

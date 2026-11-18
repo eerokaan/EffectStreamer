@@ -2,7 +2,8 @@ const os = require("os");
 const path = require("path");
 const fs = require("fs");
 const { writeFileDirectSync } = require("@effectstreamer/common/direct-write");
-const { formatConditionDirName, formatSessionDirName, parseSessionDirNumber } = require("../utils/format.js");
+const { identifier } = require("@effectstreamer/common");
+const { formatConditionDirName } = require("../utils/format.js");
 const { isSafeFilename } = require("../utils/filenames.js");
 
 class SessionFiles {
@@ -18,18 +19,12 @@ class SessionFiles {
     }
 
     createFolderStructure({ restore = false } = {}) {
+        const sessionId = identifier(this.state.sessionId, "sessionId");
         // Create the effectstreamer base directory
         const effectstreamerDir = this.root;
         fs.mkdirSync(effectstreamerDir, { recursive: true });
 
-        // Determine next session number (n+1 from existing directories) and create directory
-        const existing = fs
-            .readdirSync(effectstreamerDir)
-            .map(parseSessionDirNumber)
-            .filter((number) => number != null);
-        const sessionNumber = existing.length > 0 ? Math.max(...existing) + 1 : 1;
-
-        this.state.sessionDir = path.join(effectstreamerDir, this.state.sessionId || formatSessionDirName(sessionNumber));
+        this.state.sessionDir = path.join(effectstreamerDir, sessionId);
         fs.mkdirSync(this.state.sessionDir, { recursive: restore });
 
         // Create condition directories

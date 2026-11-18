@@ -34,14 +34,19 @@ class ClientRegistry {
         void this.state.persist().catch(error => {this.state.persistenceError = error;});
     }
 
-    emitToSocket(socketId, eventName, data) {
-        if (!socketId) return;
-        const client = this.fetchClient(socketId);
-        if (eventName === "est-event:viewChangeResponse" && client && data?.currentView) {
+    setView(participantId, data) {
+        const client = this.state.clientsData.get(participantId);
+        if (!client) throw new Error("Not a session participant");
+        if (data.currentView) {
             client.currentView = data.currentView;
             client.viewData = data;
         }
-        else if (eventName === "est-event:viewChangeResponse" && client && data?.showDialog) client.viewData = { ...client.viewData, showDialog: true };
+        else if (data.showDialog) client.viewData = { ...client.viewData, showDialog: true };
+    }
+
+    emitToSocket(socketId, eventName, data) {
+        if (!socketId) return;
+        const client = this.fetchClient(socketId);
         const scoped = data && typeof data === "object" ? { ...data, sessionId: this.state.sessionId, attemptId: data.attemptId ?? this.state.recordingContextActive, participantId: client?.participantId } : data;
         this.io.to(socketId).emit(eventName, scoped);
     }

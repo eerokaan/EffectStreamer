@@ -1,8 +1,8 @@
 {
     "server": {
+        "mode": "remote",
         "ipAddress": "127.0.0.1",
         "port": 3000,
-        "mode": "remote",
         "maxActivePairs": 1
     },
     "remote": {

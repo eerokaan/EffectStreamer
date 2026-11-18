@@ -1,12 +1,10 @@
 import { contextBridge, ipcRenderer } from "electron";
 import appInfo from "@/main/lib/appInfo";
 
-// BITTE ANGLEICHEN AN GG-APPLICATION --> NEUE VERSION DES PRELOADS VORHANDEN
-
 // Define valid channels by operation type
 const validChannels = {
-    invoke: ["ipc:viewChangeRequest", "ipc:pretestSaveRequest", "ipc:audioDevicesGet", "ipc:audioDevicesSave", "ipc:audioDevicesSetupComplete", "ipc:audioControlResponse", "ipc:audioFailure"],
-    on: ["ipc:storeGetValueRequest", "ipc:storeSetValueRequest", "ipc:storeResetRequest", "ipc:audioDevicesOpen", "ipc:audioControlRequest"],
+    invoke: ["ipc:audioControlResponse", "ipc:audioFailure"],
+    on: ["ipc:storeGetValueRequest", "ipc:storeSetValueRequest", "ipc:storeResetRequest", "ipc:audioControlRequest"],
     send: ["ipc:storeGetValueResponse", "ipc:storeSetValueResponse", "ipc:storeResetResponse"]
 };
 

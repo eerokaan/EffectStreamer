@@ -2,7 +2,7 @@ import { app } from "electron";
 import fs from "fs";
 import net from "net";
 import path from "path";
-import { normalizeAudioConfig, serverUrl } from "./clientConfig.js";
+import { normalizeAudioConfig, serverUrl, validateKeys } from "./clientConfig.js";
 import { writeFileDirect } from "@effectstreamer/common/direct-write";
 
 const configFileName = "est-gui.config.json";
@@ -16,6 +16,8 @@ function validateConfig(config, configPath) {
     if (!config || typeof config !== "object" || Array.isArray(config)) {
         throw new Error("The GUI configuration must contain a JSON object: " + configPath);
     }
+    validateKeys(config, ["server", "audio", "client"], "config");
+    validateKeys(config.client, ["identity", "ipAddress"], "client");
     const url = serverUrl(config.server);
     if (!config.client || typeof config.client.identity !== "string" || !clientIdPattern.test(config.client.identity.trim())) {
         throw new Error("Missing or invalid client configuration in " + configPath);
@@ -24,18 +26,9 @@ function validateConfig(config, configPath) {
     if (clientIpAddress.length > 45 || net.isIP(clientIpAddress) === 0) {
         throw new Error("Missing or invalid client IP address in " + configPath);
     }
-    if (config.client.audioDevices != null && (typeof config.client.audioDevices !== "object" || Array.isArray(config.client.audioDevices))) {
-        throw new Error("Invalid client.audioDevices configuration in " + configPath);
-    }
-
     return {
         ...config,
-        server: {
-            ...config.server,
-            url,
-            ipAddress: config.server.ipAddress?.trim(),
-            port: config.server.port == null ? undefined : Number(config.server.port)
-        },
+        server: { url },
         audio: normalizeAudioConfig(config),
         client: {
             ...config.client,
@@ -82,14 +75,7 @@ async function saveAudioDeviceIds(configPath, deviceIds) {
     const currentConfig = await readGuiConfig(configPath);
     const nextConfig = {
         ...currentConfig,
-        ...(currentConfig.audio.backend === "native" ? { audio: { ...currentConfig.audio, devices: { source, sink } } } : {}),
-        client: {
-            ...currentConfig.client,
-            audioDevices: {
-                source,
-                sink
-            }
-        }
+        audio: { ...currentConfig.audio, devices: { source, sink } }
     };
     await writeFileDirect(configPath, JSON.stringify(nextConfig, null, 4) + "\n");
 

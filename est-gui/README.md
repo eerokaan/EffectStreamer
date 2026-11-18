@@ -15,15 +15,14 @@ For local-use Electron clients, copy the repository template `est-gui.config.exa
 | Linux | `~/effectstreamer/est-gui.config.json` |
 | Windows | `%USERPROFILE%\effectstreamer\est-gui.config.json` |
 
-Existing installations must rename `config-gui.json` to `est-gui.config.json`; the application does not automatically migrate or fall back to legacy filenames or adjacent configuration files. For remote-use browser clients, no GUI JSON file is needed: configuration is fetched from the server.
+For remote-use browser clients, no GUI JSON file is needed: configuration is fetched from the server.
 
 An example local-use configuration is:
 
 ```
 {
     "server": {
-        "ipAddress": "127.0.0.1",
-        "port": "3000"
+        "url": "http://127.0.0.1:3000"
     },
     "client": {
         "identity": "client-a",
@@ -37,7 +36,7 @@ An example local-use configuration is:
 }
 ```
 
-Use `client-a` and `client-b` on the two participant machines, with their reachable LAN addresses. `server.url` may replace legacy `server.ipAddress`/`port` (for example `https://coordinator.example.org`). `audio.devices` holds ALSA/WASAPI2 IDs in native mode, not browser IDs; historical `client.audioDevices` browser values are not reused for native audio. `default` is selected initially; the device picker (`Ctrl+Alt+O`) lists and tests actual backend routes. Local setup is enforced only when enabled by the coordinator. Changing a route invalidates its previous test; changes are locked during active attempts.
+Use `client-a` and `client-b` on the two participant machines, with their reachable LAN addresses. `server.url` is the coordinator's HTTP(S) origin (for example `https://coordinator.example.org`), without credentials, a path, query or fragment. `audio.devices` holds the selected input/output IDs for either backend: ALSA/WASAPI2 IDs in native mode, browser IDs in stdio mode. Native `default` routes are selected initially; the device picker (`Ctrl+Alt+O`) lists and tests actual backend routes. Only the documented configuration fields are accepted. Local setup is enforced only when enabled by the coordinator. Changing a route invalidates its previous test; changes are locked during active attempts.
 
 `audio.recordingDir` overrides the default `~/effectstreamer/recordings`. Unique session/attempt/participant directories keep both WAVs and interrupted attempts separate. Pending-file inventory and reconnect credentials survive relaunch. Files are removed only after matching server storage receipts, never simply on closing the application. Optional `audio.backend: "stdio"` uses browser PCM pipes instead of native capture; its device IDs belong to a separate namespace.
 

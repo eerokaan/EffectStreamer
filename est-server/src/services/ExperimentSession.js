@@ -163,10 +163,10 @@ class ExperimentSession extends ServerState {
                 this.experimentFlow.handleViewChangeRequest(socket, payload);
             }
             else if (envelope.type === "mediaPrepared") {
-                this.effectStreamerCore.handleCoreStartResponse(socket, { ...payload, contextKey: envelope.attemptId });
+                this.effectStreamerCore.handleMediaPrepared(socket, { ...payload, contextKey: envelope.attemptId });
             }
             else if (envelope.type === "mediaStopped") {
-                this.effectStreamerCore.handleCoreStopResponse(socket, { ...payload, contextKey: envelope.attemptId });
+                this.effectStreamerCore.handleMediaStopped(socket, { ...payload, contextKey: envelope.attemptId });
             }
             else if (envelope.type === "mediaStarted") {
                 try { await this.effectStreamerCore.handleMediaStarted(socket, { ...payload, contextKey: envelope.attemptId }); }

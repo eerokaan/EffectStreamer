@@ -21,7 +21,7 @@ export class StdioAudioRuntime extends NativeAudioRuntime {
         });
         this.current.handles[component] = record;
         markCoreStarted(record);this.transport.markComponentStarted(component);
-        // stdio has no control channel: initial PCM is required for legacy readiness.
+        // stdio has no control channel: initial PCM establishes readiness.
         if (component === "sender") this.transport.enableCapture();
     }
     async start(scope) { this.requireAttempt(scope); }
