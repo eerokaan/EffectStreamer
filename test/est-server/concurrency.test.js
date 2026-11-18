@@ -12,7 +12,7 @@ const {checkoutPaths}=require('../../common/transient-paths.cjs');
 
 test('a crashed pair releases admission capacity without replacing partners or stopping the second worker',{timeout:30000},async t=>{
     const root=checkoutPaths().temporaryDirectory('est-server','est-concurrency-'),raw=remoteConfig();
-    raw.server.maxActivePairs=2;raw.sessions.maxRetries=0;raw.pretestForm=[{name:'age',type:'input',label:'Age',inputType:'number',validation:{valueType:'integer',min:18}}];raw.conditions={baseline:[{}],random:[]};
+    raw.server.maxActivePairs=2;raw.sessions.operatingLimits.maxRetries=0;raw.pretestForm=[{name:'age',type:'input',label:'Age',inputType:'number',validation:{valueType:'integer',min:18}}];raw.conditions={baseline:[{}],random:[]};
     const config=normalizeConfig(raw);
     Object.assign(config.remote,{coreExecutable:process.env.EST_CORE_EXECUTABLE||checkoutPaths().path('est-core','build','linux','est-core'),internalPortRange:[36400,36499],icePortRange:[49000,49499],startupTimeoutMs:15000});
     const app=createCoordinator({config,root});await app.ready;app.server.listen(0,'127.0.0.1');await once(app.server,'listening');const url='http://127.0.0.1:'+app.server.address().port,sockets=[];

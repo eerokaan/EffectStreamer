@@ -1,22 +1,30 @@
-import { createParticipantRuntime } from "./create-runtime.js";
 import { BrowserDevices } from "../audio/browser-devices.js";
-import { BrowserAudioSession } from "../audio/browser-session.js";
 import { BrowserRecordings } from "../audio/browser-recordings.js";
+import { BrowserAudioSession } from "../audio/browser-session.js";
+import { createParticipantRuntime } from "./create-runtime.js";
+import { audioSetupSampleFilename } from "../../../shared/audio-setup-sample.js";
 
-async function initializeBrowser() {
+async function initializeBrowser(onConfiguration) {
     const response = await fetch("/api/config");
     if (!response.ok) throw new Error("Unable to load study configuration");
     const config = await response.json();
+    onConfiguration(config);
     if (config.mode !== "remote") throw new Error("This deployment requires the native EffectStreamer client");
     const query = Object.fromEntries(new URLSearchParams(location.search));
     const key = "effectstreamer:" + (query.SESSION_ID || query.identity || "participant");
     let credentials;
-    try { credentials = JSON.parse(sessionStorage.getItem(key)); } catch { /* Ignore invalid local state. */ }
+    try {
+        credentials = JSON.parse(sessionStorage.getItem(key));
+    }
+    catch {
+        /* Ignore invalid local state. */
+    }
     if (!credentials) {
         const device = { platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints || 0, mobile: navigator.userAgentData?.mobile === true };
         const admitted = await fetch("/api/enrollment", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ identity: query.identity, query, device }) });
         if (!admitted.ok) throw new Error((await admitted.json()).error || "Study admission failed");
-        credentials = await admitted.json(); sessionStorage.setItem(key, JSON.stringify(credentials));
+        credentials = await admitted.json();
+        sessionStorage.setItem(key, JSON.stringify(credentials));
     }
     return { config, credentials, url: location.origin };
 }
@@ -26,12 +34,14 @@ export function createRuntime({ initialize = initializeBrowser, transportFactory
     const invalidateSetup = () => {
         const snapshot = runtime.snapshot();
         if (!snapshot?.setupRequired || !snapshot.setupComplete || snapshot.phase === "ended") return Promise.resolve();
-        invalidatingSetup ||= runtime.dispatch("setupInvalidated", {}).finally(() => {invalidatingSetup = null;});
+        invalidatingSetup ||= runtime.dispatch("setupInvalidated", {}).finally(() => {
+            invalidatingSetup = null;
+        });
         return invalidatingSetup;
     };
-    const failure = error => {
+    const failure = (error) => {
         runtime.onError?.(error);
-        if (scope) void runtime.dispatch("mediaFailed", { message: error.message, generation }, { scope }).catch(error => runtime.onError?.(error));
+        if (scope) void runtime.dispatch("mediaFailed", { message: error.message, generation }, { scope }).catch((error) => runtime.onError?.(error));
     };
     const browserRecordings = recordings || new BrowserRecordings({ devices: browserDevices, getConfiguration: () => initialized, onFailure: failure });
     const browserMedia = media || {
@@ -47,30 +57,40 @@ export function createRuntime({ initialize = initializeBrowser, transportFactory
                     if (scope) await browserRecordings.finalize?.({ scope, status: "interrupted" }).catch(() => {});
                     await session?.stop();
                 }
-                const manifests = [...(browserRecordings.pending?.values() || [])].map(entry => entry.manifest).filter(manifest => manifest.sessionId === snapshot.sessionId);
-                await runtime.dispatch("resume", { manifests, mediaPresent: Boolean(session?.generation) }, { scope: { sessionId: snapshot.sessionId, participantId: snapshot.participantId, attemptId: snapshot.attemptId } });return;
+                const manifests = [...(browserRecordings.pending?.values() || [])].map((entry) => entry.manifest).filter((manifest) => manifest.sessionId === snapshot.sessionId);
+                await runtime.dispatch("resume", { manifests, mediaPresent: Boolean(session?.generation) }, { scope: { sessionId: snapshot.sessionId, participantId: snapshot.participantId, attemptId: snapshot.attemptId } });
+                return;
             }
             if (command.type === "disconnected") {
                 await session?.stopCapture();
                 if (scope) await browserRecordings.finalize?.({ scope, status: "interrupted" });
-                await session?.stop();return;
+                await session?.stop();
+                return;
             }
             if (command.type === "prepareRemote") {
-                scope = { sessionId: command.sessionId, participantId: command.participantId, attemptId: command.attemptId };generation = command.generation;
-                const attemptScope = scope, attemptGeneration = generation;
-                const report = error => {if (generation === attemptGeneration && scope === attemptScope) failure(error);};
-                const prepared = new BrowserAudioSession({ devices: browserDevices, onFailure: report });session = prepared;
+                scope = { sessionId: command.sessionId, participantId: command.participantId, attemptId: command.attemptId };
+                generation = command.generation;
+                const attemptScope = scope,
+                    attemptGeneration = generation;
+                const report = (error) => {
+                    if (generation === attemptGeneration && scope === attemptScope) failure(error);
+                };
+                const prepared = new BrowserAudioSession({ devices: browserDevices, onFailure: report });
+                session = prepared;
                 try {
-                    await prepared.prepare({ scope: attemptScope, generation: attemptGeneration, iceServers: command.iceServers, signal: payload => runtime.dispatch("signal", payload, { scope: attemptScope }) });
+                    await prepared.prepare({ scope: attemptScope, generation: attemptGeneration, iceServers: command.iceServers, signal: (payload) => runtime.dispatch("signal", payload, { scope: attemptScope }) });
                     if (session === prepared) await runtime.dispatch("mediaPrepared", { component: "remote", success: true, generation: attemptGeneration }, { scope: attemptScope });
                 }
-                catch (error) {report(error);}
+                catch (error) {
+                    report(error);
+                }
                 return;
             }
             if (!scope || command.attemptId !== scope.attemptId || command.generation !== generation) throw new Error("Stale browser media command");
             try {
                 if (command.type === "startAudio") {
-                    await browserRecordings.start(session.streams(), { scope });await session.start();
+                    await browserRecordings.start(session.streams(), { scope });
+                    await session.start();
                     return runtime.dispatch("mediaStarted", { success: true, generation }, { scope });
                 }
                 if (command.type === "stopCapture") return session.stopCapture();
@@ -83,11 +103,29 @@ export function createRuntime({ initialize = initializeBrowser, transportFactory
                 }
                 throw new Error("Unknown browser media command");
             }
-            catch (error) {failure(error);}
+            catch (error) {
+                failure(error);
+            }
         },
-        async dispose() {await browserRecordings.dispose?.();await session?.stop();await browserDevices.dispose?.();}
+        async dispose() {
+            await browserRecordings.dispose?.();
+            await session?.stop();
+            await browserDevices.dispose?.();
+        }
     };
-    runtime = createParticipantRuntime({ initialize: async () => {initialized = await initialize();browserDevices.testAsset = initialized.config.testAsset;return initialized;}, transportFactory, devices: browserDevices, media: browserMedia, recordings: browserRecordings });
-    browserDevices.onInvalidated = () => {void invalidateSetup().catch(error => runtime.onError?.(error));};
+    runtime = createParticipantRuntime({
+        initialize: async (onConfiguration) => {
+            initialized = await initialize(onConfiguration);
+            browserDevices.setupSample = "/audio/" + audioSetupSampleFilename(initialized.config.sessionLanguage);
+            return initialized;
+        },
+        transportFactory,
+        devices: browserDevices,
+        media: browserMedia,
+        recordings: browserRecordings
+    });
+    browserDevices.onInvalidated = () => {
+        void invalidateSetup().catch((error) => runtime.onError?.(error));
+    };
     return runtime;
 }

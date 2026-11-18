@@ -31,18 +31,18 @@ test('SEA worker starts four bundled cores with loss enabled and no external Nod
     for(const pid of pids)assert.throws(()=>process.kill(pid,0),/ESRCH/);
     await request('dispose');await once(child,'close');assert.equal(child.exitCode,0,stderr);
 });
-test('staged Linux native utilities reopen ALSA null and decode the adjacent P.501 asset',{skip:!packaged,timeout:15000},async t=>{
+test('staged Linux native utilities reopen ALSA null and decode both adjacent P.501 assets',{skip:!packaged,timeout:15000},async t=>{
     const root=checkoutPaths().temporaryDirectory('est-server','est-staged-native-');t.after(()=>fs.rm(root,{recursive:true,force:true}));
     const base=path.dirname(path.resolve(packaged)),executable=path.join(base,'core','est-core'),env=coreEnvironment({executable,env:cleanEnv(root)});
     for(const args of [
         ['--mode','test-input','--device-type','alsa','--device-id','null','--test-duration-ms','50'],
-        ['--mode','test-output','--device-type','alsa','--device-id','null','--test-file',path.join(base,'web/audio/P501_C_german_f1_FB_48k.wav')]
+        ...['german','english'].map(language=>['--mode','test-output','--device-type','alsa','--device-id','null','--test-file',path.join(base,`web/audio/P501_C_${language}_f1_FB_48k.wav`)])
     ]) {const result=spawnSync(executable,args,{env,cwd:root,encoding:'utf8',timeout:10000});assert.equal(result.status,0,result.stderr);assert.equal(JSON.parse(result.stdout).ok,true);}
 });
 test('SEA coordinator serves its adjacent production web build from an unrelated working directory',{skip:!packaged,timeout:30000},async t=>{
     const root=checkoutPaths().temporaryDirectory('est-server','est-sea-server-');t.after(()=>fs.rm(root,{recursive:true,force:true}));
     const listener=net.createServer();listener.listen(0,'127.0.0.1');await once(listener,'listening');const port=listener.address().port;await new Promise(resolve=>listener.close(resolve));
-    const raw=remoteConfig();delete raw.remote;raw.server={...raw.server,ipAddress:'127.0.0.1',port};
+    const raw=remoteConfig();delete raw.remote;raw.server={...raw.server,ipAddress:'127.0.0.1',port};raw.sessions.general.language='en';
     raw.prolific={enabled:true,studyId:'sea-study',completionCodes:{completed:'DONE',technicalFailure:'TECH',partnerLeft:'LEFT',waitingTimeout:'WAIT'},secureUrls:true,externalStudyUrl:'https://study.example.org/',workspaceId:'sea-workspace'};
     const file=path.join(root,'config.json');await fs.writeFile(file,JSON.stringify(raw));
     const child=spawn(path.resolve(packaged),[],{cwd:root,env:{...cleanEnv(root),EST_SERVER_TYPE:'server',EST_CONFIG_PATH:file,EST_RESULTS_ROOT:path.join(root,'results')},stdio:['ignore','pipe','pipe']});t.after(()=>reap(child));let stderr='',stdout='';child.stderr.on('data',bytes=>stderr+=bytes);
@@ -51,8 +51,9 @@ test('SEA coordinator serves its adjacent production web build from an unrelated
     const invalidToken=Buffer.from(JSON.stringify({alg:'HS256',kid:'test'})).toString('base64url')+'.'+Buffer.from('{}').toString('base64url')+'.AAAA';
     const admission=await fetch(url+'/api/enrollment',{method:'POST',headers:{'content-type':'application/json','user-agent':'Mozilla/5.0 (X11; Linux x86_64)'},body:JSON.stringify({query:{PROLIFIC_PID:'sea-person',STUDY_ID:'sea-study',SESSION_ID:'sea-submission',prolific_token:invalidToken},device:{platform:'Linux',maxTouchPoints:0}})});
     assert.equal(admission.status,409);assert.match((await admission.json()).error,/algorithm|alg.*allowed/i,'SEA must include its secured-URL verifier, not fail on a missing JS chunk');
-    for(const route of ['/', '/audio/P501_C_german_f1_FB_48k.wav']){const response=await fetch(url+route);assert.equal(response.status,200,route+': '+(response.ok?'':await response.text())+' '+stderr);}
     const config=await(await fetch(url+'/api/config')).json();assert.equal(config.mode,'remote');assert.equal(config.remote,undefined);
+    assert.equal(config.sessionLanguage,'en');assert.ok(!Object.hasOwn(config,'testAsset'));
+    for(const route of ['/', '/audio/P501_C_german_f1_FB_48k.wav', '/audio/P501_C_english_f1_FB_48k.wav']){const response=await fetch(url+route);assert.equal(response.status,200,route+': '+(response.ok?'':await response.text())+' '+stderr);}
     const html=await(await fetch(url+'/')).text();const asset=html.match(/src="([^"]+\.js)"/)[1];const script=await fetch(url+asset);assert.equal(script.status,200);assert.match(script.headers.get('content-type'),/javascript/);
     await reap(child);assert.equal(child.exitCode,0,stderr);
 });

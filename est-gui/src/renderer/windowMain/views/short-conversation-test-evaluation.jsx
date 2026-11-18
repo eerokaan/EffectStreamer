@@ -1,15 +1,17 @@
 import { useEffect } from "react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTranslate } from "@/lib/helper-languages";
 import { getPermutedScaleOrder, scaleDetails } from "@/lib/helper-scales";
+import { useRuntime } from "@/runtime/context";
 import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
 import ComponentScale from "@/components/scale";
 import useStoreComponentScale from "@/stores/component-scale";
 import useStoreRoot from "@/stores/root";
-import { useRuntime } from "@/runtime/context";
 
 function ViewShortConversationTestEvaluation() {
+    const __ = useTranslate();
     const runtime = useRuntime();
     const { scaleIndex, setScaleIndex, scaleValues } = useStoreComponentScale();
     const { currentView, conditionScaleOffset, setConditionScaleOffset } = useStoreRoot();
@@ -40,16 +42,16 @@ function ViewShortConversationTestEvaluation() {
                 <ComponentHeader
                     headline={
                         <>
-                            Auswertung des Gesprächs:
+                            {__("Rate the conversation:")}
                             <br />
-                            {scaleDetail.displayName}
+                            {__(scaleDetail.displayName)}
                         </>
                     }
                 ></ComponentHeader>
 
                 <div className="max-w-5xl flex-1">
                     <ComponentScale scaleName={scaleName}></ComponentScale>
-                    <p>{scaleDetail.description}</p>
+                    <p>{__(scaleDetail.description)}</p>
                 </div>
 
                 {isLastScale ? (
@@ -57,7 +59,7 @@ function ViewShortConversationTestEvaluation() {
                 ) : (
                     <div className="mt-8 flex flex-none justify-end">
                         <Button onClick={() => setScaleIndex(scaleIndex + 1)} disabled={!hasSelection}>
-                            Weiter <ArrowRight data-icon="inline-end" />
+                            {__("Continue")} <ArrowRight data-icon="inline-end" />
                         </Button>
                     </div>
                 )}

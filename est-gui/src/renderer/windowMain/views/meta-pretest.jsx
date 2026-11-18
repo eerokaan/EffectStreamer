@@ -1,11 +1,13 @@
 import { useRef } from "react";
+import { useTranslate } from "@/lib/helper-languages";
+import { useRuntime } from "@/runtime/context";
 import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
 import ComponentPretestForm from "@/components/pretestform";
 import useStoreRoot from "@/stores/root";
-import { useRuntime } from "@/runtime/context";
 
 function ViewPretest() {
+    const __ = useTranslate();
     const runtime = useRuntime();
     const { currentView, pretestForm } = useStoreRoot();
     const formRef = useRef(null);
@@ -30,12 +32,12 @@ function ViewPretest() {
     return (
         <>
             <div className="flex flex-1 flex-col justify-center">
-                <ComponentHeader headline="Bevor es losgeht"></ComponentHeader>
+                <ComponentHeader headline={__("Before we begin")}></ComponentHeader>
 
                 <div className="max-w-5xl flex-1">
-                    <p className="mb-4">Bevor wir gemeinsam in die Tests starten, bitten wir Sie, ein paar kurze Angaben zu Ihrer Person zu machen.</p>
-                    <p className="mb-4">Diese Informationen helfen uns dabei, die Ergebnisse der Studie besser zu verstehen und statistisch einzuordnen.</p>
-                    <p className="mb-6">Bitte nehmen Sie sich einen Moment Zeit, um das folgende Formular auszufüllen, damit wir anschließend direkt mit den Tests beginnen können.</p>
+                    <p className="mb-4">{__("Before we start the tests, we'd like to ask you a few questions about yourself.")}</p>
+                    <p className="mb-4">{__("Your answers help us interpret the study results and inform our statistical analysis.")}</p>
+                    <p className="mb-6">{__("Please take a moment to fill out the form below. Then we can start the tests.")}</p>
 
                     <ComponentPretestForm key={pretestFormKey} ref={formRef} pretestForm={pretestForm} onSubmit={handleFormSubmit} />
                 </div>

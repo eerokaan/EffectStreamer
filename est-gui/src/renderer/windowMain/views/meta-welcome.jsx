@@ -1,27 +1,29 @@
+import { useTranslate } from "@/lib/helper-languages";
 import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
 
 function ViewWelcome() {
+    const __ = useTranslate();
     return (
         <>
             <div className="flex flex-1 flex-col justify-center">
-                <ComponentHeader headline="Willkommen beim Experiment"></ComponentHeader>
+                <ComponentHeader headline={__("Welcome to the experiment")}></ComponentHeader>
 
                 <div className="max-w-5xl flex-1">
-                    <p className="mb-4">Herzlich willkommen zu unserem Experiment zur Qualität von Voicechat-Verbindungen!</p>
-                    <p className="mb-4">In den kommenden Minuten werden Sie gemeinsam mit einem Chatpartner verschiedene Sprachsituationen testen. Dabei wird die Audioqualität je nach Sprachsituation variieren. Ihre Aufgabe ist es, diese Eindrücke ehrlich zu bewerten.</p>
-                    <p className="mb-4">Der Ablauf gestaltet sich wie folgt:</p>
+                    <p className="mb-4">{__("Welcome to our experiment on voice chat quality!")}</p>
+                    <p className="mb-4">{__("Over the next few minutes, you and a partner will try several speaking tasks. The audio quality will vary from one task to the next. Please rate what you actually hear and experience.")}</p>
+                    <p className="mb-4">{__("Here's what to expect:")}</p>
                     <ul className="mb-4 inline-block list-inside list-disc">
-                        <li>Zunächst erfassen wir einige allgemeine Basisinformationen.</li>
+                        <li>{__("First, we'll ask you a few background questions.")}</li>
                         <li>
-                            Anschließend folgen die Tests, die in mehrere Abschnitte unterteilt sind.
+                            {__("Then you'll begin the tests, which are divided into several sections.")}
                             <ul className="ml-6 inline-block list-inside list-disc">
-                                <li>Vor jedem Test erhalten Sie detaillierte Informationen was Sie erwarten wird.</li>
-                                <li>Danach startet der eigentliche Test. Hier sprechen Sie mit Ihrem Chatpartner.</li>
-                                <li>Anschließend bewerten Sie Ihre Eindrücke. Klicken Sie hierfür die Skalen an.</li>
+                                <li>{__("Before each test, we'll explain in detail what to expect.")}</li>
+                                <li>{__("During the test, you'll speak with your partner.")}</li>
+                                <li>{__("Afterward, click on the scales to rate your experience.")}</li>
                             </ul>
                         </li>
-                        <li>Nach der Hälfte der Tests legen wir eine kurze Pause zum Verschnaufen ein.</li>
+                        <li>{__("We'll take a short break halfway through.")}</li>
                     </ul>
                 </div>
 

@@ -18,6 +18,10 @@ class ExperimentSession extends ServerState {
         super();
         this.sessionId = restored?.sessionId || randomUUID();
         this.config = config;
+        // Recovery may end an incompatible session. Keep the original study metadata on disk,
+        // including the absence of a language in manifests from before it was recorded.
+        this.sessionLanguage = restored ? restored.sessionLanguage : config.sessionLanguage;
+        this.sessionConfigurationHash = restored ? restored.configurationHash : this.configurationHash();
         this.store = store;
         this.revision = 0;
         this.attempts = [];
@@ -72,7 +76,7 @@ class ExperimentSession extends ServerState {
         return {
             revision: this.revision, participantId, sessionId: this.sessionId, role: client.role,
             phase: this.phase, currentView: this.phase === "interrupted" ? "viewInterrupted" : client.currentView,
-            setupRequired: this.config.audioSetup.enabled, setupComplete: client.setupComplete,
+            setupRequired: this.config.audioSetup, setupComplete: client.setupComplete,
             attemptId: this.recordingContextActive, viewData: { ...client.viewData, recordingStatus: this.recordingContexts.get(this.recordingContextActive)?.status ?? null, recovery: this.recovery, completion: this.prolific?.previewCompletion(participantId) || null }, outcome: this.outcome
         };
     }
@@ -80,19 +84,19 @@ class ExperimentSession extends ServerState {
     manifest() {
         const active = this.recordingContexts.get(this.recordingContextActive);
         return {
-            sessionId: this.sessionId, revision: this.revision, phase: this.phase, outcome: this.outcome,
+            sessionId: this.sessionId, sessionLanguage: this.sessionLanguage, revision: this.revision, phase: this.phase, outcome: this.outcome,
             conditionIndex: this.conditionIndex, conditionOrder: this.conditionOrder,
             conditionListeningSpeakingTestIndex: this.conditionListeningSpeakingTestIndex,
             participants: [...this.clientsData.values()].map(({ socketId, ...client }) => client),
             attempts: this.attempts, activeAttemptId: this.recordingContextActive,
-            recovery: this.recovery, retryCounts: this.retryCounts, configurationHash: this.configurationHash(), viewGate: [...this.gates.viewChange],
+            recovery: this.recovery, retryCounts: this.retryCounts, configurationHash: this.sessionConfigurationHash, viewGate: [...this.gates.viewChange],
             activeContext: active ? { contextKey: active.contextKey, status: active.status, scope: active.scope, interrupted: active.interrupted, workerStopped: active.workerStopped, sockets: Object.fromEntries(Object.entries(active.sockets).map(([key, values]) => [key, [...values]])), files: { uploaded: [...active.files.uploaded] } } : null,
             requiredAnswers: [...this.clientsData.values()].map(client => ({ participantId: client.participantId, pretestComplete: client.pretestComplete }))
         };
     }
 
     persist() { return this.store.save(this.manifest()); }
-    configurationHash() {return createHash("sha256").update(JSON.stringify({ mode: this.config.deployment.mode, tests: this.config.tests, conditions: this.config.conditions, pretestForm: this.config.pretestForm })).digest("hex");}
+    configurationHash() {return createHash("sha256").update(JSON.stringify({ mode: this.config.deployment.mode, sessionLanguage: this.config.sessionLanguage, tests: this.config.tests, conditions: this.config.conditions, pretestForm: this.config.pretestForm })).digest("hex");}
 
     publish() {
         this.revision++;
@@ -148,7 +152,7 @@ class ExperimentSession extends ServerState {
             else if (["nextView", "ready", "submitRating", "stopCondition"].includes(envelope.type)) {
                 if (this.phase === "interrupted" || this.phase === "ended") throw new Error("Session is not accepting experiment actions");
                 if (payload.currentView !== client.currentView) throw new Error("Stale or invalid current view");
-                if (this.config.audioSetup.enabled && !client.setupComplete) throw new Error("Audio setup required");
+                if (this.config.audioSetup && !client.setupComplete) throw new Error("Audio setup required");
                 if (client.currentView === views.pretest && !client.pretestComplete) throw new Error("Required pretest answers missing");
                 if ([views.sctEval, views.lstEval].includes(client.currentView)) {
                     const testType = client.currentView === views.sctEval ? "sct" : "lst";
@@ -233,7 +237,7 @@ class ExperimentSession extends ServerState {
     }
 
     completionReady() {
-        if ([...this.clientsData.values()].some(client => !client.pretestComplete || (this.config.audioSetup.enabled && !client.setupComplete))) return false;
+        if ([...this.clientsData.values()].some(client => !client.pretestComplete || (this.config.audioSetup && !client.setupComplete))) return false;
         const count = this.config.conditions.baseline.length + this.config.conditions.random.length;
         for (let conditionIndex = 0; conditionIndex < count; conditionIndex++) {
             const rounds = [...(this.config.tests.sct ? [["sct", ""]] : []), ...(this.config.tests.lst ? [["lst", "-r1"], ["lst", "-r2"]] : [])];

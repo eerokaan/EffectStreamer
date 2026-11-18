@@ -1,38 +1,38 @@
 import * as z from "zod";
 
-const errorBoolean = "Bitte treffen Sie eine Auswahl";
-const errorNumber = "Bitte geben Sie eine gültige Zahl ein";
-const errorString = "Bitte wählen Sie eine Option";
-const errorText = "Bitte füllen Sie dieses Feld aus";
+const errorBoolean = "Please make a selection.";
+const errorNumber = "Please enter a valid number.";
+const errorString = "Please select an option.";
+const errorText = "Please fill in this field.";
 
-function buildPretestFieldSchema(field) {
+function buildPretestFieldSchema(field, t) {
     if (field.type === "input") {
-        return buildInputSchema(field);
+        return buildInputSchema(field, t);
     }
     if (field.type === "select") {
-        return buildSelectSchema(field);
+        return buildSelectSchema(field, t(errorString));
     }
     if (field.type === "slider") {
-        return buildSliderSchema(field);
+        return buildSliderSchema(field, t(errorNumber));
     }
     if (field.type === "switch") {
-        return z.boolean({ error: errorBoolean });
+        return z.boolean({ error: t(errorBoolean) });
     }
 
     return z.never();
 }
 
-function buildInputSchema(field) {
+function buildInputSchema(field, t) {
     const validation = field.validation ?? {};
 
     if (validation.valueType === "number" || validation.valueType === "integer") {
-        return buildNumericInputSchema(field);
+        return buildNumericInputSchema(field, t(errorNumber));
     }
 
-    return buildStringInputSchema(field);
+    return buildStringInputSchema(field, t(errorText));
 }
 
-function buildNumericInputSchema(field) {
+function buildNumericInputSchema(field, errorNumber) {
     const validation = field.validation ?? {};
     let schema = z.number({ error: errorNumber });
 
@@ -61,7 +61,7 @@ function buildNumericInputSchema(field) {
     }, schema);
 }
 
-function buildStringInputSchema(field) {
+function buildStringInputSchema(field, errorText) {
     const validation = field.validation ?? {};
     let schema = z.string({ error: errorText });
 
@@ -84,7 +84,7 @@ function buildStringInputSchema(field) {
     return schema;
 }
 
-function buildSelectSchema(field) {
+function buildSelectSchema(field, errorString) {
     const optionValues = new Set(field.options.map((option) => option.value));
     let schema = z.string({ error: errorString }).refine((value) => optionValues.has(value), { message: errorString });
 
@@ -95,7 +95,7 @@ function buildSelectSchema(field) {
     return schema;
 }
 
-function buildSliderSchema(field) {
+function buildSliderSchema(field, errorNumber) {
     const validation = field.validation ?? {};
     const min = validation.min ?? 0;
     const max = validation.max ?? 100;
@@ -113,11 +113,11 @@ function isStepAligned(value, min, step) {
     return Math.abs(quotient - Math.round(quotient)) < 1e-9;
 }
 
-function buildPretestFormSchema(pretestForm = []) {
+function buildPretestFormSchema(pretestForm, translate) {
     const formShape = {};
 
     for (const field of pretestForm) {
-        formShape[field.name] = buildPretestFieldSchema(field);
+        formShape[field.name] = buildPretestFieldSchema(field, translate);
     }
 
     return z.object(formShape);

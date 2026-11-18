@@ -1,13 +1,7 @@
 import { useRef } from "react";
 import useStoreComponentScale from "@/stores/component-scale";
-import imgAudioQuality from "@/assets/img/scales/01_audio_quality.png";
-import imgColoration from "@/assets/img/scales/02_coloration.png";
-import imgDiscontinuity from "@/assets/img/scales/03_discontinuity.png";
-import imgDegradation from "@/assets/img/scales/04_degradation.png";
-import imgEcho from "@/assets/img/scales/05_echo.png";
-import imgInteraction from "@/assets/img/scales/06_interaction.png";
-import imgLoudness from "@/assets/img/scales/07_loudness.png";
-import imgNoisiness from "@/assets/img/scales/08_noisiness.png";
+import { resolveLocalizedImage } from "@/lib/helper-assets";
+import { useSessionLanguage, useTranslate } from "@/lib/helper-languages";
 
 const imageWidth = 4200;
 const imageHeight = 575;
@@ -19,22 +13,25 @@ const scaleClasses = {
 };
 
 const scales = {
-    audio_quality: { scaleClass: "class01", image: imgAudioQuality },
-    coloration: { scaleClass: "class02", image: imgColoration },
-    discontinuity: { scaleClass: "class02", image: imgDiscontinuity },
-    degradation: { scaleClass: "class02", image: imgDegradation },
-    echo: { scaleClass: "class02", image: imgEcho },
-    interaction: { scaleClass: "class02", image: imgInteraction },
-    loudness: { scaleClass: "class02", image: imgLoudness },
-    noisiness: { scaleClass: "class02", image: imgNoisiness }
+    audio_quality: { scaleClass: "class01", image: "01_audio_quality.png" },
+    coloration: { scaleClass: "class02", image: "02_coloration.png" },
+    discontinuity: { scaleClass: "class02", image: "03_discontinuity.png" },
+    degradation: { scaleClass: "class02", image: "04_degradation.png" },
+    echo: { scaleClass: "class02", image: "05_echo.png" },
+    interaction: { scaleClass: "class02", image: "06_interaction.png" },
+    loudness: { scaleClass: "class02", image: "07_loudness.png" },
+    noisiness: { scaleClass: "class02", image: "08_noisiness.png" }
 };
 
 function ComponentScale({ scaleName }) {
     const { scaleValues, setScaleValues } = useStoreComponentScale();
+    const language = useSessionLanguage();
+    const __ = useTranslate();
     const imgReference = useRef(null);
 
     const scaleInfo = scales[scaleName];
     const { xMin, xMax } = scaleClasses[scaleInfo.scaleClass];
+    const image = resolveLocalizedImage("scales", scaleInfo.image, language);
 
     // Derive marker position directly from the store value
     const storedValue = scaleValues[scaleName];
@@ -66,7 +63,7 @@ function ComponentScale({ scaleName }) {
     return (
         <>
             <div className="relative inline-block select-none">
-                <img ref={imgReference} src={scaleInfo.image} alt="Scale Image" className="block w-full" draggable="false" />
+                <img ref={imgReference} src={image} alt={__("Rating scale")} data-rating-scale={scaleName} className="block w-full" draggable="false" />
                 <div className="absolute inset-0 cursor-crosshair" onClick={handleClick} />
 
                 {markerPercentage && (

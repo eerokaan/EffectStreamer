@@ -51,8 +51,15 @@ test('two pairs own independent views, role assets, conditions, and result direc
     assert.equal(second.snapshot(people[2].participantId).currentView,'viewWelcome');
     first.conditionIndex=2;first.conditionOrder=[3,1,0];
     assert.equal(second.conditionIndex,0);assert.deepEqual(second.conditionOrder,[]);
-    assert.match(first.viewFlow.getClientConditionAsset(first.clientsData.get(people[0].participantId)),/^client-a\/03\.png$/);
-    assert.match(first.viewFlow.getClientConditionAsset(first.clientsData.get(people[1].participantId)),/^client-b\/03\.png$/);
+    const [a,b]=people.slice(0,2).map(person=>first.clientsData.get(person.participantId));
+    const asset=(view,client)=>first.viewFlow.getViewData(first.viewFlow.getViewByName(view),client).conditionAsset;
+    assert.equal(asset('viewShortConversationTestMain',a),'client-a/03.html');
+    assert.equal(asset('viewShortConversationTestMain',b),'client-b/03.html');
+    assert.equal(asset('viewListeningSpeakingTestMain',a),'client-a/03.html');
+    assert.equal(asset('viewListeningSpeakingTestMain',b),'listener.png');
+    first.conditionListeningSpeakingTestIndex=1;
+    assert.equal(asset('viewListeningSpeakingTestMain',a),'listener.png');
+    assert.equal(asset('viewListeningSpeakingTestMain',b),'client-b/03.html');
     assert.notEqual(first.sessionDir,second.sessionDir);
     assert.equal(app.registry.getForParticipant(people[0].participantId),first);
     await first.persist();
@@ -111,16 +118,17 @@ test('another session, participant, stale view or stale attempt cannot change ex
 });
 test('public configuration precedes enrollment and production remote admission refuses development identities',async(t)=>{
     const app=await fixture(t,remoteConfig());
-    const response=await fetch(app.url+'/api/config');assert.equal(response.status,200);
-    assert.equal((await response.json()).setupRequired,true);
+    const response=await fetch(app.url+'/api/config?language=en&sessionLanguage=en');assert.equal(response.status,200);
+    const bootstrap=await response.json();
+    assert.equal(bootstrap.setupRequired,true);assert.equal(bootstrap.sessionLanguage,'de');
     const refused=await fetch(app.url+'/api/enrollment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({identity:'bypass'})});
     assert.equal(refused.status,403);
 });
 test('enrollment credentials persist without plaintext tokens or duplicate enrollment',async(t)=>{
     const root=checkoutPaths().temporaryDirectory('est-server','est-credentials-');t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
-    const first=new EnrollmentStore(root);const enrolled=first.admit({identity:'external/identity'});
+    const first=new EnrollmentStore(root,{sessionLanguage:'de'});const enrolled=first.admit({identity:'external/identity'});
     assert.throws(()=>first.admit({identity:'external/identity'}),/already enrolled/);
-    const restored=new EnrollmentStore(root);
+    const restored=new EnrollmentStore(root,{sessionLanguage:'de'});
     assert.equal(restored.authenticate(enrolled.reconnectToken).participantId,enrolled.participantId);
     assert.equal(restored.authenticate('wrong'),null);
     assert.ok(!fs.readFileSync(path.join(root,'enrollments.json'),'utf8').includes(enrolled.reconnectToken));

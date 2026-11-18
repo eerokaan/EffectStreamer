@@ -1,7 +1,7 @@
 export class BrowserDevices {
-    constructor({ mediaDevices = globalThis.navigator?.mediaDevices, playback, AudioContext = globalThis.AudioContext || globalThis.webkitAudioContext, testAsset, testDurationMs = 1000, testTimeoutMs = 35000, onInvalidated = () => {} } = {}) {
+    constructor({ mediaDevices = globalThis.navigator?.mediaDevices, playback, AudioContext = globalThis.AudioContext || globalThis.webkitAudioContext, setupSample, testDurationMs = 1000, testTimeoutMs = 35000, onInvalidated = () => {} } = {}) {
         this.mediaDevices = mediaDevices; this.playback = playback; this.AudioContext = AudioContext;
-        this.testAsset = testAsset; this.testDurationMs = testDurationMs; this.onInvalidated = onInvalidated;
+        this.setupSample = setupSample; this.testDurationMs = testDurationMs; this.onInvalidated = onInvalidated;
         this.testTimeoutMs = testTimeoutMs;
         this.selection = { sourceId: "default", sinkId: "default" }; this.active = false;
         this.changed = () => this.invalidate();
@@ -44,9 +44,9 @@ export class BrowserDevices {
         const stream = await this.acquire();
         try {
             const found = await this.mediaDevices.enumerateDevices();
-            const entries = kind => found.filter(device => device.kind === kind && device.deviceId && device.deviceId !== "default").map(device => ({ id: device.deviceId, label: device.label || "Unnamed audio device" }));
-            const inputs = [{ id: "default", label: "System default microphone", isDefault: true }, ...entries("audioinput")];
-            const outputs = [{ id: "default", label: "System default output", isDefault: true }, ...(typeof this.element().setSinkId === "function" ? entries("audiooutput") : [])];
+            const entries = kind => found.filter(device => device.kind === kind && device.deviceId && device.deviceId !== "default").map(device => ({ id: device.deviceId, label: device.label || null }));
+            const inputs = [{ id: "default", label: null, isDefault: true }, ...entries("audioinput")];
+            const outputs = [{ id: "default", label: null, isDefault: true }, ...(typeof this.element().setSinkId === "function" ? entries("audiooutput") : [])];
             if (this.permittedOutput && !outputs.some(device => device.id === this.permittedOutput.id)) outputs.push(this.permittedOutput);
             return { inputs, outputs, selection: { ...this.selection } };
         }
@@ -56,7 +56,7 @@ export class BrowserDevices {
         this.assertIdle();this.invalidate();
         if (!this.mediaDevices?.selectAudioOutput) throw new Error("Output permission selection is unavailable; use the output menu or system default");
         const device = await this.mediaDevices.selectAudioOutput();
-        this.permittedOutput = { id: device.deviceId, label: device.label || "Permitted output" };
+        this.permittedOutput = { id: device.deviceId, label: device.label || null };
         return this.permittedOutput;
     }
     async selectOutput(element, id) {
@@ -88,7 +88,7 @@ export class BrowserDevices {
             const operation = (async () => {
             await this.authorizeContext();
             await this.selectOutput(element, selection.sinkId);
-            element.srcObject = null;element.src = this.testAsset;
+            element.srcObject = null;element.src = this.setupSample;
             const ended = new Promise((resolve, reject) => {element.onended = resolve;element.onerror = () => reject(new Error("P.501 test playback failed"));});
             void ended.catch(() => {});
             // Keep this user-authorized element for later WebRTC playback.

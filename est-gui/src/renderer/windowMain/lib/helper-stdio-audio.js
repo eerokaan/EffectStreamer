@@ -109,16 +109,16 @@ async function enumerateAudioDevices() {
     try {
         permissionStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         const devices = await navigator.mediaDevices.enumerateDevices();
-        const sources = [{ id: "default", label: "Default microphone" }];
-        const sinks = [{ id: "default", label: "Default output" }];
+        const sources = [{ id: "default", label: null }];
+        const sinks = [{ id: "default", label: null }];
 
         for (const device of devices) {
             if (device.deviceId === "default") continue;
             if (device.kind === "audioinput") {
-                sources.push({ id: device.deviceId, label: device.label || "Microphone " + sources.length });
+                sources.push({ id: device.deviceId, label: device.label || null });
             }
             else if (device.kind === "audiooutput") {
-                sinks.push({ id: device.deviceId, label: device.label || "Output " + sinks.length });
+                sinks.push({ id: device.deviceId, label: device.label || null });
             }
         }
         return { sources, sinks };

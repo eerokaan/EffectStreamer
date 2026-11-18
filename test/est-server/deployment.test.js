@@ -10,19 +10,20 @@ const {remoteConfig}=require('./fixtures/config.js');
 const {spawnSync}=require('node:child_process');
 const {checkoutPaths}=require('../../common/transient-paths.cjs');
 
-test('same-origin hosting serves the renderer and real WAV while keeping private routes out of SPA fallback',async t=>{
+for (const [language, filename] of [['de','P501_C_german_f1_FB_48k.wav'],['en','P501_C_english_f1_FB_48k.wav']]) test(`same-origin hosting serves the ${language} setup WAV and keeps private routes out of SPA fallback`,async t=>{
     const root=checkoutPaths().temporaryDirectory('est-server','est-deploy-');
     const webRoot=path.join(root,'.private-build','web');await fs.mkdir(webRoot,{recursive:true});
     await fs.writeFile(path.join(webRoot,'index.html'),'<!doctype html><title>Study</title>');
     await fs.mkdir(path.join(webRoot,'audio'));
-    await fs.copyFile(path.resolve(__dirname,'../../est-gui/public/audio/P501_C_german_f1_FB_48k.wav'),path.join(webRoot,'audio','P501_C_german_f1_FB_48k.wav'));
-    const raw=remoteConfig();
+    await fs.copyFile(path.resolve(__dirname,'../../est-gui/public/audio',filename),path.join(webRoot,'audio',filename));
+    const raw=remoteConfig();raw.sessions.general.language=language;
     const app=createCoordinator({config:normalizeConfig(raw),root:path.join(root,'results'),webRoot});
     t.after(async()=>{await app.close();await fs.rm(root,{recursive:true,force:true});});
     await app.ready;app.server.listen(0,'127.0.0.1');await once(app.server,'listening');const url='http://127.0.0.1:'+app.server.address().port;
     const main=await fetch(url+'/');assert.equal(main.status,200);assert.match(main.headers.get('content-type'),/text\/html/);assert.match(await main.text(),/<title>Study/);
-    const sample=await fetch(url+'/audio/P501_C_german_f1_FB_48k.wav');assert.equal(sample.status,200);assert.match(sample.headers.get('content-type'),/audio\/(wav|wave|x-wav)/);assert.equal(Buffer.from(await sample.arrayBuffer()).toString('ascii',0,4),'RIFF');
-    const config=await fetch(url+'/api/config');assert.match(config.headers.get('cache-control'),/no-store/);assert.doesNotMatch(await config.text(),/private-secret|completionCodes|coreExecutable/);
+    const config=await fetch(url+'/api/config');assert.match(config.headers.get('cache-control'),/no-store/);assert.doesNotMatch(await config.clone().text(),/private-secret|completionCodes|coreExecutable/);
+    const bootstrap=await config.json();assert.equal(bootstrap.sessionLanguage,language);assert.ok(!Object.hasOwn(bootstrap,'testAsset'));
+    const sample=await fetch(url+'/audio/'+filename);assert.equal(sample.status,200);assert.match(sample.headers.get('content-type'),/audio\/(wav|wave|x-wav)/);assert.equal(Buffer.from(await sample.arrayBuffer()).toString('ascii',0,4),'RIFF');
     for(const route of ['/api/unknown','/assets/missing.js','/audio/missing.wav','/session.json','/src/server.js']) assert.equal((await fetch(url+route)).status,404,route);
     const person=app.enrollments.admit({identity:'websocket-smoke'}),socket=connect(url,{auth:{reconnectToken:person.reconnectToken},transports:['websocket'],reconnection:false});t.after(()=>socket.disconnect());
     await once(socket,'connect');assert.equal(socket.io.engine.transport.name,'websocket');

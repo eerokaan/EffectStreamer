@@ -6,6 +6,15 @@ This is the EffectStreamer GUI – the participant-facing interface of EffectStr
 
 The same React frontend builds as a native Electron application or a browser application. Electron uses bundled ALSA/WASAPI2 cores by default; the browser uses server-hosted cores over WebRTC. The coordinator selects the deployment mode; mixed native/browser pairs are not supported.
 
+## Study language and materials
+
+The required `sessions.general.language` setting in `est-server.config.json` selects `en` or `de` for both client types. It controls the shared screens, task text, packaged rating and instruction images, and P.501 check sample. It is not a GUI or participant preference. Deploy matching server and client builds together between studies.
+
+- Edit `src/renderer/windowMain/assets/languages/en.csv` and `de.csv` as UTF-8 CSV with `source,translation` headers. Use the same English source phrase in both files and keep `{{placeholders}}` identical across languages. For a questionnaire, set each display field to its source phrase and add the corresponding rows; unknown custom text is displayed verbatim. Do not change field names or stored choice values to translate their labels.
+- The SCT and LST pages under `assets/html/` share markup across languages. `data-translate` marks a text-only element; use its English text or an explicit key in the attribute. Keep the paired cues, table structure, editable controls and read-aloud paragraph boundaries intact.
+- Initial English PNGs are **German placeholders**. Replace the 8 files in `assets/img/scales/en/`, `assets/img/short-conversation-test/en/explanation.png`, and `assets/img/listening-speaking-test/en/{explanation,listener}.png`. Keep the scale image geometry and tick/endpoint positions; scoring converts pointer coordinates using the original dimensions.
+- Both P.501 WAVs ship under `public/audio/`. Each client uses the bundled file matching the coordinator's study language. There is no custom WAV setting.
+
 ## The configuration file
 
 For local-use Electron clients, copy the repository template `est-gui.config.example.json` to the runtime location for the account running the application:

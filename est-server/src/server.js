@@ -18,12 +18,12 @@ const {createTransientPaths}=require('@effectstreamer/common/transient-paths');
 function createCoordinator({ config, root = path.join(os.homedir(), "effectstreamer", "sessions"), webRoot = null }) {
     const release=createTransientPaths({anchor:root}).acquireProcessLock('est-server','results');
     try {
+    const enrollments = new EnrollmentStore(root, { sessionLanguage: config.sessionLanguage });
     const app = express();
     app.disable("x-powered-by");
     app.use(express.json({ limit: "64kb" }));
     const server = http.createServer(app);
     const io = new Server(server, { maxHttpBufferSize: 1048576, serveClient: false, pingInterval: 10000, pingTimeout: 10000 });
-    const enrollments = new EnrollmentStore(root);
     const registry = new SessionRegistry({ config, io, root, enrollments });
     const transfers = new RecordingTransfers({ root, config: config.recordings, getSession: id => registry.getForParticipant(id), onReceipt: (session, manifest, receipt) => session.receivedRecording(manifest, receipt) });
     registry.transfers = transfers;
@@ -66,7 +66,7 @@ function createCoordinator({ config, root = path.join(os.homedir(), "effectstrea
                 if (session.clientsData.has(other.data.participantId)) session.clientRegistry.attach(other, other.data.participantId);
             }
         }
-        else if (config.deployment.mode === "local") socket.emit(EVENTS.snapshot, { revision: 0, participantId, sessionId: null, role: null, phase: "waiting", currentView: "viewWaiting", setupRequired: config.audioSetup.enabled, setupComplete: false, attemptId: null, viewData: {}, outcome: null });
+        else if (config.deployment.mode === "local") socket.emit(EVENTS.snapshot, { revision: 0, participantId, sessionId: null, role: null, phase: "waiting", currentView: "viewWaiting", setupRequired: config.audioSetup, setupComplete: false, attemptId: null, viewData: {}, outcome: null });
         admission.match();
 
         const dispatch = async (envelope, acknowledge = () => {}) => {

@@ -136,7 +136,7 @@ class ViewFlow {
     getClientConditionAsset(client) {
         const conditionPadded = padNumber(this.state.conditionIndex + 1, 2);
         if (!["a", "b"].includes(client.role)) throw new Error("Missing A/B role slot");
-        return "client-" + client.role + "/" + conditionPadded + ".png";
+        return "client-" + client.role + "/" + conditionPadded + ".html";
     }
 }
 

@@ -29,10 +29,11 @@ describe('shared participant runtime',()=>{
         client.dispose();
     });
     it('both adapters consume identical snapshots and emit identical scoped actions',async()=>{
-        const states=[],requests=[];
+        const states=[],requests=[],languages=[];
         for(const target of ['browser','electron']) {
-            const socket=transport();const initialization={config:{mode:target==='browser'?'remote':'local',setupRequired:false},credentials:{participantId:'p-1',reconnectToken:'test-token'},url:'https://example.test'};
-            const runtime=target==='browser' ? browserRuntime({initialize:async()=>initialization,transportFactory:()=>socket}) : electronRuntime({bridge:{invoke:async()=>initialization},transportFactory:()=>socket});
+            const socket=transport();const initialization={config:{mode:target==='browser'?'remote':'local',setupRequired:false,sessionLanguage:'de'},credentials:{participantId:'p-1',reconnectToken:'test-token'},url:'https://example.test'};
+            const runtime=target==='browser' ? browserRuntime({initialize:async()=>initialization,transportFactory:()=>socket}) : electronRuntime({bridge:{invoke:async operation=>operation==='configuration'?initialization.config:initialization},transportFactory:()=>socket});
+            runtime.subscribeConfiguration(value=>languages.push(value.sessionLanguage));
             runtime.subscribe(value=>states.push(value));await runtime.bootstrap();
             socket.receive('est-event:snapshot',snapshot);
             socket.receive('est-event:snapshot',{...snapshot,revision:1,currentView:'viewWelcome'});
@@ -42,12 +43,14 @@ describe('shared participant runtime',()=>{
             await runtime.dispose();
         }
         expect(states.filter(value=>value.revision===2)).toEqual([snapshot,snapshot]);
+        expect(languages).toEqual(['de','de']);
         expect(requests.map(({requestId,...request})=>request)).toEqual(Array(2).fill({version:1,sessionId:'s-1',participantId:'p-1',attemptId:null,type:'nextView',payload:{currentView:'viewPretest'}}));
     });
     it('browser bootstrap does not depend on Electron preload',async()=>{
-        const runtime=browserRuntime({initialize:async()=>({config:{mode:'remote',setupRequired:true},credentials:{participantId:'p-1',reconnectToken:'secret'},url:'https://example.test'}),transportFactory:()=>transport()});
+        const runtime=browserRuntime({initialize:async()=>({config:{mode:'remote',setupRequired:true,sessionLanguage:'en'},credentials:{participantId:'p-1',reconnectToken:'secret'},url:'https://example.test'}),transportFactory:()=>transport()});
         expect(globalThis.window).toBeUndefined();
         expect((await runtime.bootstrap()).setupRequired).toBe(true);
+        expect(runtime.devices.setupSample).toBe('/audio/P501_C_english_f1_FB_48k.wav');
         await runtime.dispose();
     });
     it('session client rejects wrong-participant snapshots and detaches listeners',async()=>{
@@ -72,7 +75,7 @@ describe('shared participant runtime',()=>{
     });
     it('a fresh browser invalidates persisted setup even between attempts',async()=>{
         const socket=transport(),devices=new BrowserDevices({mediaDevices:{}});
-        const runtime=browserRuntime({devices,initialize:async()=>({config:{mode:'remote',setupRequired:true},credentials:{participantId:'p-1'},url:'https://example.test'}),transportFactory:()=>socket});
+        const runtime=browserRuntime({devices,initialize:async()=>({config:{mode:'remote',setupRequired:true,sessionLanguage:'de'},credentials:{participantId:'p-1'},url:'https://example.test'}),transportFactory:()=>socket});
         await runtime.bootstrap();socket.receive('est-event:snapshot',{...snapshot,setupRequired:true,setupComplete:true});
         expect(socket.sent.map(value=>value.message.type)).toContain('setupInvalidated');
         await runtime.dispose();
@@ -80,7 +83,7 @@ describe('shared participant runtime',()=>{
     it('device invalidation between attempts revokes approval but a valid reconnect does not',async()=>{
         const socket=transport(),devices=new BrowserDevices({mediaDevices:{}});
         devices.tested={sourceId:'default',sinkId:'default'};devices.context={state:'running',sampleRate:48000,async close(){}};
-        const runtime=browserRuntime({devices,initialize:async()=>({config:{mode:'remote',setupRequired:true},credentials:{participantId:'p-1'},url:'https://example.test'}),transportFactory:()=>socket});
+        const runtime=browserRuntime({devices,initialize:async()=>({config:{mode:'remote',setupRequired:true,sessionLanguage:'de'},credentials:{participantId:'p-1'},url:'https://example.test'}),transportFactory:()=>socket});
         await runtime.bootstrap();socket.receive('est-event:snapshot',{...snapshot,setupRequired:true,setupComplete:true});
         socket.receive('connect');expect(socket.sent).toEqual([]);
         devices.changed();expect(socket.sent.map(value=>value.message.type)).toEqual(['setupInvalidated']);

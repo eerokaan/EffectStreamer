@@ -3,7 +3,7 @@ function localConfig() { return structuredClone(localExample); }
 function remoteConfig() {
     const raw=localConfig();
     raw.server.mode='remote';raw.server.maxActivePairs=4;
-    raw.sessions.audioSetup.enabled=true;
+    raw.sessions.general.audioSetup=true;
     raw.remote.turnSecret='private-secret';raw.remote.iceServers=[{urls:'stun:stun.example.org:3478'}];
     return raw;
 }

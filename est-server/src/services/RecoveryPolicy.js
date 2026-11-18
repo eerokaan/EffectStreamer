@@ -19,7 +19,7 @@ class RecoveryPolicy {
         session.phase = "interrupted";session.gates.viewChange.clear();
         if (context && !uploading) {
             context.interrupted = true;attempt.status = "interrupted";
-            if (this.config.audioSetup.enabled) for (const client of session.clientsData.values()) {client.setupComplete = false;this.registry.enrollments.get(client.participantId).setupComplete = false;}
+            if (this.config.audioSetup) for (const client of session.clientsData.values()) {client.setupComplete = false;this.registry.enrollments.get(client.participantId).setupComplete = false;}
             this.registry.enrollments.save();session.effectStreamerCore.recordingContextStopCommit(context);
         }
         await session.persist();session.publish();
@@ -54,7 +54,7 @@ class RecoveryPolicy {
     async reconnected(participantId, { ready = false } = {}) {
         const session = this.registry.getForParticipant(participantId);if (!session?.recovery || session.phase === "ended") throw new Error("No recoverable session");
         const client = session.clientsData.get(participantId);
-        if (!client.socketId || (this.config.audioSetup.enabled && !client.setupComplete)) throw new Error("Repeat audio setup before retrying");
+        if (!client.socketId || (this.config.audioSetup && !client.setupComplete)) throw new Error("Repeat audio setup before retrying");
         if (ready && !session.recovery.acknowledged.includes(participantId)) session.recovery.acknowledged.push(participantId);
         await session.persist();session.publish();await this.maybeRetry(session);
     }
@@ -62,7 +62,7 @@ class RecoveryPolicy {
         const recovery = session.recovery;if (!recovery || session.phase === "ended" || recovery.kind === "upload") return;
         if (this.now() > recovery.deadline) {await this.end(session, "technicalFailure");return;}
         const people = [...session.clientsData.values()];
-        if (people.some(client => !client.socketId || !recovery.acknowledged.includes(client.participantId) || !recovery.resumed.includes(client.participantId) || (this.config.audioSetup.enabled && !client.setupComplete))) return;
+        if (people.some(client => !client.socketId || !recovery.acknowledged.includes(client.participantId) || !recovery.resumed.includes(client.participantId) || (this.config.audioSetup && !client.setupComplete))) return;
         const old = session.recordingContexts.get(recovery.attemptId), attempt = session.attempts.find(attempt => attempt.attemptId === recovery.attemptId);
         if (attempt) {
             if (!old.workerStopped || old.sockets.stopped.size !== people.length) return;

@@ -17,6 +17,11 @@ it.each(['ipc:viewChangeRequest','ipc:pretestSaveRequest','ipc:audioDevicesGet',
 it('preload refuses the obsolete device-dialog event channel',()=>{
     expect(()=>exposed.appApi.ipcRenderer.on('ipc:audioDevicesOpen',()=>{})).toThrow(/Unauthorized/);
 });
+it('the Electron renderer can obtain the coordinator language before enrollment', async () => {
+    calls.length=0;
+    await exposed.appApi.runtime.invoke('configuration');
+    expect(calls).toEqual([{channel:'ipc:runtime',payload:{operation:'configuration',payload:undefined}}]);
+});
 it('preload retains current runtime, stdio and store controls',async()=>{
     calls.length=0;
     const api=exposed.appApi;

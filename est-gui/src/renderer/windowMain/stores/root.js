@@ -4,6 +4,7 @@ const useStoreRoot = storeCreate({
     currentView: "viewWaiting",
     snapshot: null,
     runtimeError: null,
+    sessionLanguage: null,
     showDialog: false,
     pretestForm: null,
     conditionAsset: null,

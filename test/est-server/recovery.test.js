@@ -11,7 +11,7 @@ const {checkoutPaths}=require('../../common/transient-paths.cjs');
 function fixture(t) {
     const root=checkoutPaths().temporaryDirectory('est-server','est-recovery-');
     const raw=remoteConfig();raw.conditions={baseline:[{}],random:[]};
-    const config=normalizeConfig(raw),enrollments=new EnrollmentStore(root),events=[];
+    const config=normalizeConfig(raw),enrollments=new EnrollmentStore(root,{sessionLanguage:config.sessionLanguage}),events=[];
     const io={to:id=>({emit:(event,data)=>events.push({id,event,data})}),sockets:{sockets:new Map()}};
     const registry=new SessionRegistry({config,io,root,enrollments});
     let time=1000;const recovery=new RecoveryPolicy({config,registry,now:()=>time});registry.recovery=recovery;
@@ -67,7 +67,7 @@ test('restart ends active conversations but restores stopped/upload-only context
     upload.context.status='uploading';upload.session.attempts[0].status='uploading';upload.session.attempts[0].uploadDeadline=Date.now()+10000;
     upload.context.sockets.stopped=new Set(upload.people.map(person=>person.participantId));upload.context.sockets.viewChangePending=new Set(upload.people.map(person=>person.participantId));
     await active.session.persist();await upload.session.persist();const manifests=await f.registry.store.loadAll();
-    const restored=new SessionRegistry({config:f.config,io:{to:()=>({emit(){}})},root:f.root,enrollments:new EnrollmentStore(f.root)});
+    const restored=new SessionRegistry({config:f.config,io:{to:()=>({emit(){}})},root:f.root,enrollments:new EnrollmentStore(f.root,{sessionLanguage:f.config.sessionLanguage})});
     const policy=new RecoveryPolicy({config:f.config,registry:restored});restored.recovery=policy;t.after(()=>policy.close());
     await policy.recoverAfterRestart(manifests);
     const a=restored.getForParticipant(active.people[0].participantId),b=restored.getForParticipant(upload.people[0].participantId);
@@ -75,6 +75,38 @@ test('restart ends active conversations but restores stopped/upload-only context
     assert.equal(b.recovery.kind,'upload');assert.equal(b.recordingContextActive,upload.context.contextKey);assert.equal(b.attempts[0].status,'uploading');
     assert.deepEqual([...b.recordingContexts.get(b.recordingContextActive).sockets.viewChangePending],upload.people.map(person=>person.participantId));
     await Promise.all([...restored.sessions.values()].map(session=>session.dispose()));await Promise.all(restored.store.pending.values());
+});
+for (const legacy of [false,true]) test(legacy?'a legacy manifest cannot resume or be upgraded':'a language change ends a stopped session without rewriting its study metadata', async t=>{
+    const {createCoordinator}=require('../../est-server/src/server.js');
+    const {createHash}=require('node:crypto');
+    const root=checkoutPaths().temporaryDirectory('est-server','est-language-manifest-');
+    const raw=remoteConfig();
+    const originalConfig=normalizeConfig(raw);
+    let app=createCoordinator({config:originalConfig,root});
+    t.after(async()=>{await app?.close();fs.rmSync(root,{recursive:true,force:true});});
+    await app.ready;
+    const people=['first','second'].map(identity=>app.enrollments.get(app.enrollments.admit({identity}).participantId));
+    const session=app.registry.createPair(people);await session.persist();
+    const [original]=await app.registry.store.loadAll();
+    assert.equal(original.sessionLanguage,'de');
+    assert.equal(original.phase,'experiment');
+    if (legacy) {
+        const {deployment,tests,conditions,pretestForm}=originalConfig;
+        delete original.sessionLanguage;
+        original.configurationHash=createHash('sha256').update(JSON.stringify({mode:deployment.mode,tests,conditions,pretestForm})).digest('hex');
+        await app.registry.store.save(original);
+    }
+    await app.close();app=null;
+
+    if (!legacy) raw.sessions.general.language='en';
+    app=createCoordinator({config:normalizeConfig(raw),root});await app.ready;
+    const restored=app.registry.sessions.get(session.sessionId);
+    assert.notEqual(restored.configurationHash(),original.configurationHash);
+    assert.equal(restored.phase,'ended');assert.equal(restored.outcome,'technicalFailure');
+    const [saved]=await app.registry.store.loadAll();
+    assert.equal(saved.sessionLanguage,original.sessionLanguage);
+    assert.equal(saved.configurationHash,original.configurationHash);
+    assert.equal(saved.outcome,'technicalFailure');
 });
 test('a page reload losing upload-only RAM is explicit missing data, not a successful conversation retry',async t=>{
     const f=fixture(t),a=f.pair('reload');a.context.status='uploading';a.session.attempts[0].status='uploading';

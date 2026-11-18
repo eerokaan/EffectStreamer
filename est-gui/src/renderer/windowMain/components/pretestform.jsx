@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { buildPretestFormSchema } from "@/lib/helper-form-schema";
+import { translateConfiguredText, useTranslate } from "@/lib/helper-languages";
 import { zodResolver } from "@hookform/resolvers/zod";
 import useStoreComponentPretestForm from "@/stores/component-pretestform";
 
@@ -66,7 +67,7 @@ function helperRenderSelectField(fieldConfig, field, fieldState) {
             <FieldLabel htmlFor={fieldConfig.name}>{fieldConfig.label}</FieldLabel>
             <Select value={field.value ?? ""} onValueChange={field.onChange}>
                 <SelectTrigger className="w-full">
-                    <SelectValue placeholder={fieldConfig.placeholder ?? "Bitte angeben"} />
+                    <SelectValue placeholder={fieldConfig.placeholder} />
                 </SelectTrigger>
                 <SelectContent>
                     {fieldConfig.options.map((option) => (
@@ -151,9 +152,27 @@ function helperGetSliderDefaultValue(min, max, step) {
 }
 
 const ComponentPretestForm = forwardRef(function ComponentPretestForm({ pretestForm, onSubmit }, ref) {
-    const fields = useMemo(() => (Array.isArray(pretestForm) ? pretestForm : []), [pretestForm]);
+    const __ = useTranslate();
+    const fields = useMemo(() => {
+        const display = (text) => (text ? translateConfiguredText(text, __) : undefined);
+        return Array.isArray(pretestForm)
+            ? pretestForm.map((field) => ({
+                  ...field,
+                  label: display(field.label),
+                  description: display(field.description),
+                  placeholder: display(field.placeholder) ?? (field.type === "select" ? __("Please select an option.") : undefined),
+                  ...(field.options && { options: field.options.map((option) => ({ ...option, label: display(option.label) })) }),
+                  ...(field.marks && {
+                      marks: {
+                          minLabel: display(field.marks.minLabel),
+                          maxLabel: display(field.marks.maxLabel)
+                      }
+                  })
+              }))
+            : [];
+    }, [pretestForm, __]);
     const defaultValues = useMemo(() => helperBuildDefaultValues(fields), [fields]);
-    const formSchema = useMemo(() => buildPretestFormSchema(fields), [fields]);
+    const formSchema = useMemo(() => buildPretestFormSchema(fields, __), [fields, __]);
     const form = useForm({ resolver: zodResolver(formSchema), defaultValues, shouldUnregister: true });
     const { setFormData } = useStoreComponentPretestForm();
 

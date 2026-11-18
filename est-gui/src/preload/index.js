@@ -19,7 +19,7 @@ const appApi = {
             return () => ipcRenderer.removeListener("ipc:runtimeFailure", handler);
         },
         invoke: (operation, payload) => {
-            const allowed = ["bootstrap", "devices.list", "devices.test", "devices.save", "media.command", "media.dispose", "recordings.collect"];
+            const allowed = ["configuration", "bootstrap", "devices.list", "devices.test", "devices.save", "media.command", "media.dispose", "recordings.collect"];
             if (!allowed.includes(operation)) throw new Error("Unauthorized runtime operation");
             return ipcRenderer.invoke("ipc:runtime", { operation, payload });
         }

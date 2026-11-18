@@ -57,13 +57,12 @@ function loadConfig() {
 function normalizeConfig(parsedConfig) {
     // Validate step: Enforce the known top-level keys
     validateObject(parsedConfig, "config");
-    validateKnownKeys(parsedConfig, ["server", "remote", "prolific", "sessions", "tests", "conditions", "pretestForm"], "config");
+    validateKnownKeys(parsedConfig, ["server", "remote", "prolific", "sessions", "conditions", "pretestForm"], "config");
     const server = normalizeServerConfig(parsedConfig.server);
 
     // Return step
     return {
         server,
-        tests: normalizeTestsConfig(parsedConfig.tests),
         conditions: normalizeConditionsConfig(parsedConfig.conditions),
         pretestForm: configManagerPretestForm.normalizeConfig(parsedConfig.pretestForm),
         ...normalizeDeployment(parsedConfig, server)
@@ -92,25 +91,6 @@ function normalizeServerConfig(serverConfig) {
 
     // Return step
     return { ipAddress, port, mode, maxActivePairs };
-}
-
-function normalizeTestsConfig(testsConfig) {
-    validateObject(testsConfig, "tests");
-    const testKeys = ["short-conversation-test", "listening-speaking-test"];
-    validateKnownKeys(testsConfig, testKeys, "tests");
-
-    // Validate step: Enforce the test keys to be booleans
-    for (const testKey of testKeys) {
-        if (typeof testsConfig[testKey] !== "boolean") {
-            configError("tests." + testKey, "must be a boolean");
-        }
-    }
-
-    // Return step
-    return {
-        sct: testsConfig["short-conversation-test"],
-        lst: testsConfig["listening-speaking-test"]
-    };
 }
 
 function normalizeConditionsConfig(conditionsConfig) {

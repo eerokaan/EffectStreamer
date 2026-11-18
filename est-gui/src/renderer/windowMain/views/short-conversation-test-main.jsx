@@ -1,36 +1,38 @@
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { conditionSctAssets, resolveAsset } from "@/lib/helper-assets";
+import { loadStudyAsset, resolveTaskAsset } from "@/lib/helper-assets";
+import { useSessionLanguage, useTranslate } from "@/lib/helper-languages";
 import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
 import useStoreRoot from "@/stores/root";
 
 function ViewShortConversationTestMain() {
     const { conditionAsset, showDialog, setShowDialog } = useStoreRoot();
-    const asset = resolveAsset(conditionSctAssets, conditionAsset);
+    const language = useSessionLanguage();
+    const __ = useTranslate();
+    const asset = loadStudyAsset(() => resolveTaskAsset("short-conversation-test", conditionAsset, language, __));
 
     return (
         <>
             <div className="flex flex-1 flex-col justify-center">
-                <ComponentHeader headline="Gesprächsraum"></ComponentHeader>
+                <ComponentHeader headline={__("Conversation room")} />
 
                 <div className="flex w-full max-w-5xl flex-1 flex-col">
-                    {asset.type === "html" && <iframe srcDoc={asset.srcDoc} className="w-full flex-1 border-none" title="Test Document" />}
-                    {asset.type === "image" && <img src={asset.srcImg} alt="Test Asset" className="block w-full" draggable="false" />}
+                    {asset ? <iframe srcDoc={asset.srcDoc} className="w-full flex-1 border-none" title={__("Conversation card")} /> : <p role="alert">{__("The study material could not be loaded.")}</p>}
                 </div>
 
-                <ComponentFooter></ComponentFooter>
+                <ComponentFooter disabled={!asset} />
             </div>
 
             <Dialog open={showDialog} onOpenChange={setShowDialog}>
                 <DialogContent showCloseButton={true}>
                     <DialogHeader>
-                        <DialogTitle>Der Gesprächspartner hat das Gespräch verlassen</DialogTitle>
-                        <DialogDescription>Sie befinden sich nun alleine im Gespächsraum. Sie können nun auch den Raum verlassen und zur nächsten Ansicht gehen.</DialogDescription>
+                        <DialogTitle>{__("Your conversation partner has left")}</DialogTitle>
+                        <DialogDescription>{__("You are now alone in the conversation room. You can leave the room and continue to the next screen.")}</DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
                         <Button variant="default" onClick={() => setShowDialog(false)}>
-                            Schließen
+                            {__("Close")}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

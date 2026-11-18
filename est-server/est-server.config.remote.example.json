@@ -14,33 +14,56 @@
     "prolific": {
         "enabled": true,
         "studyId": "REPLACE_WITH_STUDY_ID",
-        "completionCodes": { "completed": "REPLACE_SUCCESS", "technicalFailure": "REPLACE_TECHNICAL", "partnerLeft": "REPLACE_PARTNER", "waitingTimeout": "REPLACE_WAITING" },
+        "completionCodes": {
+            "completed": "REPLACE_SUCCESS",
+            "technicalFailure": "REPLACE_TECHNICAL",
+            "partnerLeft": "REPLACE_PARTNER",
+            "waitingTimeout": "REPLACE_WAITING"
+        },
         "secureUrls": false,
         "externalStudyUrl": "https://study.example.org/",
         "workspaceId": "",
         "organisationId": null
     },
     "sessions": {
-        "pairingTimeoutMs": 300000,
-        "reconnectGraceMs": 60000,
-        "maxRetries": 1,
-        "maxConditionSeconds": 600,
-        "audioSetup": { "enabled": true, "testAsset": "P501_C_german_f1_FB_48k.wav" }
-    },
-    "tests": {
-        "short-conversation-test": true,
-        "listening-speaking-test": true
+        "general": {
+            "language": "de",
+            "audioSetup": true
+        },
+        "tests": {
+            "short-conversation-test": true,
+            "listening-speaking-test": true
+        },
+        "operatingLimits": {
+            "pairingTimeoutSeconds": 300,
+            "reconnectGraceSeconds": 60,
+            "maxConditionSeconds": 600,
+            "maxRetries": 1
+        }
     },
     "conditions": {
-        "baseline": [{ "nativeDelay": 0, "nativeGain": 1, "echoDelay": 20, "echoGain": 0.002 }],
-        "random": []
+        "baseline": [{ "echoDelay": 20, "echoGain": "0.002", "nativeDelay": 10 }],
+        "random": [
+            { "echoDelay": 50, "echoGain": "0.35", "nativeDelay": 25 },
+            { "echoDelay": 100, "echoGain": "0.35", "nativeDelay": 50 },
+            { "echoDelay": 200, "echoGain": "0.35", "nativeDelay": 100 },
+            { "echoDelay": 400, "echoGain": "0.35", "nativeDelay": 200 },
+            { "echoDelay": 50, "echoGain": "0.10", "nativeDelay": 25 },
+            { "echoDelay": 100, "echoGain": "0.10", "nativeDelay": 50 },
+            { "echoDelay": 200, "echoGain": "0.10", "nativeDelay": 100 },
+            { "echoDelay": 400, "echoGain": "0.10", "nativeDelay": 200 },
+            { "echoDelay": 50, "echoGain": "0.03", "nativeDelay": 25 },
+            { "echoDelay": 100, "echoGain": "0.03", "nativeDelay": 50 },
+            { "echoDelay": 200, "echoGain": "0.03", "nativeDelay": 100 },
+            { "echoDelay": 400, "echoGain": "0.03", "nativeDelay": 200 }
+        ]
     },
     "pretestForm": [
         {
             "name": "age",
             "type": "input",
             "inputType": "number",
-            "label": "Alter",
+            "label": "Age",
             "required": true,
             "validation": { "valueType": "integer", "min": 18 }
         }

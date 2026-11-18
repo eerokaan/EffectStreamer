@@ -1,22 +1,45 @@
-import { io } from "socket.io-client";
 import { createSessionClient } from "./session-client.js";
+import { io } from "socket.io-client";
 
 export function createParticipantRuntime({ initialize, devices = {}, media = {}, recordings = {}, transportFactory = io }) {
     const subscribers = new Set();
+    const configurationSubscribers = new Set();
     let client, transport, bootstrapPromise, configuration, current;
+    function publishConfiguration(config) {
+        if (configuration === config) return;
+        configuration = config;
+        for (const listener of configurationSubscribers) listener(config);
+    }
     const runtime = {
-        devices, media, recordings,
+        devices,
+        media,
+        recordings,
         config: () => configuration,
+        subscribeConfiguration(listener) {
+            configurationSubscribers.add(listener);
+            if (configuration) listener(configuration);
+            return () => configurationSubscribers.delete(listener);
+        },
         snapshot: () => current,
-        subscribe(listener) { subscribers.add(listener); if (current) listener(current); return () => subscribers.delete(listener); },
+        subscribe(listener) {
+            subscribers.add(listener);
+            if (current) listener(current);
+            return () => subscribers.delete(listener);
+        },
         bootstrap() {
             bootstrapPromise ||= (async () => {
-                const { config, credentials, url } = await initialize();
-                configuration = config;
+                const { config, credentials, url } = await initialize(publishConfiguration);
+                publishConfiguration(config);
                 transport = transportFactory(url, { auth: { reconnectToken: credentials.reconnectToken }, transports: ["websocket", "polling"] });
-                client = createSessionClient({ transport, participantId: credentials.participantId,
-                    onSnapshot(snapshot) { current = snapshot; for (const listener of subscribers) listener(snapshot); },
-                    onCommand: command => runtime.handleCommand(command), onError: error => runtime.onError?.(error)
+                client = createSessionClient({
+                    transport,
+                    participantId: credentials.participantId,
+                    onSnapshot(snapshot) {
+                        current = snapshot;
+                        for (const listener of subscribers) listener(snapshot);
+                    },
+                    onCommand: (command) => runtime.handleCommand(command),
+                    onError: (error) => runtime.onError?.(error)
                 });
                 return config;
             })();
@@ -34,7 +57,13 @@ export function createParticipantRuntime({ initialize, devices = {}, media = {},
             }
             if (media.command) return media.command(command, runtime);
         },
-        async dispose() { client?.dispose(); transport?.disconnect(); await media.dispose?.(); subscribers.clear(); }
+        async dispose() {
+            client?.dispose();
+            transport?.disconnect();
+            await media.dispose?.();
+            subscribers.clear();
+            configurationSubscribers.clear();
+        }
     };
     return runtime;
 }

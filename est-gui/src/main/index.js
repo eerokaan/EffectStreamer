@@ -1,19 +1,20 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
-import { electronApp, optimizer } from "@electron-toolkit/utils";
-import path from "node:path";
-import { getGuiConfigPath, readGuiConfig, saveAudioDeviceIds } from "@/main/lib/config";
-import { loadLocalEnrollment } from "@/main/lib/enrollment";
-import { getOperatingSystem, getCoreSpawnOptions } from "@/main/lib/coreProcess";
+import { handleNativeCommand } from "@/main/audio/command-handler";
 import { NativeAudioRuntime } from "@/main/audio/native";
 import { StdioAudioRuntime } from "@/main/audio/stdio";
-import { handleNativeCommand } from "@/main/audio/command-handler";
-import AudioTransport from "@/main/lib/audioTransport";
+import { getGuiConfigPath, readGuiConfig, saveAudioDeviceIds } from "@/main/lib/config";
+import { getCoreSpawnOptions, getOperatingSystem } from "@/main/lib/coreProcess";
+import { loadLocalEnrollment } from "@/main/lib/enrollment";
+import { configureTransientRuntime } from "@/main/lib/transient";
+import { createTransientPaths } from "@effectstreamer/common/transient-paths";
+import { electronApp, optimizer } from "@electron-toolkit/utils";
+import path from "node:path";
 import appContent from "@/main/lib/appContent";
 import appInfo from "@/main/lib/appInfo";
-import {createTransientPaths} from '@effectstreamer/common/transient-paths';
-import {configureTransientRuntime} from '@/main/lib/transient';
+import AudioTransport from "@/main/lib/audioTransport";
+import { audioSetupSampleFilename } from "../shared/audio-setup-sample.js";
 
-let windowMain, config, configPath, audio, initialization, activeScope, transport;
+let windowMain, config, configPath, audio, publicConfiguration, initialization, activeScope, transport;
 let closing = false;
 const rendererRequests = new Map();
 
@@ -23,33 +24,46 @@ function assertMainFrame(event) {
 function requestRendererControl(action, payload) {
     const requestId = crypto.randomUUID();
     return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {rendererRequests.delete(requestId);reject(new Error("Renderer audio control timed out"));}, 10000);
+        const timeout = setTimeout(() => {
+            rendererRequests.delete(requestId);
+            reject(new Error("Renderer audio control timed out"));
+        }, 10000);
         rendererRequests.set(requestId, { resolve, reject, timeout });
         windowMain.webContents.send("ipc:audioControlRequest", { requestId, action, payload });
     });
 }
+function loadPublicConfiguration() {
+    publicConfiguration ||= (async () => {
+        const response = await fetch(config.server.url + "/api/config");
+        if (!response.ok) throw new Error("Unable to load coordinator configuration");
+        return response.json();
+    })();
+    return publicConfiguration;
+}
+
 async function bootstrap() {
     initialization ||= (async () => {
         const url = config.server.url;
-        const response = await fetch(url + "/api/config");
-        if (!response.ok) throw new Error("Unable to load coordinator configuration");
-        const publicConfig = await response.json();
+        const publicConfig = await loadPublicConfiguration();
         if (publicConfig.mode !== "local") throw new Error("This native client requires a local deployment; use the study URL for remote experiments");
+        const sample = audioSetupSampleFilename(publicConfig.sessionLanguage);
         const credentialsPath = configPath + ".enrollment.json";
         const saved = await loadLocalEnrollment({ url, identity: config.client.identity, ipAddress: config.client.ipAddress, operatingSystem: getOperatingSystem(), credentialsPath });
-        const source=process.env.EST_GUI_SOURCE_ROOT || app.getAppPath();
-        const base = app.isPackaged ? path.join(process.resourcesPath, "est-core") : createTransientPaths({anchor:path.dirname(source)}).path('est-core','build',process.platform === 'win32' ? 'win' : 'linux');
+        const source = process.env.EST_GUI_SOURCE_ROOT || app.getAppPath();
+        const base = app.isPackaged ? path.join(process.resourcesPath, "est-core") : createTransientPaths({ anchor: path.dirname(source) }).path("est-core", "build", process.platform === "win32" ? "win" : "linux");
         const spawnOptions = getCoreSpawnOptions("receiver", { base });
-        const options = { config, executable: spawnOptions.executable, env: spawnOptions.options.env,
+        const options = {
+            config,
+            executable: spawnOptions.executable,
+            env: spawnOptions.options.env,
             recordingRoot: path.join(app.getPath("home"), "effectstreamer", "recordings"),
-            testAsset: app.isPackaged ? path.join(process.resourcesPath, "audio", path.basename(publicConfig.testAsset)) : path.join(source, "public", "audio", path.basename(publicConfig.testAsset)),
-            onFailure: error => windowMain?.webContents.send("ipc:runtimeFailure", { message: error.message, scope: activeScope })
+            onFailure: (error) => windowMain?.webContents.send("ipc:runtimeFailure", { message: error.message, scope: activeScope })
         };
         if (config.audio.backend === "stdio") {
             transport = new AudioTransport({ window: windowMain, requestRendererControl, onFatal: options.onFailure });
             audio = new StdioAudioRuntime({ ...options, transport, spawnOptions });
         }
-        else audio = new NativeAudioRuntime(options);
+        else audio = new NativeAudioRuntime({ ...options, setupSample: app.isPackaged ? path.join(process.resourcesPath, "audio", sample) : path.join(source, "public", "audio", sample) });
         return { config: { ...publicConfig, audioBackend: config.audio.backend, selectedAudioDevices: config.audio.devices }, credentials: saved.credentials, url };
     })();
     return initialization;
@@ -66,6 +80,7 @@ function registerIpc() {
     ipcMain.handle("ipc:runtime", async (event, request) => {
         assertMainFrame(event);
         const { operation, payload } = request || {};
+        if (operation === "configuration") return loadPublicConfiguration();
         if (operation === "bootstrap") return bootstrap();
         if (!audio) throw new Error("Runtime must be bootstrapped first");
         if (operation === "devices.list") return audio.listDevices();
@@ -86,34 +101,49 @@ function registerIpc() {
         assertMainFrame(event);
         const pending = rendererRequests.get(response?.requestId);
         if (!pending) return false;
-        rendererRequests.delete(response.requestId);clearTimeout(pending.timeout);
+        rendererRequests.delete(response.requestId);
+        clearTimeout(pending.timeout);
         response.success ? pending.resolve(response.result) : pending.reject(new Error(response.error || "Renderer audio failed"));
         return true;
     });
-    ipcMain.handle("ipc:audioFailure", (event, payload) => {assertMainFrame(event);transport?.handleRendererFailure(payload);});
+    ipcMain.handle("ipc:audioFailure", (event, payload) => {
+        assertMainFrame(event);
+        transport?.handleRendererFailure(payload);
+    });
 }
 
 async function start() {
     configureTransientRuntime(app);
-    await app.whenReady();electronApp.setAppUserModelId(appInfo.name);
-    configPath = getGuiConfigPath();config = await readGuiConfig(configPath);registerIpc();
-    windowMain = new BrowserWindow({ width: 1000, height: 800, title: appInfo.displayName, autoHideMenuBar: true, show: false,
-        webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: false, devTools: !app.isPackaged, preload: path.join(__dirname, "../preload/index.js") } });
+    await app.whenReady();
+    electronApp.setAppUserModelId(appInfo.name);
+    configPath = getGuiConfigPath();
+    config = await readGuiConfig(configPath);
+    registerIpc();
+    windowMain = new BrowserWindow({ width: 1000, height: 800, title: appInfo.displayName, autoHideMenuBar: true, show: false, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: false, devTools: !app.isPackaged, preload: path.join(__dirname, "../preload/index.js") } });
     const session = windowMain.webContents.session;
-    const allowed = (contents, permission, details = {}) => contents === windowMain.webContents && details.isMainFrame !== false && config.audio.backend === "stdio" &&
-        (permission === "speaker-selection" || (permission === "media" && (details.mediaTypes || []).length > 0 && details.mediaTypes.every(type => type.toLowerCase().startsWith("audio"))));
+    const allowed = (contents, permission, details = {}) => contents === windowMain.webContents && details.isMainFrame !== false && config.audio.backend === "stdio" && (permission === "speaker-selection" || (permission === "media" && (details.mediaTypes || []).length > 0 && details.mediaTypes.every((type) => type.toLowerCase().startsWith("audio"))));
     session.setPermissionCheckHandler((contents, permission, _origin, details) => allowed(contents, permission, details));
     session.setPermissionRequestHandler((contents, permission, callback, details) => callback(allowed(contents, permission, details)));
-    windowMain.webContents.setWindowOpenHandler(({ url }) => {if (/^https?:\/\//.test(url)) void shell.openExternal(url);return { action: "deny" };});
+    windowMain.webContents.setWindowOpenHandler(({ url }) => {
+        if (/^https?:\/\//.test(url)) void shell.openExternal(url);
+        return { action: "deny" };
+    });
     windowMain.once("ready-to-show", () => windowMain.show());
-    windowMain.on("close", event => {
+    windowMain.on("close", (event) => {
         if (closing) return;
-        event.preventDefault();closing = true;
+        event.preventDefault();
+        closing = true;
         // Pending native WAVs are never removed merely because the app closes.
-        void Promise.resolve(audio?.dispose()).catch(console.error).finally(() => windowMain.destroy());
+        void Promise.resolve(audio?.dispose())
+            .catch(console.error)
+            .finally(() => windowMain.destroy());
     });
     await appContent(windowMain, "windowMain.html");
 }
 app.on("browser-window-created", (_, window) => optimizer.watchWindowShortcuts(window));
 app.on("window-all-closed", () => app.quit());
-void start().catch(error => {dialog.showErrorBox("EffectStreamer startup error", error.message);app.quit();});
+void start().catch((error) => {
+    console.error(error);
+    dialog.showErrorBox("EffectStreamer", "EffectStreamer could not start. Please contact the study organizer.\n\nEffectStreamer konnte nicht gestartet werden. Bitte wenden Sie sich an die Studienleitung.");
+    app.quit();
+});

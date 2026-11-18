@@ -33,10 +33,10 @@ export function coreArguments({ platform, component, devices, condition = {}, pe
 }
 
 export class NativeAudioRuntime {
-    constructor({ config, executable, env = process.env, platform = process.platform, recordingRoot, testAsset, runUtility, startCore = managedCore.startCore, onFailure = () => {} }) {
+    constructor({ config, executable, env = process.env, platform = process.platform, recordingRoot, setupSample, runUtility, startCore = managedCore.startCore, onFailure = () => {} }) {
         this.config = config; this.audio = normalizeAudioConfig(config); this.executable = executable;
         this.env = env; this.platform = platform; this.root = path.resolve(this.audio.recordingDir || recordingRoot);
-        this.testAsset = testAsset; this.startCore = startCore; this.onFailure = onFailure;
+        this.setupSample = setupSample; this.startCore = startCore; this.onFailure = onFailure;
         this.runUtility = runUtility || (async args => {
             try { const { stdout } = await execute(executable, args, { env, timeout: 35000, maxBuffer: 1048576 }); return JSON.parse(stdout); }
             catch (error) { throw new Error(error.stdout ? JSON.parse(error.stdout).error || error.message : error.message); }
@@ -70,7 +70,7 @@ export class NativeAudioRuntime {
         if (this.current) throw new Error("Cannot change devices during an active attempt");
         const input = await this.runUtility(["--mode", "test-input", "--device-type", backend(this.platform), "--device-id", sourceId, "--test-duration-ms", "1000"]);
         if (!input.ok || !input.inputUsable) throw new Error(input.error || "Input check failed");
-        const output = await this.runUtility(["--mode", "test-output", "--device-type", backend(this.platform), "--device-id", sinkId, "--test-file", this.testAsset]);
+        const output = await this.runUtility(["--mode", "test-output", "--device-type", backend(this.platform), "--device-id", sinkId, "--test-file", this.setupSample]);
         if (!output.ok) throw new Error(output.error || "Playback check failed");
         this.tested = { sourceId, sinkId };
         return { inputUsable: true, playbackComplete: true, peak: input.peak };

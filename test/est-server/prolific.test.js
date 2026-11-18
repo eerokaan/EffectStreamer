@@ -11,13 +11,13 @@ const {checkoutPaths}=require('../../common/transient-paths.cjs');
 const desktop = { userAgent: "Mozilla/5.0 (X11; Linux x86_64) Chrome/145", platform: "Linux x86_64", maxTouchPoints: 0, mobile: false };
 const query = id => ({ PROLIFIC_PID: "person-" + id, STUDY_ID: "study-1", SESSION_ID: "submission-" + id });
 function rawConfig() {
-    const raw = remoteConfig();raw.server.maxActivePairs = 1;raw.conditions = { baseline: [{}], random: [] };raw.tests["listening-speaking-test"] = false;
+    const raw = remoteConfig();raw.server.maxActivePairs = 1;raw.conditions = { baseline: [{}], random: [] };raw.sessions.tests["listening-speaking-test"] = false;
     raw.prolific = { enabled: true, studyId: "study-1", completionCodes: { completed: "FINISH", technicalFailure: "TECH", partnerLeft: "LEFT", waitingTimeout: "WAIT" } };
     return raw;
 }
 function fixture(t, raw = rawConfig(), extra = {}) {
     const root = checkoutPaths().temporaryDirectory('est-server','est-prolific-');t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-    const config = normalizeConfig(raw), enrollments = new EnrollmentStore(root);
+    const config = normalizeConfig(raw), enrollments = new EnrollmentStore(root, { sessionLanguage: config.sessionLanguage });
     const prolific = new Prolific({ config, enrollments, getSession: () => null, ...extra });return { root, config, enrollments, prolific };
 }
 test("Prolific IDs bind to a durable enrollment; wrong study, missing IDs, and duplicate submission fail", async t => {
@@ -63,7 +63,7 @@ test("waiting expiry offers only its server-selected early-exit code", async t =
     assert.deepEqual(await prolific.completion(record.participantId), { url: "https://app.prolific.com/submissions/complete?cc=WAIT", code: "WAIT", outcome: "waitingTimeout" });
 });
 test('abandoned pre-setup admissions expire durably and release HTTP admission capacity',async t=>{
-    const {createCoordinator}=require('../../est-server/src/server.js');const raw=rawConfig();raw.sessions.pairingTimeoutMs=1000;
+    const {createCoordinator}=require('../../est-server/src/server.js');const raw=rawConfig();raw.sessions.operatingLimits.pairingTimeoutSeconds=1;
     const root=checkoutPaths().temporaryDirectory('est-server','est-admission-expiry-'),app=createCoordinator({config:normalizeConfig(raw),root});await app.ready;
     let time=1000;app.enrollments.now=()=>time;app.prolific.now=()=>time;
     // Exercise the actual fixed 100-person limit, not a configurable test shortcut.
@@ -75,7 +75,7 @@ test('abandoned pre-setup admissions expire durably and release HTTP admission c
     assert.equal((await enroll('blocked')).status,503);
     time=2001;assert.equal((await enroll('replacement')).status,201);
     const record=app.enrollments.get(credentials.participantId);assert.equal(record.readyAt,null);assert.equal(record.outcome,'waitingTimeout');
-    assert.equal(new EnrollmentStore(root).get(record.participantId).outcome,'waitingTimeout');
+    assert.equal(new EnrollmentStore(root,{sessionLanguage:raw.sessions.general.language}).get(record.participantId).outcome,'waitingTimeout');
     assert.equal((await app.prolific.completion(record.participantId)).code,'WAIT');
 });
 test('valid pre-pair progress renews inactivity but cannot extend the ready-queue deadline',async t=>{
@@ -118,6 +118,82 @@ test("authenticated pre-pair setup and questionnaire stage before capacity-aware
     await assert.rejects(app.prolific.completion(people[0].participantId),/available|complete/i);
     session.phase='ended';session.outcome='completed';await assert.rejects(app.prolific.completion(people[0].participantId),/responses|recordings|complete/i);
 });
+test('queued setup and pretest resume only under the language selected at enrollment', async t => {
+    const path=require('node:path');const {createCoordinator}=require('../../est-server/src/server.js');
+    const {io:connect}=require('socket.io-client');
+    const {pretestAnswers}=require('./fixtures/config.js');
+    const root=checkoutPaths().temporaryDirectory('est-server','est-language-queue-');
+    const raw=rawConfig();raw.sessions.operatingLimits.pairingTimeoutSeconds=60;
+    const start=language=>{
+        const settings=structuredClone(raw);
+        if (language!==undefined) settings.sessions.general.language=language;
+        return createCoordinator({config:normalizeConfig(settings),root});
+    };
+    let app=start();
+    const sockets=[];
+    t.after(async()=>{for (const socket of sockets) socket.disconnect();await app?.close();fs.rmSync(root,{recursive:true,force:true});});
+    await app.ready;
+    const person=await app.prolific.enroll({query:{...query('queued'),language:'en',sessionLanguage:'en'},device:desktop});
+    const dispatch=(person,type,payload)=>app.admission.dispatch(person.participantId,{version:1,requestId:randomUUID(),participantId:person.participantId,sessionId:null,attemptId:null,type,payload});
+    const actions=async person=>{
+        await dispatch(person,'setupComplete',{inputUsable:true,playbackConfirmed:true});
+        await dispatch(person,'nextView',{currentView:'viewWelcome'});
+        await dispatch(person,'pretest',{formData:pretestAnswers()});
+        await dispatch(person,'ready',{currentView:'viewPretest'});
+    };
+    await actions(person);
+    const file=path.join(root,'enrollments.json'),bytes=fs.readFileSync(file,'utf8'),entries=fs.readdirSync(root).sort();
+    await app.close();app=null;
+
+    assert.throws(()=>{app=start('en');},/sessions\.general\.language.*de.*en.*original language.*clean.*data root/i);
+    assert.equal(fs.readFileSync(file,'utf8'),bytes,'refusal must not retag, discard answers or assign an outcome');
+    assert.deepEqual(fs.readdirSync(root).sort(),entries);
+
+    const [stored]=JSON.parse(bytes);
+    assert.equal(stored.sessionLanguage,'de');
+    const legacy={...stored};delete legacy.sessionLanguage;
+    const legacyBytes=JSON.stringify([legacy]);fs.writeFileSync(file,legacyBytes);
+    assert.throws(()=>{app=start('de');},/sessions\.general\.language.*missing.*original language.*clean.*data root/i);
+    assert.equal(fs.readFileSync(file,'utf8'),legacyBytes);
+    fs.writeFileSync(file,bytes);
+
+    app=start('de');await app.ready;
+    const resumed=app.enrollments.authenticate(person.reconnectToken);
+    assert.equal(resumed.setupComplete,true);assert.equal(resumed.pretestComplete,true);
+    assert.deepEqual(resumed.formData,pretestAnswers());
+    assert.equal(app.admission.snapshot(person.participantId).currentView,'viewWaiting');
+    const partner=await app.prolific.enroll({query:query('new-partner'),device:desktop});
+    await actions(partner);
+    assert.deepEqual(app.enrollments.nextPair().map(record=>record.participantId),[person.participantId,partner.participantId]);
+    app.server.listen(0,'127.0.0.1');await once(app.server,'listening');
+    for (const participant of [person,partner]) {
+        const socket=connect('http://127.0.0.1:'+app.server.address().port,{auth:{reconnectToken:participant.reconnectToken},transports:['websocket'],reconnection:false});
+        sockets.push(socket);await once(socket,'connect');
+    }
+    const session=app.registry.getForParticipant(person.participantId);
+    assert.ok(session,'restored queue position should still allow pairing');
+    assert.equal(app.registry.getForParticipant(partner.participantId),session);
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(session.sessionDir,person.participantId+'-pretest-form.json'))),pretestAnswers());
+});
+test('a finished unpaired enrollment with no language does not block a later study or change its outcome', async t => {
+    const path=require('node:path');const {createCoordinator}=require('../../est-server/src/server.js');
+    const root=checkoutPaths().temporaryDirectory('est-server','est-language-terminal-');
+    const raw=rawConfig(),config=normalizeConfig(raw);
+    const enrollments=new EnrollmentStore(root,{sessionLanguage:config.sessionLanguage});
+    const prolific=new Prolific({config,enrollments,getSession:()=>null});
+    const person=await prolific.enroll({query:query('finished'),device:desktop});
+    const record=enrollments.get(person.participantId);record.admissionLastActiveAt=0;
+    assert.equal(prolific.expireWaiting(),true);
+    delete record.sessionLanguage;enrollments.save();
+    const file=path.join(root,'enrollments.json'),bytes=fs.readFileSync(file,'utf8');
+    raw.sessions.general.language='en';
+    const app=createCoordinator({config:normalizeConfig(raw),root});
+    t.after(async()=>{await app.close();fs.rmSync(root,{recursive:true,force:true});});await app.ready;
+    assert.deepEqual(await app.prolific.completion(person.participantId),{url:'https://app.prolific.com/submissions/complete?cc=WAIT',code:'WAIT',outcome:'waitingTimeout'});
+    assert.equal(fs.readFileSync(file,'utf8'),bytes);
+    const newPerson=await app.prolific.enroll({query:query('new-study-person'),device:desktop});
+    assert.equal(app.enrollments.get(newPerson.participantId).sessionLanguage,'en');
+});
 test('normal completion remains unavailable until both questionnaires, all ratings and four matching receipts exist',async t=>{
     const {SessionRegistry}=require('../../est-server/src/services/SessionRegistry.js');const f=fixture(t);
     const people=await Promise.all(['first','second'].map(id=>f.prolific.enroll({query:{...query(id),PROLIFIC_PID:'external/../'+id},device:desktop})));
@@ -136,6 +212,5 @@ test('normal completion remains unavailable until both questionnaires, all ratin
         }
     }
     assert.deepEqual(await f.prolific.completion(people[0].participantId),{url:'https://app.prolific.com/submissions/complete?cc=FINISH',code:'FINISH',outcome:'completed'});
-    const client=session.clientsData.get(people[0].participantId);assert.equal(session.viewFlow.getClientConditionAsset(client),'client-a/01.png');
     await session.persist();await session.dispose();
 });

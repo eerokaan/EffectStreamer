@@ -26,7 +26,7 @@ test('authenticated relay acceptance settings are injected without weakening pub
 });
 test('an admission that expires before audio setup shows its early exit without a blocking setup dialog',async({browser})=>{
     const root=checkoutPaths().temporaryDirectory('est-gui','est-admission-ui-'),raw=remoteConfig();
-    raw.sessions={pairingTimeoutMs:1000};raw.prolific={enabled:true,studyId:'expiry-study',completionCodes:{completed:'DONE',technicalFailure:'TECH',partnerLeft:'LEFT',waitingTimeout:'WAIT'}};
+    raw.sessions.operatingLimits.pairingTimeoutSeconds=1;raw.prolific={enabled:true,studyId:'expiry-study',completionCodes:{completed:'DONE',technicalFailure:'TECH',partnerLeft:'LEFT',waitingTimeout:'WAIT'}};
     const app=createCoordinator({config:normalizeConfig(raw),root,webRoot:checkoutPaths().path('est-gui','web')});await app.ready;
     let time=1000;app.enrollments.now=()=>time;app.prolific.now=()=>time;
     app.server.listen(0,'127.0.0.1');await once(app.server,'listening');const context=await browser.newContext(),page=await context.newPage();
@@ -47,6 +47,48 @@ async function syntheticAudio({tone,relay}) {
         const source=context.createOscillator(),gain=context.createGain(),destination=context.createMediaStreamDestination();
         source.frequency.value=tone;gain.gain.value=.2;source.connect(gain);gain.connect(destination);source.start();window.__acceptanceSources.push(context);return destination.stream;
     };
+}
+
+for (const locale of [
+    { language: 'en', other: 'de', audio: 'english', devices: 'Audio devices', load: 'Load or refresh devices', check: 'Check the microphone and play the P.501 sample', next: 'Continue', welcome: 'Welcome to the experiment', pretest: 'Before we begin', age: 'Age', woman: 'Female' },
+    { language: 'de', other: 'en', audio: 'german', devices: 'Audiogeräte', load: 'Geräteliste laden oder aktualisieren', check: 'Mikrofon prüfen und P.501-Hörbeispiel abspielen', next: 'Weiter', welcome: 'Willkommen beim Experiment', pretest: 'Bevor es losgeht', age: 'Alter', woman: 'Weiblich' }
+]) {
+    test(`remote ${locale.language} selects server language before the device check`, async ({browser}) => {
+        const root = checkoutPaths().temporaryDirectory('est-gui','est-localized-admission-');
+        const raw = remoteConfig(); raw.sessions.general.language = locale.language;
+        raw.pretestForm = raw.pretestForm.filter(field => ['input-age', 'select-gender'].includes(field.name));
+        raw.prolific = {enabled:true, studyId:'language-study', completionCodes:{completed:'DONE',technicalFailure:'TECH',partnerLeft:'LEFT',waitingTimeout:'WAIT'}};
+        const app = createCoordinator({ config: normalizeConfig(raw), root, webRoot: checkoutPaths().path('est-gui','web') });
+        await app.ready; app.server.listen(0, '127.0.0.1'); await once(app.server, 'listening');
+        const context = await browser.newContext({ locale: locale.other });
+        await context.addInitScript(syntheticAudio, {tone: 440, relay: false});
+        const page = await context.newPage();
+        const release = Promise.withResolvers(), requested = Promise.withResolvers();
+        await page.route('**/api/config', async route => { requested.resolve(); await release.promise; await route.continue(); });
+        try {
+            await page.goto(`http://127.0.0.1:${app.server.address().port}/?PROLIFIC_PID=language-person&STUDY_ID=language-study&SESSION_ID=language-submission&language=${locale.other}`, {waitUntil:'domcontentloaded'});
+            await requested.promise;
+            await expect(page.locator('#root')).toBeEmpty();
+            release.resolve();
+            await expect(page.locator('html')).toHaveAttribute('lang',locale.language);
+            const dialog = page.getByRole('dialog', {name: locale.devices});
+            await expect(dialog).toBeVisible();
+            await dialog.getByRole('button', {name: locale.load}).click();
+            const wave = page.waitForResponse(response => response.url().endsWith(`/P501_C_${locale.audio}_f1_FB_48k.wav`));
+            await dialog.getByRole('button', {name: locale.check}).click();
+            expect((await wave).ok()).toBe(true);
+            await dialog.getByRole('checkbox').check({timeout:45000});
+            await dialog.getByRole('button', {name: locale.next, exact: true}).click();
+            await expect(page.getByRole('heading', {name: locale.welcome})).toBeVisible();
+            await page.getByRole('button', {name: locale.next, exact: true}).click();
+            await expect(page.getByRole('heading', {name: locale.pretest})).toBeVisible();
+            await page.getByLabel(locale.age, {exact:true}).fill('25');
+            await page.getByRole('combobox').click();
+            await page.getByRole('option', {name: locale.woman, exact:true}).click();
+            await page.getByRole('button', {name: locale.next, exact:true}).click();
+            await expect.poll(() => [...app.enrollments.participants.values()][0]?.formData).toEqual({'input-age':25,'select-gender':'female'});
+        } finally { release.resolve(); await context.close(); await app.close(); await fs.rm(root,{recursive:true,force:true}); }
+    });
 }
 function spectralPower(bytes,hz){let power=0;const frames=(bytes.length-44)/2;
     // Sum short-window power over the whole file: silence at ordinary startup /
@@ -79,9 +121,9 @@ test('production frontend runs two concurrent isolated pairs through SCT/LST and
         expect(networkAfter.bytes).toBeGreaterThan(networkBefore.bytes);if(process.env.EST_ACCEPTANCE_RELAY==='1')expect(networkAfter.candidates.every(type=>type==='relay')).toBe(true);
     }
     async function confirmSetup(page){
-        const dialog=page.getByRole('dialog').filter({has:page.getByRole('heading',{name:'Audio devices'})});
-        await expect(dialog).toBeVisible();await expect(dialog.getByRole('combobox').nth(0)).toContainText(/default/i);await expect(dialog.getByRole('combobox').nth(1)).toContainText(/default/i);
-        await dialog.getByRole('button',{name:'Check input and play P.501 sample'}).click();await dialog.getByRole('checkbox').check({timeout:45000});await dialog.getByRole('button',{name:'Continue',exact:true}).click();
+        const dialog=page.getByRole('dialog',{name:'Audiogeräte'});
+        await expect(dialog).toBeVisible();await expect(dialog.getByRole('combobox').nth(0)).toContainText(/default|standard/i);await expect(dialog.getByRole('combobox').nth(1)).toContainText(/default|standard/i);
+        await dialog.getByRole('button',{name:'Mikrofon prüfen und P.501-Hörbeispiel abspielen'}).click();await dialog.getByRole('checkbox').check({timeout:45000});await dialog.getByRole('button',{name:'Weiter',exact:true}).click();
     }
     async function prepare(index){const context=await browser.newContext({viewport:{width:1280,height:1000}});contexts[index]=context;await context.addInitScript(syntheticAudio,{tone:tones[index],relay:process.env.EST_ACCEPTANCE_RELAY==='1'});const page=await context.newPage();pages[index]=page;
         const partnerNotice=page.getByRole('dialog').filter({has:page.getByRole('heading',{name:'Der Gesprächspartner hat das Gespräch verlassen'})});
@@ -91,11 +133,11 @@ test('production frontend runs two concurrent isolated pairs through SCT/LST and
         });
         await page.goto(url+'/?PROLIFIC_PID=acceptance-person-'+index+'&STUDY_ID=acceptance-study&SESSION_ID=acceptance-submission-'+index);
         await confirmSetup(page);
-        await page.getByRole('heading',{name:'Willkommen beim Experiment'}).waitFor();await next([page]);await page.getByLabel('Age',{exact:true}).fill('25');await next([page]);
+        await page.getByRole('heading',{name:'Willkommen beim Experiment'}).waitFor();await next([page]);await page.getByLabel('Alter',{exact:true}).fill('25');await next([page]);
         return page;
     }
     async function ratings(chosen,type){await Promise.all(chosen.map(async page=>{
-        const image=page.getByAltText('Scale Image');await image.waitFor();
+        const image=page.locator('img[data-rating-scale]');await image.waitFor();
         const person=new URL(page.url()).searchParams.get('PROLIFIC_PID'),client=sessions().flatMap(session=>[...session.clientsData.values()]).find(client=>client.recruitment.prolificPid===person);
         const count=type==='sct'?8:client.viewData.conditionListeningSpeakingTestRole==='speaker'?3:5;
         for(let round=0;round<count;round++){await expect.poll(()=>image.evaluate(image=>image.complete&&image.naturalWidth>0)).toBe(true);await image.locator('..').click({position:{x:200,y:20}});await page.getByRole('button',{name:'Weiter',exact:true}).click();}

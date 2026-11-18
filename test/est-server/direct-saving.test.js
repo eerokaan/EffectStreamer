@@ -10,7 +10,7 @@ test('server metadata saves directly and serialized sessions retain the last suc
     const root=checkoutPaths().temporaryDirectory('est-server','direct-');t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
     t.mock.method(fs.promises,'rename',()=>{throw new Error('rename forbidden');});
     t.mock.method(fs,'renameSync',()=>{throw new Error('rename forbidden');});
-    const enrollments=new EnrollmentStore(root);enrollments.admit({identity:'test-person'});
+    const enrollments=new EnrollmentStore(root,{sessionLanguage:'de'});enrollments.admit({identity:'test-person'});
     const store=new SessionStore(root);
     await Promise.all([store.save({sessionId:'session-1',revision:1}),store.save({sessionId:'session-1',revision:2})]);
     assert.equal((await store.loadAll())[0].revision,2);
@@ -22,7 +22,7 @@ test('server metadata saves directly and serialized sessions retain the last suc
 });
 test('corrupt enrollment and session JSON remains an error instead of an empty reset',async t=>{
     const root=checkoutPaths().temporaryDirectory('est-server','corrupt-');t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
-    fs.writeFileSync(path.join(root,'enrollments.json'),'{');assert.throws(()=>new EnrollmentStore(root));
+    fs.writeFileSync(path.join(root,'enrollments.json'),'{');assert.throws(()=>new EnrollmentStore(root,{sessionLanguage:'de'}),SyntaxError);
     fs.mkdirSync(path.join(root,'session-1'));fs.writeFileSync(path.join(root,'session-1/session.json'),'{');
     await assert.rejects(new SessionStore(root).loadAll());
 });

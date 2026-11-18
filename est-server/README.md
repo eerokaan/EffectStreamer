@@ -4,7 +4,7 @@
 
 This is the EffectStreamer Server – it orchestrates the entire experiment; managing state, coordinating all connected participants, collecting evaluation data, and serving as the single source of truth via a central configuration file.
 
-The server writes to `~/effectstreamer/sessions` (override with `EST_RESULTS_ROOT`). Each pair has a UUID directory with `session.json`, condition settings/forms/ratings, and recording attempts under `attempts/<attemptId>/<participantId>/{microphone,headphones}.wav`. `enrollments.json` stores stable identities and hashed reconnect credentials; chunk/receipt bookkeeping allows retries.
+The server writes to `~/effectstreamer/sessions` (override with `EST_RESULTS_ROOT`). Each pair has a UUID directory with `session.json`, condition settings/forms/ratings, and recording attempts under `attempts/<attemptId>/<participantId>/{microphone,headphones}.wav`. New session manifests and enrollments record `sessionLanguage`. `enrollments.json` stores stable identities and hashed reconnect credentials; chunk/receipt bookkeeping allows retries.
 
 Application files are saved directly to their destinations. Upload chunks go directly to the final WAV path; a partial or invalid WAV can exist there before completion. Format/size/checksum validation and persisted storage receipts—not filename existence—gate completion and client cleanup. Interrupted JSON/WAV writes can leave corrupt or incomplete data; keep study data on persistent storage and back it up. Stored enrollments require a finite, nonnegative integer `admissionLastActiveAt`; invalid records fail startup without being rewritten.
 
@@ -68,15 +68,20 @@ An example local-use configuration looks like this:
         "organisationId": null
     },
     "sessions": {
-        "pairingTimeoutMs": 300000,
-        "reconnectGraceMs": 60000,
-        "maxRetries": 1,
-        "maxConditionSeconds": 600,
-        "audioSetup": { "enabled": false, "testAsset": "P501_C_german_f1_FB_48k.wav" }
-    },
-    "tests": {
-        "short-conversation-test": true,
-        "listening-speaking-test": true
+        "general": {
+            "language": "de",
+            "audioSetup": false
+        },
+        "tests": {
+            "short-conversation-test": true,
+            "listening-speaking-test": true
+        },
+        "operatingLimits": {
+            "pairingTimeoutSeconds": 300,
+            "reconnectGraceSeconds": 60,
+            "maxConditionSeconds": 600,
+            "maxRetries": 1
+        }
     },
     "conditions": {
         "baseline": [{ "nativeDelay": "0", "nativeGain": "1.0", "echoDelay": "20", "echoGain": "0.002" }],
@@ -90,9 +95,9 @@ An example local-use configuration looks like this:
             "name": "input-age",
             "type": "input",
             "inputType": "number",
-            "label": "Alter",
-            "description": "Wie alt sind Sie?",
-            "placeholder": "Bitte angeben",
+            "label": "Age",
+            "description": "How old are you?",
+            "placeholder": "Please specify",
             "required": true,
             "layoutWidth": 6,
             "validation": { "valueType": "integer", "min": 0 }
@@ -101,30 +106,30 @@ An example local-use configuration looks like this:
             "name": "select-gender",
             "type": "select",
             "label": "Gender",
-            "placeholder": "Bitte angeben",
+            "placeholder": "Please specify",
             "required": true,
             "layoutWidth": 6,
             "options": [
-                { "value": "female", "label": "Weiblich" },
-                { "value": "male", "label": "Männlich" },
-                { "value": "no-choice", "label": "Keine Angabe" }
+                { "value": "female", "label": "Female" },
+                { "value": "male", "label": "Male" },
+                { "value": "no-choice", "label": "Prefer not to say" }
             ]
         },
         {
             "name": "slider-experience",
             "type": "slider",
-            "label": "Bisherige Erfahrung mit Sprach/Videotelefonie",
+            "label": "Previous experience with voice or video calls",
             "required": false,
             "layoutWidth": 12,
             "validation": { "min": 0, "max": 100, "step": 1 },
             "defaultValue": 50,
-            "marks": { "minLabel": "Nicht erfahren", "maxLabel": "Sehr erfahren" }
+            "marks": { "minLabel": "Not experienced", "maxLabel": "Very experienced" }
         },
         {
             "name": "switch-prior-experience",
             "type": "switch",
-            "label": "Schon Erfahrung gesammelt?",
-            "description": "Haben Sie schon einmal an einem Hörtest/-experiment teilgenommen?",
+            "label": "Any previous experience?",
+            "description": "Have you ever taken part in a listening test or experiment?",
             "required": false,
             "layoutWidth": 6,
             "defaultValue": false
@@ -151,20 +156,24 @@ Only deployment networking is configurable here: `icePortRange` is the public UD
 
 | Parameter | Meaning |
 | --- | --- |
-| `pairingTimeoutMs` | Pre-pair inactivity/ready-queue timeout; default `300000` ms. |
-| `reconnectGraceMs` | Reconnection grace; default `60000` ms. |
-| `maxRetries` | Condition retries after interruption; integer `0`–`10`, default `1`. |
-| `maxConditionSeconds` | Maximum condition duration; integer `1`–`11045`, default `600`. |
-| `audioSetup.enabled` | Audio checks are optional locally and mandatory remotely. |
-| `audioSetup.testAsset` | WAV asset filename for setup; default `P501_C_german_f1_FB_48k.wav`. |
+| `general.language` | **Required.** Exactly `en` (English) or `de` (German), for all participants in both modes. |
+| `general.audioSetup` | Boolean. Defaults to `false` locally and `true` remotely; cannot be `false` remotely. |
+| `tests.short-conversation-test` | **Required boolean.** Enables the short conversation test. |
+| `tests.listening-speaking-test` | **Required boolean.** Enables the listening/speaking test. |
+| `operatingLimits.pairingTimeoutSeconds` | Pre-pair inactivity/ready-queue timeout; default `300` seconds. |
+| `operatingLimits.reconnectGraceSeconds` | Reconnection grace; default `60` seconds. |
+| `operatingLimits.maxConditionSeconds` | Maximum condition duration; integer `1`–`11045`, default `600`. |
+| `operatingLimits.maxRetries` | Condition retries after interruption; integer `0`–`10`, default `1`. |
 
-Recording storage limits are derived from `sessions.maxConditionSeconds` for two mono 48 kHz S16LE tracks per participant, with allowance for shutdown and WAV headers. HTTP upload chunks are 1 MiB, uploads expire after ten minutes, and at most 100 unpaired participants can be admitted.
+Set `sessions.general.language` explicitly in the server config. Missing, null or unsupported values prevent startup. The server reads it at startup and publishes it as `sessionLanguage` in `/api/config`; query strings, browser locale and GUI configuration cannot override it. Changing the language requires a server restart between studies. Pairing and reconnect durations must be whole seconds between `1` and `2147483`.
 
-Only the options shown in the examples are supported for server/session/media operation. Unknown keys fail startup rather than being silently ignored or treated as advanced overrides. Experiment conditions and pretest field definitions support the documented options below.
+All clients derive the audio-check sample from the study language: `P501_C_english_f1_FB_48k.wav` for `en` and `P501_C_german_f1_FB_48k.wav` for `de`. There is no filename override or fallback to the other language. This does not change live audio or recordings.
 
-### Tests config
+An open, unpaired enrollment with a different or missing language prevents startup before enrollment state is written. To preserve unfinished setup and questionnaires, finish the previous run under its original language and release (use the previous release for records that predate language tagging), or use a separate clean `EST_RESULTS_ROOT`. Do not edit the existing enrollment records. Finished enrollments do not block startup. The session configuration hash includes the language, so an incompatible unfinished pair cannot resume; existing recovery policy ends it with `technicalFailure` without retagging the manifest. Deploy the server, web assets and both local clients as one matching release between studies.
 
-The `tests` values define which test types are included in the experiment flow. Both values are required booleans; set `short-conversation-test` or `listening-speaking-test` to `false` to skip that test type for every condition.
+Recording storage limits are derived from `sessions.operatingLimits.maxConditionSeconds` for two mono 48 kHz S16LE tracks per participant, with allowance for shutdown and WAV headers. HTTP upload chunks are 1 MiB, uploads expire after ten minutes, and at most 100 unpaired participants can be admitted.
+
+Only documented options are supported for server/session/media operation. Unknown keys fail startup rather than being silently ignored or treated as advanced overrides. Experiment conditions and pretest field definitions support the documented options below.
 
 ### Conditions config
 
@@ -189,6 +198,8 @@ If a parameter is omitted, est-core applies its default value; see the [est-core
 ### PretestForm config
 
 The `pretestForm` array configures the fields shown by the GUI before the experiment starts. Each array entry describes one field in the rendered form. The server validates `pretestForm` during startup. If the form definition is invalid, the server refuses to start so configuration mistakes are caught before participants connect.
+
+Use English source phrases for display-only labels, descriptions, placeholders, option labels, and slider marks. To translate new phrases, add them verbatim to the renderer's `est-gui/src/renderer/windowMain/assets/languages/{en,de}.csv` catalogs using the `source,translation` header: use the English phrase as `source` in both, the same phrase as its English translation, and the corresponding German text in `de.csv`. Quote cells containing commas, quotes, or line breaks and double embedded quotes. Rebuild and redeploy the matching clients and web assets. Text with no catalog entry is shown verbatim. Keep field names and option `value`s stable; they are used for validation and stored answers, not display.
 
 **Supported pretest field types:**
 
@@ -263,13 +274,13 @@ For `select`, `label` is what participants see and `value` is what is saved. The
 | `server` | Listen address/port, `mode: local|remote`, `maxActivePairs` (default 1). One coordinator per results directory. |
 | `remote` | Public ICE range and ICE/TURN services. Keep public ICE ports separate from private RTP ports. |
 | `prolific` | Study ID, all four completion codes, optional secured URLs; answers plus matching durable WAV receipts gate normal completion. |
-| `sessions` | FIFO after setup/pretest, waiting/reconnect/retry policy, condition duration and audio setup. Defaults: 5-minute wait, 60-second grace, one retry, 600-second condition limit. Setup is optional locally and mandatory remotely. |
+| `sessions` | Required study language (`en` or `de`), FIFO after setup/pretest, waiting/reconnect/retry policy, condition duration and audio setup. Defaults: 5-minute wait, 60-second grace, one retry, 600-second condition limit. Setup is optional locally and mandatory remotely. |
 
 Browser entry: `https://study.example.org/?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}`. Raw identifiers are recorded as unverified, never used as paths or A/B role selectors. Set `secureUrls`, exact `externalStudyUrl`, `workspaceId` and optional `organisationId` for Prolific's RS256 `prolific_token` verification against its fixed JWKS endpoint. The token lifetime/issuer/audience/query/subject/identifier claims are checked. Manage participant payments and rejections in Prolific. The researcher configures completed/technicalFailure/partnerLeft/waitingTimeout codes and their meaning in Prolific. A successful return link and copyable code come only from server-owned outcome state.
 
 Use `EST_TURN_SECRET` for an environment-secret override, shared with coturn; the secret never appears in public bootstrap. Authenticated per-attempt preparation issues expiring HMAC TURN credentials scoped to the session. `turnUrls` should include reachable UDP, TCP and TLS endpoints. HTTPS is not a media relay. See [deployment networking](../deployment/README.md).
 
-Before joining the ready queue, remote admissions expire after `sessions.pairingTimeoutMs` without a successful setup/questionnaire/navigation action (default five minutes). Progress renews this inactivity window; once queued, the original FIFO waiting deadline is not extended by repeated actions. Expiration persists `waitingTimeout`, releases admission capacity, and never permits normal completion or duplicate Prolific reenrollment.
+Before joining the ready queue, remote admissions expire after `sessions.operatingLimits.pairingTimeoutSeconds` without a successful setup/questionnaire/navigation action (default five minutes). Progress renews this inactivity window; once queued, the original FIFO waiting deadline is not extended by repeated actions. Expiration persists `waitingTimeout`, releases admission capacity, and never permits normal completion or duplicate Prolific reenrollment.
 
 For another local laboratory run, finish/end the current session, then close and relaunch both Electron clients. Each launch uses its saved credentials to resume an unfinished session or obtain a new participant enrollment after a terminal one. The machine labels remain `client-a`/`client-b`; old session directories, tokens and outcomes remain intact. Do not delete enrollment/results files between runs. Remote Prolific submissions remain terminal and cannot use this local renewal path.
 

@@ -11,7 +11,7 @@ const {localConfig,pretestAnswers}=require('./fixtures/config.js');
 function fixture(t) {
     const root=checkoutPaths().temporaryDirectory('est-server','protocol-state-'),events=[];
     const raw=localConfig();raw.conditions={baseline:[{}],random:[]};
-    const enrollments=new EnrollmentStore(root),people=['a','b'].map(identity=>enrollments.get(enrollments.admit({identity,ipAddress:'127.0.0.1'}).participantId));
+    const enrollments=new EnrollmentStore(root,{sessionLanguage:raw.sessions.general.language}),people=['a','b'].map(identity=>enrollments.get(enrollments.admit({identity,ipAddress:'127.0.0.1'}).participantId));
     const io={to:id=>({emit:(event,data)=>events.push({id,event,data})}),sockets:{sockets:new Map()}};
     const registry=new SessionRegistry({root,config:normalizeConfig(raw),enrollments,io}),session=registry.createPair(people);
     for(const client of session.clientsData.values()){client.socketId=client.participantId;session.clientsSocketRegistry.set(client.socketId,client.participantId);}

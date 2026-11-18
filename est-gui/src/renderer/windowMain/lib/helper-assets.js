@@ -3,89 +3,93 @@ import shortConversationTestCss from "@/assets/css/short-conversation-test.css?r
 import firaCodeFontUrl from "@/assets/fonts/FiraCode.ttf?url";
 import interFontUrl from "@/assets/fonts/Inter.ttf?url";
 
-const conditionSctHtmlAssets = import.meta.glob("@/assets/html/short-conversation-test/**/*.html", { eager: true, query: "?raw", import: "default" });
-const conditionSctImageAssets = import.meta.glob("@/assets/img/short-conversation-test/**/*.png", { eager: true, query: "?url", import: "default" });
-const conditionLstHtmlAssets = import.meta.glob("@/assets/html/listening-speaking-test/**/*.html", { eager: true, query: "?raw", import: "default" });
-const conditionLstImageAssets = import.meta.glob("@/assets/img/listening-speaking-test/**/*.png", { eager: true, query: "?url", import: "default" });
-
-/* -------------- CSS Rewrites -------------- */
-
-const cssContentRewriteUrls = (css) =>
-    css.replace(/url\(["']?([^"')]+)["']?\)/g, (match, fontPath) => {
-        const fontUrl = fontUrlByRelativePath[fontPath];
-        return fontUrl ? `url("${fontUrl}")` : match;
-    });
-const cssContentEscapeStyleTags = (css) => css.replace(/<\/style/gi, "<\\/style");
+const taskDocuments = import.meta.glob("../assets/html/{short-conversation-test,listening-speaking-test}/{client-a,client-b}/*.html", { eager: true, query: "?raw", import: "default" });
+const localizedImages = import.meta.glob("../assets/img/{scales,short-conversation-test,listening-speaking-test}/{en,de}/*.png", { eager: true, query: "?url", import: "default" });
+const sharedIcons = import.meta.glob("../assets/img/short-conversation-test/icons/*.png", { eager: true, query: "?url", import: "default" });
 
 const fontUrlByRelativePath = {
     "../fonts/Inter.ttf": interFontUrl,
     "../fonts/FiraCode.ttf": firaCodeFontUrl
 };
+
+function inlineStylesheet(css) {
+    return css
+        .replace(/url\(["']?([^"')]+)["']?\)/g, (match, fontPath) => (Object.hasOwn(fontUrlByRelativePath, fontPath) ? `url("${fontUrlByRelativePath[fontPath]}")` : match))
+        .replace(/<\/style/gi, "<\\/style");
+}
+
 const stylesheetByRelativePath = {
-    "../../../css/short-conversation-test.css": cssContentEscapeStyleTags(cssContentRewriteUrls(shortConversationTestCss)),
-    "../../../css/listening-speaking-test.css": cssContentEscapeStyleTags(cssContentRewriteUrls(listeningSpeakingTestCss))
+    "../../../css/short-conversation-test.css": inlineStylesheet(shortConversationTestCss),
+    "../../../css/listening-speaking-test.css": inlineStylesheet(listeningSpeakingTestCss)
 };
 
-/* -------------- HTML Rewrites -------------- */
+const iconUrlByRelativePath = Object.fromEntries(Object.entries(sharedIcons).map(([path, url]) => [path.replace("../assets/", "../../../"), url]));
+const textTargets = new Set(["title", "h1", "div", "p", "span", "li", "td", "th"]);
 
-const htmlRelativeAssetCreateUrlMap = (assets) =>
-    Object.fromEntries(
-        Object.entries(assets)
-            .map(([key, value]) => {
-                const assetPath = key.split("/assets/").at(-1);
-                return assetPath ? [`../../../${assetPath}`, value] : null;
-            })
-            .filter(Boolean)
-    );
+class StudyAssetError extends Error {}
 
-const htmlRelativeAssetRewriteUrl = (html, assetByRelativePath) =>
-    html
-        .replace(/<link\b([^>]*?)\bhref="([^"]+)"([^>]*?)>/g, (match, before, href, after) => {
-            const css = stylesheetByRelativePath[href];
-            if (!css || !/\brel="stylesheet"/.test(`${before}${after}`)) return match;
+function requireLanguage(language) {
+    if (language !== "en" && language !== "de") throw new StudyAssetError(`Unsupported study asset language: ${language}`);
+}
 
-            return `<style>${css}</style>`;
-        })
-        .replace(/\b(src|href)="([^"]+)"/g, (match, attribute, assetPath) => {
-            const asset = assetByRelativePath[assetPath];
-            return asset ? `${attribute}="${asset}"` : match;
-        });
+function getExactAsset(assets, key) {
+    if (!Object.hasOwn(assets, key)) throw new StudyAssetError(`Missing study asset: ${key}`);
+    return assets[key];
+}
 
-/* -------------- Asset Factories -------------- */
+function resolveLocalizedImage(group, basename, language) {
+    requireLanguage(language);
+    return getExactAsset(localizedImages, `../assets/img/${group}/${language}/${basename}`);
+}
 
-const createHtmlAssets = (htmlAssets, assetByRelativePath) => Object.fromEntries(Object.entries(htmlAssets).map(([key, html]) => [key, { srcDoc: htmlRelativeAssetRewriteUrl(html, assetByRelativePath), type: "html" }]));
-const createImageAssets = (imageAssets) => Object.fromEntries(Object.entries(imageAssets).map(([key, srcImg]) => [key, { srcImg, type: "image" }]));
+function localizeTaskDocument(template, language, translateText) {
+    requireLanguage(language);
+    const doc = new DOMParser().parseFromString(template, "text/html");
+    doc.documentElement.lang = language;
 
-/* -------------- Asset Collections -------------- */
-
-const conditionSctAssets = {
-    ...createHtmlAssets(conditionSctHtmlAssets, htmlRelativeAssetCreateUrlMap(conditionSctImageAssets)),
-    ...createImageAssets(conditionSctImageAssets)
-};
-const conditionSctExplanationAssets = createImageAssets(import.meta.glob("@/assets/img/short-conversation-test/*.png", { eager: true, query: "?url", import: "default" }));
-
-const conditionLstAssets = {
-    ...createHtmlAssets(conditionLstHtmlAssets, htmlRelativeAssetCreateUrlMap(conditionLstImageAssets)),
-    ...createImageAssets(conditionLstImageAssets)
-};
-const conditionLstExplanationAssets = createImageAssets(import.meta.glob("@/assets/img/listening-speaking-test/*.png", { eager: true, query: "?url", import: "default" }));
-
-/* -------------- Asset Resolver -------------- */
-
-const resolveAsset = (assets, assetName) => {
-    if (!assetName) return null;
-    let key = Object.keys(assets).find((k) => k.endsWith(assetName));
-
-    if (!key && assetName.endsWith(".png")) {
-        const htmlName = assetName.replace(".png", ".html");
-        key = Object.keys(assets).find((k) => k.endsWith(htmlName));
+    for (const element of doc.querySelectorAll("[data-translate]")) {
+        if (!textTargets.has(element.localName) || element.childElementCount !== 0) {
+            throw new StudyAssetError(`Invalid translation target: ${element.localName}`);
+        }
+        const key = element.getAttribute("data-translate").trim() || element.textContent.trim();
+        element.textContent = translateText(key);
     }
 
-    if (!key) return null;
+    for (const link of doc.querySelectorAll('link[rel~="stylesheet" i][href]')) {
+        const href = link.getAttribute("href");
+        if (!Object.hasOwn(stylesheetByRelativePath, href)) continue;
+        const style = doc.createElement("style");
+        style.textContent = stylesheetByRelativePath[href];
+        link.replaceWith(style);
+    }
 
-    return assets[key];
-};
+    for (const element of doc.querySelectorAll("[src], [href]")) {
+        for (const attribute of ["src", "href"]) {
+            const path = element.getAttribute(attribute);
+            if (Object.hasOwn(iconUrlByRelativePath, path)) element.setAttribute(attribute, iconUrlByRelativePath[path]);
+        }
+    }
 
-/* -------------- Exports -------------- */
+    return `<!doctype html>\n${doc.documentElement.outerHTML}`;
+}
 
-export { conditionLstAssets, conditionLstExplanationAssets, conditionSctAssets, conditionSctExplanationAssets, resolveAsset };
+function resolveTaskAsset(test, assetName, language, translateText) {
+    if (test === "listening-speaking-test" && assetName === "listener.png") {
+        return { type: "image", srcImg: resolveLocalizedImage(test, assetName, language) };
+    }
+
+    const template = getExactAsset(taskDocuments, `../assets/html/${test}/${assetName}`);
+    return { type: "html", srcDoc: localizeTaskDocument(template, language, translateText) };
+}
+
+function loadStudyAsset(resolve) {
+    try {
+        return resolve();
+    } catch (error) {
+        if (!(error instanceof StudyAssetError)) throw error;
+        console.error(error.message);
+        return null;
+    }
+}
+
+export { loadStudyAsset, localizeTaskDocument, resolveLocalizedImage, resolveTaskAsset };

@@ -17,13 +17,13 @@ it('native arguments use the selected OS backend, native IDs, endpoints and atte
     }
 });
 it('native setup lists backend defaults when no devices have been selected',async()=>{
-    const runtime=new NativeAudioRuntime({config:{audio:{backend:'native'}},platform:'linux',executable:'unused',recordingRoot:'/unused',testAsset:'/packaged/P501.wav',runUtility:async()=>({inputs:[{id:'default',label:'Default microphone'}],outputs:[{id:'default',label:'Default output'}]})});
+    const runtime=new NativeAudioRuntime({config:{audio:{backend:'native'}},platform:'linux',executable:'unused',recordingRoot:'/unused',setupSample:'/packaged/P501.wav',runUtility:async()=>({inputs:[{id:'default',label:'Default microphone'}],outputs:[{id:'default',label:'Default output'}]})});
     expect((await runtime.listDevices()).selection).toEqual({sourceId:'default',sinkId:'default'});
 });
 it('a receipt cannot delete a pending file unless both ID and digest match',async()=>{
     const root=checkoutPaths().temporaryDirectory('est-gui','est-native-');
     try {
-        const runtime=new NativeAudioRuntime({config:{audio:{backend:'native'}},platform:'linux',executable:'unused',recordingRoot:root,testAsset:'/packaged/P501.wav'});
+        const runtime=new NativeAudioRuntime({config:{audio:{backend:'native'}},platform:'linux',executable:'unused',recordingRoot:root,setupSample:'/packaged/P501.wav'});
         const directory=path.join(root,scope.sessionId,scope.attemptId,scope.participantId);await fs.mkdir(directory,{recursive:true});
         await fs.writeFile(path.join(directory,'microphone.wav'),Buffer.alloc(48));await fs.writeFile(path.join(directory,'headphones.wav'),Buffer.alloc(48));
         const manifests=await runtime.recordings(scope,{status:'interrupted'});

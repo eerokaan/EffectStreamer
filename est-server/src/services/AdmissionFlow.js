@@ -10,7 +10,7 @@ class AdmissionFlow {
     snapshot(id) {
         const person = this.enrollments.get(id);
         return { revision: person.revision || 0, participantId: id, sessionId: null, role: null, phase: person.outcome ? "ended" : person.currentView === "viewWaiting" ? "waiting" : "admission",
-            currentView: person.currentView, setupRequired: this.config.audioSetup.enabled, setupComplete: person.setupComplete, attemptId: null,
+            currentView: person.currentView, setupRequired: this.config.audioSetup, setupComplete: person.setupComplete, attemptId: null,
             viewData: { ...(person.currentView === "viewPretest" ? { pretestForm: this.config.pretestForm } : {}), completion: this.prolific.previewCompletion(id) }, outcome: person.outcome };
     }
     attach(socket, id) {

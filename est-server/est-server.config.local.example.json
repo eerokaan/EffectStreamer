@@ -14,22 +14,32 @@
     "prolific": {
         "enabled": false,
         "studyId": "",
-        "completionCodes": { "completed": "", "technicalFailure": "", "partnerLeft": "", "waitingTimeout": "" },
+        "completionCodes": {
+            "completed": "",
+            "technicalFailure": "",
+            "partnerLeft": "",
+            "waitingTimeout": ""
+        },
         "secureUrls": false,
         "externalStudyUrl": "",
         "workspaceId": "",
         "organisationId": null
     },
     "sessions": {
-        "pairingTimeoutMs": 300000,
-        "reconnectGraceMs": 60000,
-        "maxRetries": 1,
-        "maxConditionSeconds": 600,
-        "audioSetup": { "enabled": false, "testAsset": "P501_C_german_f1_FB_48k.wav" }
-    },
-    "tests": {
-        "short-conversation-test": true,
-        "listening-speaking-test": true
+        "general": {
+            "language": "de",
+            "audioSetup": false
+        },
+        "tests": {
+            "short-conversation-test": true,
+            "listening-speaking-test": true
+        },
+        "operatingLimits": {
+            "pairingTimeoutSeconds": 300,
+            "reconnectGraceSeconds": 60,
+            "maxConditionSeconds": 600,
+            "maxRetries": 1
+        }
     },
     "conditions": {
         "baseline": [{ "echoDelay": 20, "echoGain": "0.002", "nativeDelay": 10 }],
@@ -53,9 +63,9 @@
             "name": "input-age",
             "type": "input",
             "inputType": "number",
-            "label": "Alter",
-            "description": "Wie alt sind Sie?",
-            "placeholder": "Bitte angeben",
+            "label": "Age",
+            "description": "How old are you?",
+            "placeholder": "Please specify",
             "required": true,
             "layoutWidth": 6,
             "validation": { "valueType": "integer", "min": 0 }
@@ -64,89 +74,89 @@
             "name": "select-gender",
             "type": "select",
             "label": "Gender",
-            "description": "Wie identifizieren Sie sich?",
-            "placeholder": "Bitte angeben",
+            "description": "How do you identify?",
+            "placeholder": "Please specify",
             "required": true,
             "layoutWidth": 6,
             "options": [
-                { "value": "female", "label": "Weiblich" },
-                { "value": "male", "label": "Männlich" },
-                { "value": "non-binary", "label": "Non-Binär" },
-                { "value": "other", "label": "Andere" },
-                { "value": "no-choice", "label": "Keine Angabe" }
+                { "value": "female", "label": "Female" },
+                { "value": "male", "label": "Male" },
+                { "value": "non-binary", "label": "Non-binary" },
+                { "value": "other", "label": "Other" },
+                { "value": "no-choice", "label": "Prefer not to say" }
             ]
         },
         {
             "name": "select-german-proficiency",
             "type": "select",
-            "label": "Deutschkenntnisse",
-            "description": "Wie würden Sie Ihre Deutschkenntnisse einschätzen?",
-            "placeholder": "Bitte angeben",
+            "label": "German proficiency",
+            "description": "How would you rate your German proficiency?",
+            "placeholder": "Please specify",
             "required": true,
             "layoutWidth": 12,
             "options": [
-                { "value": "native", "label": "Muttersprache" },
-                { "value": "level-c", "label": "C1/2 (Verhandlungssicher)" },
-                { "value": "level-b", "label": "B1/2 (Gesprächssicher)" },
-                { "value": "level-a", "label": "A1/2 (Anfänger)" },
-                { "value": "other", "label": "Keine der genannten" }
+                { "value": "native", "label": "Native speaker" },
+                { "value": "level-c", "label": "C1–C2 (Professional proficiency)" },
+                { "value": "level-b", "label": "B1–B2 (Conversational)" },
+                { "value": "level-a", "label": "A1–A2 (Beginner)" },
+                { "value": "other", "label": "None of the above" }
             ]
         },
         {
             "name": "select-hours-internet",
             "type": "select",
-            "label": "Stunden im Internet / Woche",
-            "description": "Wie viele Stunden pro Woche verbringen Sie im Durchschnitt im Internet?",
-            "placeholder": "Bitte angeben",
+            "label": "Hours online per week",
+            "description": "On average, how many hours do you spend online per week?",
+            "placeholder": "Please specify",
             "required": true,
             "layoutWidth": 6,
             "options": [
-                { "value": "less-than-3h", "label": "< 3 h/Woche (~ 25 min/Tag)" },
-                { "value": "between-3h-6h", "label": "3–6 h/Woche (~ 25–50 min/Tag)" },
-                { "value": "between-6h-9h", "label": "6–9 h/Woche (~ 1 h/Tag)" },
-                { "value": "between-9h-15h", "label": "9–15 h/Woche (~ 1–2 h/Tag)" },
-                { "value": "between-15h-21h", "label": "15–21 h/Woche (~ 2–3 h/Tag)" },
-                { "value": "between-21h-30h", "label": "21–30 h/Woche (~ 3–4 h/Tag)" },
-                { "value": "between-30h-40h", "label": "30–40 h/Woche (~ 4–6 h/Tag)" },
-                { "value": "between-40h-60h", "label": "40–60 h/Woche (~ 6–8 h/Tag)" },
-                { "value": "more-than-60h", "label": "> 60 h/Woche (~ 8 h/Tag)" }
+                { "value": "less-than-3h", "label": "< 3 h/week (~ 25 min/day)" },
+                { "value": "between-3h-6h", "label": "3–6 h/week (~ 25–50 min/day)" },
+                { "value": "between-6h-9h", "label": "6–9 h/week (~ 1 h/day)" },
+                { "value": "between-9h-15h", "label": "9–15 h/week (~ 1–2 h/day)" },
+                { "value": "between-15h-21h", "label": "15–21 h/week (~ 2–3 h/day)" },
+                { "value": "between-21h-30h", "label": "21–30 h/week (~ 3–4 h/day)" },
+                { "value": "between-30h-40h", "label": "30–40 h/week (~ 4–6 h/day)" },
+                { "value": "between-40h-60h", "label": "40–60 h/week (~ 6–8 h/day)" },
+                { "value": "more-than-60h", "label": "> 60 h/week (~ 8 h/day)" }
             ]
         },
         {
             "name": "select-hours-calls",
             "type": "select",
-            "label": "Stunden in (Video)Calls / Woche",
-            "description": "Wie viele Stunden pro Woche telefonieren Sie im Durchschnitt über das Internet (z.B. Discord, Zoom, WhatsApp, etc.)?",
-            "placeholder": "Bitte angeben",
+            "label": "Hours on voice or video calls per week",
+            "description": "On average, how many hours per week do you spend on internet calls (e.g. via Discord, Zoom or WhatsApp)?",
+            "placeholder": "Please specify",
             "required": true,
             "layoutWidth": 6,
             "options": [
-                { "value": "less-than-3h", "label": "< 3 h/Woche (~ 25 min/Tag)" },
-                { "value": "between-3h-6h", "label": "3–6 h/Woche (~ 25–50 min/Tag)" },
-                { "value": "between-6h-9h", "label": "6–9 h/Woche (~ 1 h/Tag)" },
-                { "value": "between-9h-15h", "label": "9–15 h/Woche (~ 1–2 h/Tag)" },
-                { "value": "between-15h-21h", "label": "15–21 h/Woche (~ 2–3 h/Tag)" },
-                { "value": "between-21h-30h", "label": "21–30 h/Woche (~ 3–4 h/Tag)" },
-                { "value": "between-30h-40h", "label": "30–40 h/Woche (~ 4–6 h/Tag)" },
-                { "value": "between-40h-60h", "label": "40–60 h/Woche (~ 6–8 h/Tag)" },
-                { "value": "more-than-60h", "label": "> 60 h/Woche (~ 8 h/Tag)" }
+                { "value": "less-than-3h", "label": "< 3 h/week (~ 25 min/day)" },
+                { "value": "between-3h-6h", "label": "3–6 h/week (~ 25–50 min/day)" },
+                { "value": "between-6h-9h", "label": "6–9 h/week (~ 1 h/day)" },
+                { "value": "between-9h-15h", "label": "9–15 h/week (~ 1–2 h/day)" },
+                { "value": "between-15h-21h", "label": "15–21 h/week (~ 2–3 h/day)" },
+                { "value": "between-21h-30h", "label": "21–30 h/week (~ 3–4 h/day)" },
+                { "value": "between-30h-40h", "label": "30–40 h/week (~ 4–6 h/day)" },
+                { "value": "between-40h-60h", "label": "40–60 h/week (~ 6–8 h/day)" },
+                { "value": "more-than-60h", "label": "> 60 h/week (~ 8 h/day)" }
             ]
         },
         {
             "name": "slider-experience",
             "type": "slider",
-            "label": "Bisherige Erfahrung mit Sprach/Videotelefonie",
+            "label": "Previous experience with voice or video calls",
             "required": false,
             "layoutWidth": 12,
             "validation": { "min": 0, "max": 100, "step": 1 },
             "defaultValue": 50,
-            "marks": { "minLabel": "Nicht erfahren", "maxLabel": "Sehr erfahren" }
+            "marks": { "minLabel": "Not experienced", "maxLabel": "Very experienced" }
         },
         {
             "name": "switch-gaming",
             "type": "switch",
-            "label": "Spielen Sie Videospiele mit Voicechat?",
-            "description": "z.B. über Discord, TeamSpeak, etc.",
+            "label": "Do you play video games with voice chat?",
+            "description": "For example, via Discord or TeamSpeak.",
             "required": false,
             "layoutWidth": 6,
             "defaultValue": false
@@ -154,8 +164,8 @@
         {
             "name": "switch-streaming",
             "type": "switch",
-            "label": "Streamen Sie Ihr Gameplay live?",
-            "description": "z.B. über Twitch, YouTube, etc.",
+            "label": "Do you livestream your gameplay?",
+            "description": "For example, on Twitch or YouTube.",
             "required": false,
             "layoutWidth": 6,
             "defaultValue": false
@@ -163,8 +173,8 @@
         {
             "name": "switch-prior-experience",
             "type": "switch",
-            "label": "Schon Erfahrung gesammelt?",
-            "description": "Haben Sie schon einmal an einem Hörtest/-experiment teilgenommen?",
+            "label": "Any previous experience?",
+            "description": "Have you ever taken part in a listening test or experiment?",
             "required": false,
             "layoutWidth": 6,
             "defaultValue": false
@@ -172,8 +182,8 @@
         {
             "name": "switch-audio-tech-familiarity",
             "type": "switch",
-            "label": "Kontakt mit Audiotechnik?",
-            "description": "Haben Sie regelmäßig (z.B. über Ihre Arbeit) mit Audiotechnikverfahren/-forschung zu tun?",
+            "label": "Familiar with audio technology?",
+            "description": "Do you regularly work with audio technology methods or research, for example as part of your job?",
             "required": false,
             "layoutWidth": 6,
             "defaultValue": false

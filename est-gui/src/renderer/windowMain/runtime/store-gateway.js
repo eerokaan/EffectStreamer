@@ -1,15 +1,22 @@
-import useStoreRoot from "@/stores/root";
+import useStoreComponentDevicePicker from "@/stores/component-devicepicker";
 import useStoreComponentFooter from "@/stores/component-footer";
 import useStoreComponentScale from "@/stores/component-scale";
-import useStoreComponentDevicePicker from "@/stores/component-devicepicker";
+import useStoreRoot from "@/stores/root";
 
 export function connectRuntimeStores(runtime) {
     let previous;
-    runtime.onError = error => useStoreRoot.setState({ runtimeError: error.message });
-    return runtime.subscribe(snapshot => {
+    runtime.onError = (error) => {
+        console.error(error);
+        useStoreRoot.setState({ runtimeError: error.message });
+    };
+    const unsubscribeConfiguration = runtime.subscribeConfiguration((config) => {
+        if (!["en", "de"].includes(config.sessionLanguage)) throw new Error("Coordinator did not supply a valid study language");
+        if (typeof document !== "undefined") document.documentElement.lang = config.sessionLanguage;
+        useStoreRoot.setState({ sessionLanguage: config.sessionLanguage });
+    });
+    const unsubscribe = runtime.subscribe((snapshot) => {
         const changedView = previous?.currentView !== snapshot.currentView;
-        const repeatedNotice = !changedView && previous?.viewData?.showDialog === true &&
-            previous.viewData.conditionListeningSpeakingTestIndex === snapshot.viewData?.conditionListeningSpeakingTestIndex;
+        const repeatedNotice = !changedView && previous?.viewData?.showDialog === true && previous.viewData.conditionListeningSpeakingTestIndex === snapshot.viewData?.conditionListeningSpeakingTestIndex;
         const showDialog = snapshot.viewData?.showDialog === true && (!repeatedNotice || useStoreRoot.getState().showDialog);
         useStoreRoot.setState({ ...snapshot.viewData, showDialog, currentView: snapshot.currentView, snapshot, runtimeError: null });
         if (changedView) {
@@ -21,4 +28,8 @@ export function connectRuntimeStores(runtime) {
         useStoreComponentDevicePicker.setState({ activeCondition: ["startingSender", "startingReceiver", "startingMedia", "running", "stopping"].includes(status), verified: snapshot.setupComplete });
         previous = snapshot;
     });
+    return () => {
+        unsubscribeConfiguration();
+        unsubscribe();
+    };
 }

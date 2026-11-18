@@ -25,7 +25,7 @@ function fixture(t) {
 }
 test('the duration-derived budget stores both full-duration WAV tracks with shutdown headroom',async t=>{
     const {normalizeConfig}=require('../../est-server/src/bootstraps/configManager.js'),{localConfig}=require('./fixtures/config.js');
-    const raw=localConfig();raw.sessions.maxConditionSeconds=1;
+    const raw=localConfig();raw.sessions.operatingLimits.maxConditionSeconds=1;
     const config=normalizeConfig(raw).recordings,f=fixture(t),transfers=new RecordingTransfers({...f.options,config});
     // One configured second plus the full bounded 139-second stop/dispose tail.
     const bytes=wave(140*48000),sha256=createHash('sha256').update(bytes).digest('hex');
@@ -39,7 +39,7 @@ test('the duration-derived budget stores both full-duration WAV tracks with shut
 });
 test('announced recordings cannot exceed the duration-derived participant budget',async t=>{
     const {normalizeConfig}=require('../../est-server/src/bootstraps/configManager.js'),{localConfig}=require('./fixtures/config.js');
-    const raw=localConfig();raw.sessions.maxConditionSeconds=1;
+    const raw=localConfig();raw.sessions.operatingLimits.maxConditionSeconds=1;
     const f=fixture(t),transfers=new RecordingTransfers({...f.options,config:normalizeConfig(raw).recordings});
     await assert.rejects(transfers.register(f.participant,[{...f.manifest,byteLength:26888193}]),/byte limit/);
     assert.equal(f.session.attempts[0].recordings,undefined);

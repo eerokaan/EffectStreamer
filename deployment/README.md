@@ -21,7 +21,13 @@ Choose the example for the intended use; both server examples set `server.mode` 
 
 Copy the selected examples to `~/effectstreamer/` on Linux or `%USERPROFILE%\effectstreamer\` on Windows, using the account running each application. `EST_CONFIG_PATH` selects another private server configuration. Remote-use browsers need no GUI JSON file. See the [server](../est-server/README.md) and [GUI](../est-gui/README.md) READMEs for supported configuration fields.
 
+For either mode, set `sessions.general.language` in `est-server.config.json` to exactly `en` or `de`. The server has no default and reads the setting at startup. This selects the study language for all participants and the bundled audio-check WAV. Deploy the server, its served web assets and both local Electron clients as a coordinated release between studies; mixed-release clients are not supported.
+
 The server saves results under `~/effectstreamer/sessions` unless `EST_RESULTS_ROOT` selects another durable, writable directory. Protect configuration, credentials, certificates and study results; back them up and never place them in temporary storage. Saves are direct and non-atomic: an interrupted write can leave incomplete JSON/WAV files, and a WAV filename alone does not prove successful collection.
+
+Finish the running study before changing its language or upgrading to this release. If startup refuses an open, unpaired enrollment with a missing or different language, finish it with the previous study settings and release, or start the new study under a separate clean `EST_RESULTS_ROOT`. Do not retag enrollments or modify previously collected data.
+
+When intentionally starting over with a clean results root at the **same local coordinator URL**, close both Electron clients and archive each client's `est-gui.config.json.enrollment.json` outside its active config path before relaunching. The old credentials cannot authenticate to the new results root. Keep those sidecars with the old study records; do not remove recordings or use this procedure to recover an unfinished study.
 
 ## Usage
 
@@ -31,7 +37,7 @@ Configure the server's LAN address and give the two Electron clients distinct `c
 
 ### Remote-use
 
-Replace the example study IDs, completion codes, DNS names and experiment settings. Keep the server on `127.0.0.1:3000` behind an HTTPS proxy and configure reachable ICE/TURN services as described below. The bundled core is selected automatically as adjacent `core/est-core` on Linux or `core/est-core.exe` on Windows; no core-path setting is needed. Start conservatively with `server.maxActivePairs: 1`; this is an admission limit, not measured capacity. Device/P.501 setup (`sessions.audioSetup`) is mandatory remotely.
+Replace the example study IDs, completion codes, DNS names and experiment settings. Keep the server on `127.0.0.1:3000` behind an HTTPS proxy and configure reachable ICE/TURN services as described below. The bundled core is selected automatically as adjacent `core/est-core` on Linux or `core/est-core.exe` on Windows; no core-path setting is needed. Start conservatively with `server.maxActivePairs: 1`; this is an admission limit, not measured capacity. Device/P.501 setup (`sessions.general.audioSetup`) is mandatory remotely.
 
 ### Linux
 
@@ -99,6 +105,7 @@ Before recruitment, verify the actual target OS, devices and participant network
 - **Remote-use:** desktop Chrome, Edge, Firefox and real Safari permissions, output routes and audible conversations. Mobile devices are excluded; automated Chromium/WebKit checks do not establish Edge/Safari or physical-device acceptance.
 - **Remote-use:** valid HTTPS, frontend/audio assets, authenticated Socket.IO upgrades, and `/api/config` with `Cache-Control: no-store` and no private secrets. Check direct ICE and independently forced TURN UDP, TCP-only and TLS-only routes; listing relay URLs is not proof of relay selection.
 - **Both modes:** ratings, expected 48 kHz mono PCM WAVs and matching durable receipts; disconnect/rejoin, reload with lost in-memory audio, interrupted uploads and coordinator restart must not certify missing data as complete.
+- **Both languages:** check the server's `sessionLanguage` and resolved setup WAV, run through setup, questionnaire and both task roles, and check the saved language in `session.json`. The 11 provisional English study images still have their original German text.
 - **Both modes:** sustained condition duration/load, bounded shutdown, process/port cleanup and persistent backups. Validate capacity before increasing pair limits; do not infer production capacity from localhost samples.
 
 These are operator release checks, not claims that a live deployment, native Windows, real hardware or Internet/TURN acceptance has already passed.

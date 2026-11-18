@@ -1,21 +1,23 @@
-import { conditionLstExplanationAssets, resolveAsset } from "@/lib/helper-assets";
+import { loadStudyAsset, resolveLocalizedImage } from "@/lib/helper-assets";
+import { useSessionLanguage, useTranslate } from "@/lib/helper-languages";
 import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
 
 function ViewListeningSpeakingTestExplanation() {
-    const asset = resolveAsset(conditionLstExplanationAssets, "explanation.png");
+    const language = useSessionLanguage();
+    const __ = useTranslate();
+    const image = loadStudyAsset(() => resolveLocalizedImage("listening-speaking-test", "explanation.png", language));
 
     return (
         <>
             <div className="flex flex-1 flex-col justify-center">
-                <ComponentHeader headline="Erklärung des folgenden Gesprächs"></ComponentHeader>
+                <ComponentHeader headline={__("Instructions for the next conversation")} />
 
                 <div className="flex w-full max-w-5xl flex-1 flex-col">
-                    {asset.type === "html" && <iframe srcDoc={asset.srcDoc} className="w-full flex-1 border-none" title="Test Document" />}
-                    {asset.type === "image" && <img src={asset.srcImg} alt="Test Asset" className="block w-full" draggable="false" />}
+                    {image ? <img src={image} alt={__("Listening and speaking test instructions")} className="block w-full" draggable="false" /> : <p role="alert">{__("The study material could not be loaded.")}</p>}
                 </div>
 
-                <ComponentFooter></ComponentFooter>
+                <ComponentFooter disabled={!image} />
             </div>
         </>
     );

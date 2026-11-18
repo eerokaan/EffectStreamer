@@ -1,16 +1,18 @@
+import { useTranslate } from "@/lib/helper-languages";
 import ComponentFooter from "@/components/footer";
 import ComponentHeader from "@/components/header";
 
 function ViewBreak() {
+    const __ = useTranslate();
     return (
         <>
             <div className="flex flex-1 flex-col justify-center">
-                <ComponentHeader headline="Zeit für eine Pause"></ComponentHeader>
+                <ComponentHeader headline={__("Time for a break")}></ComponentHeader>
 
                 <div className="max-w-5xl flex-1">
-                    <p className="mb-4">Herzlichen Glückwunsch, Sie haben die erste Hälfte der Tests hinter sich gebracht!</p>
-                    <p className="mb-4">Nun ist es Zeit für eine kurze Verschnaufpause. Bitte gönnen Sie sich eine Auszeit von 5 Minuten. Sie dürfen den Testplatz gerne verlassen, sich kurz bewegen oder einfach einen Moment entspannen.</p>
-                    <p className="mb-4">Wir laden Sie ein, die Pause zu genießen – wir setzen die Tests gemeinsam fort, sobald die Zeit abgelaufen ist.</p>
+                    <p className="mb-4">{__("Well done! You've finished the first half of the tests.")}</p>
+                    <p className="mb-4">{__("Please take a five-minute break. Feel free to step away, stretch, or just relax for a moment.")}</p>
+                    <p className="mb-4">{__("Enjoy the break. We'll continue the tests together when the time is up.")}</p>
                 </div>
 
                 <ComponentFooter></ComponentFooter>

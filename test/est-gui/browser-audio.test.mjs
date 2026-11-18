@@ -23,7 +23,7 @@ function devices(options={}) {
         createAnalyser(){return {fftSize:32,getFloatTimeDomainData(array){array.fill(.25);}};}
         async resume(){}async close(){}
     }
-    const value=new BrowserDevices({mediaDevices,playback,AudioContext:Context,testAsset:'/audio/P501.wav',testDurationMs:2,testTimeoutMs:20});
+    const value=new BrowserDevices({mediaDevices,playback,AudioContext:Context,setupSample:'/audio/P501.wav',testDurationMs:2,testTimeoutMs:20});
     return {value,playback,captures,constraints,selections};
 }
 it('preselects logical defaults without relabeling the first device as the default',async()=>{

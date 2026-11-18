@@ -13,7 +13,7 @@ it.skipIf(process.env.EST_NATIVE_INTEGRATION !== "1")("runs two native participa
     await Promise.all(sockets.map(socket => new Promise(resolve => socket.close(resolve))));
     const participants = [0, 1].map(index => new NativeAudioRuntime({
         config: { audio: { backend: "native", devices: { source: "null", sink: "null" } } },
-        executable: process.env.EST_CORE_EXECUTABLE || checkoutPaths().path('est-core','build','linux','est-core'), platform: "linux", recordingRoot: root, testAsset: "unused"
+        executable: process.env.EST_CORE_EXECUTABLE || checkoutPaths().path('est-core','build','linux','est-core'), platform: "linux", recordingRoot: root, setupSample: "unused"
     }));
     const scopes = ["person-a", "person-b"].map(participantId => ({ sessionId: "session-integration", attemptId: "attempt-1", participantId }));
     try {

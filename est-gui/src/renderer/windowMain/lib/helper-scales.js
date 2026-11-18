@@ -7,36 +7,36 @@ const listeningSpeakingTestScaleGroups = {
 
 const scaleDetails = {
     audio_quality: {
-        displayName: "Audioqualität",
-        description: 'Der Begriff "Audioqualität" bedeutet, dass Sie die Gesamtqualität des Gesprächs als Ganzes bewerten.'
+        displayName: "Audio quality",
+        description: "Rate the overall audio quality of the conversation."
     },
     noisiness: {
-        displayName: "Rauschen",
-        description: 'Der Begriff "Rauschen" bedeutet, dass Sie das Rauschen des Gehörten bewerten. Die Begriffe "nicht verrauscht" und "verrauscht" können mit den Begriffen "rauschfrei" und "nicht zischend" bzw. "verrauscht" und "zischend" beschrieben werden.'
+        displayName: "Noise",
+        description: "Rate how noisy the audio sounded, including any hiss you noticed."
     },
     discontinuity: {
-        displayName: "Diskontinuität",
-        description: 'Der Begriff "Diskontinuität" bedeutet, dass Sie die Kontinuität des Gehörten bewerten. Die Begriffe "kontinuierlich" und "diskontinuierlich" können mit den Begriffen "gleichmäßig" und "nicht abgehackt" bzw. "ungleichmäßig" und "abgehackt" beschrieben werden.'
+        displayName: "Continuity",
+        description: "Rate how smoothly the audio came through: was it steady and uninterrupted, or uneven and broken up?"
     },
     coloration: {
-        displayName: "Verfärbung",
-        description: 'Der Begriff "Verfärbung" bedeutet, dass Sie die klangliche Verfärbung des Gehörten bewerten. Die Begriffe "unverfärbt" und "verfärbt" können mit den Begriffen "direkt" und "voll" bzw. "indirekt" und "dünn" beschrieben werden.'
+        displayName: "Coloration",
+        description: "Rate how much the sound changed in character. Uncolored sound can sound direct and full; colored sound can sound indirect or thin."
     },
     loudness: {
-        displayName: "Lautstärke",
-        description: 'Der Begriff "Lautstärke" bedeutet, dass Sie bewerten, ob die Lautstärke des Gehörten optimal ist. Die Begriffe "optimal" und "nicht optimal" können mit den Begriffen "nicht zu laut" und "nicht zu leise" bzw. "zu laut" und "zu leise" beschrieben werden.'
+        displayName: "Loudness",
+        description: "Rate whether the audio was at a comfortable volume: neither too loud nor too quiet, or noticeably too loud or too quiet."
     },
     echo: {
         displayName: "Echo",
-        description: 'Der Begriff "Echo" bedeutet, dass Sie die Auswirkung der Rückkopplung Ihrer eigenen Stimme bewerten. Die Begriffe "nicht störend" und "störend" können mit den Begriffen "nicht ablenkend" und "nicht irritierend" bzw. "ablenkend" und "irritierend" beschrieben werden.'
+        description: "Rate how distracting or irritating it was to hear your own voice echoed back while you were speaking."
     },
     degradation: {
-        displayName: "Beeinträchtigung",
-        description: 'Der Begriff "Beeinträchtigung" bedeutet, dass Sie die Beeinträchtigung Ihrer eigenen Stimme während des Gesprächs bewerten. Die Begriffe "eigene Stimme nicht beeinträchtigt" und "eigene Stimme beeinträchtigt" können mit den Begriffen "nicht verzerrt" und "echofrei" bzw. "verzerrt" und "mit Echo" beschrieben werden.'
+        displayName: "Own-voice impairment",
+        description: "Rate how much the sound of your own voice was affected during the conversation. Did it sound clear and free of echo, or was it distorted or echoed?"
     },
     interaction: {
-        displayName: "Interaktion",
-        description: 'Der Begriff "Interaktion" bedeutet, dass Sie bewerten, wie leicht die Interaktion zwischen Ihnen und Ihrem Gesprächspartner ist. Die Begriffe "leichte Interaktion" und "schwere Interaktion" können mit den Begriffen "effektiv" und "angenehm" bzw. "ineffektiv" und "unangenehm" beschrieben werden.'
+        displayName: "Ease of interaction",
+        description: "Rate how easy it was to interact with your partner. Was the interaction effective and pleasant, or ineffective and unpleasant?"
     }
 };
 

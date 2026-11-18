@@ -41,6 +41,10 @@ it('package orchestration reserves new dist output and consumes managed applicat
         const {getConfig}=guiRequire('app-builder-lib/out/util/config/config.js');
         const effective=await getConfig(config.directories.app,calls[1].args[calls[1].args.indexOf('--config')+1],null);
         expect(effective.extraResources).toEqual([{from:path.resolve(import.meta.dirname,'../../est-gui/public/audio'),to:'audio'}]);
+        for (const language of ['german','english']) {
+            const wav=await fs.readFile(path.join(effective.extraResources[0].from,`P501_C_${language}_f1_FB_48k.wav`));
+            expect(wav.toString('ascii',0,4)).toBe('RIFF');expect(wav.readUInt32LE(24)).toBe(48000);
+        }
         await expect(runGui('package',['linux'],{spawnTool:async()=>0})).rejects.toThrow(/exist|overwrite/i);
     } finally {await fs.rm(root,{recursive:true,force:true});if(original===undefined)delete process.env.EST_DISTRIBUTION_DIR;else process.env.EST_DISTRIBUTION_DIR=original;}
 });
@@ -56,8 +60,14 @@ it.skipIf(!process.env.EST_PACKAGED_GUI_DIR)('the packaged Electron resources co
     const base=path.resolve(process.env.EST_PACKAGED_GUI_DIR),resources=path.join(base,'resources');
     const core=await fs.readFile(path.join(resources,'est-core/est-core')),source=await fs.readFile(process.env.EST_CORE_EXECUTABLE || checkoutPaths().path('est-core','build','linux','est-core'));
     expect(createHash('sha256').update(core).digest('hex')).toBe(createHash('sha256').update(source).digest('hex'));
-    const wav=await fs.readFile(path.join(resources,'audio/P501_C_german_f1_FB_48k.wav'));expect(wav.toString('ascii',0,4)).toBe('RIFF');expect(wav.readUInt32LE(24)).toBe(48000);
+    for (const language of ['german','english']) {
+        const wav=await fs.readFile(path.join(resources,`audio/P501_C_${language}_f1_FB_48k.wav`));
+        expect(wav.toString('ascii',0,4)).toBe('RIFF');expect(wav.readUInt32LE(24)).toBe(48000);
+    }
     const {listPackage}=require('@electron/asar');const files=listPackage(path.join(resources,'app.asar'));
     expect(files).toContain('/node_modules/@effectstreamer/common/core-environment.cjs');
     expect(files).toContain('/out/main/index.js');
+    for (const language of ['german','english']) {
+        expect(files).toContain(`/out/renderer/audio/P501_C_${language}_f1_FB_48k.wav`);
+    }
 });

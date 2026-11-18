@@ -2,7 +2,7 @@ import {it,expect,afterEach} from 'vitest';
 import {connectRuntimeStores} from '../../est-gui/src/renderer/windowMain/runtime/store-gateway.js';
 import useStoreRoot from '../../est-gui/src/renderer/windowMain/stores/root.js';
 afterEach(()=>useStoreRoot.getState().resetStates());
-function connect(){let accept;connectRuntimeStores({subscribe:listener=>{accept=listener;return()=>{};}});return accept;}
+function connect(){let accept;connectRuntimeStores({subscribeConfiguration:()=>()=>{},subscribe:listener=>{accept=listener;return()=>{};}});return accept;}
 const snapshot={revision:1,participantId:'person-a',sessionId:'session-a',attemptId:'attempt-a',currentView:'viewListeningSpeakingTestMain',setupComplete:true,viewData:{showDialog:true,conditionListeningSpeakingTestIndex:0}};
 it('receipt snapshots cannot reopen a partner notice the participant already dismissed',()=>{
     const accept=connect();accept(snapshot);expect(useStoreRoot.getState().showDialog).toBe(true);

@@ -44,7 +44,7 @@ export async function withBrowserMedia({ browser, testInfo, diagnostics = proces
                 window.errors = [];window.contexts = [];window.syntheticSources = [];
                 const probes = diagnostics ? await import('/media-test-probes.mjs') : null;
                 window.recordingTap = probes?.createRecordingTap(globalThis.AudioWorkletNode);
-                const devices = new BrowserDevices({ testAsset: "/audio/P501_C_german_f1_FB_48k.wav", testDurationMs: 50,
+                const devices = new BrowserDevices({ setupSample: "/audio/P501_C_german_f1_FB_48k.wav", testDurationMs: 50,
                     // Known source signals exercise the real browser codecs and
                     // GStreamer path, not physical microphone permissions.
                     mediaDevices: { async getUserMedia() {
